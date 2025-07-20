@@ -19,7 +19,7 @@ class InfraPipelineStack(Stack):
         notification_email = self.node.try_get_context("notification_email")
         
         # GitHub connections information
-        github_repo = "kanitvural/aws_data_science_data_engineering_mlops_infra"
+        github_repo = "kanitvural/aws-data-science-data-engineering-mlops-infra"
         github_branch = "dataengineering"
         connection_arn = self.node.try_get_context("githubConnectionArn")
         
