@@ -126,6 +126,7 @@ class GlueStack(Stack):
                 actions=[
                     "glue:StartJobRun",
                     "glue:StartCrawler",
+                    "sns:Publish",  # SNS publish permission ekledik
                 ],
                 resources=["*"],
             )
@@ -180,10 +181,50 @@ class GlueStack(Stack):
         )
 
         # SNS Topic for notifications
-        job_notification_topic = sns.Topic(self, "GlueJobNotificationTopic")
-        job_notification_topic.add_subscription(subscriptions.EmailSubscription(notification_email))
+        job_notification_topic = sns.Topic(
+            self, 
+            "GlueJobNotificationTopic",
+            display_name="Glue Job Notifications"
+        )
+        
+        if notification_email:
+            job_notification_topic.add_subscription(
+                subscriptions.EmailSubscription(notification_email)
+            )
 
-        # EventBridge rule for job success
+        # Notification Lambda - EventBridge'den gelen mesajları düzenler
+        notification_lambda_role = iam.Role(
+            self,
+            "NotificationLambdaRole",
+            assumed_by=iam.ServicePrincipal("lambda.amazonaws.com"),
+            managed_policies=[
+                iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AWSLambdaBasicExecutionRole")
+            ],
+        )
+        
+        notification_lambda_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=["sns:Publish"],
+                resources=[job_notification_topic.topic_arn],
+            )
+        )
+
+        # Notification Lambda Function
+        notification_lambda = lambda_.Function(
+            self,
+            "JobNotificationLambda",
+            runtime=lambda_.Runtime.PYTHON_3_9,
+            handler="index.lambda_handler",
+            role=notification_lambda_role,
+            timeout=Duration.seconds(30),
+            environment={
+                "SNS_TOPIC_ARN": job_notification_topic.topic_arn,
+                "PROJECT_NAME": project_name
+            },
+            code=lambda_.Code.from_asset("data_engineering/lambda_funcs/job_notification"),
+        )
+
+        # EventBridge rule for job success - Lambda'ya gönder
         events.Rule(
             self,
             "GlueJobSucceededRule",
@@ -197,11 +238,11 @@ class GlueStack(Stack):
             ),
             targets=[
                 targets.LambdaFunction(start_crawler_lambda),
-                targets.SnsTopic(job_notification_topic),
+                targets.LambdaFunction(notification_lambda),  # SNS yerine Lambda'ya gönder
             ],
         )
 
-        # EventBridge rule for job failure
+        # EventBridge rule for job failure - Lambda'ya gönder
         events.Rule(
             self,
             "GlueJobFailedRule",
@@ -213,7 +254,7 @@ class GlueStack(Stack):
                     "state": ["FAILED"],
                 },
             ),
-            targets=[targets.SnsTopic(job_notification_topic)],
+            targets=[targets.LambdaFunction(notification_lambda)],  # SNS yerine Lambda'ya gönder
         )
 
         # Logs
@@ -230,3 +271,241 @@ class GlueStack(Stack):
         CfnOutput(self, "GlueETLJobName", value=self.etl_job.ref)
         CfnOutput(self, "GlueRoleArn", value=self.glue_role.role_arn)
         CfnOutput(self, "SnsTopicName", value=job_notification_topic.topic_name)
+        CfnOutput(self, "SnsTopicArn", value=job_notification_topic.topic_arn)
+
+
+
+
+
+# from aws_cdk import (
+#     Duration,
+#     Stack,
+#     aws_glue as glue,
+#     aws_s3 as s3,
+#     aws_s3_deployment as s3deploy,
+#     aws_iam as iam,
+#     aws_logs as logs,
+#     aws_lambda as lambda_,
+#     aws_events as events,
+#     aws_events_targets as targets,
+#     aws_sns as sns,
+#     aws_sns_subscriptions as subscriptions,
+#     CfnOutput,
+#     RemovalPolicy,
+# )
+# from constructs import Construct
+
+
+# class GlueStack(Stack):
+#     def __init__(
+#         self,
+#         scope: Construct,
+#         construct_id: str,
+#         project_name: str,
+#         data_bucket: s3.Bucket,
+#         artifacts_bucket: s3.Bucket,
+#         notification_email: str,
+#         **kwargs,
+#     ) -> None:
+#         super().__init__(scope, construct_id, **kwargs)
+
+#         # Deploy Glue ETL script to artifacts bucket
+#         s3deploy.BucketDeployment(
+#             self,
+#             "DeployGlueScript",
+#             sources=[s3deploy.Source.asset("data_engineering/scripts/")],
+#             destination_bucket=artifacts_bucket,
+#             destination_key_prefix="glue-scripts/",
+#         )
+
+#         # Glue Role
+#         self.glue_role = iam.Role(
+#             self,
+#             "GlueServiceRole",
+#             assumed_by=iam.ServicePrincipal("glue.amazonaws.com"),
+#             managed_policies=[iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AWSGlueServiceRole")],
+#         )
+
+#         # Permissions
+#         self.glue_role.add_to_policy(
+#             iam.PolicyStatement(
+#                 actions=[
+#                     "s3:GetObject",
+#                     "s3:PutObject",
+#                     "s3:DeleteObject",
+#                     "s3:ListBucket",
+#                 ],
+#                 resources=[
+#                     data_bucket.bucket_arn,
+#                     f"{data_bucket.bucket_arn}/*",
+#                     artifacts_bucket.bucket_arn,
+#                     f"{artifacts_bucket.bucket_arn}/*",
+#                 ],
+#             )
+#         )
+
+#         self.glue_role.add_to_policy(
+#             iam.PolicyStatement(
+#                 actions=[
+#                     "logs:CreateLogGroup",
+#                     "logs:CreateLogStream",
+#                     "logs:PutLogEvents",
+#                 ],
+#                 resources=["*"],
+#             )
+#         )
+
+#         # Glue Database
+#         self.glue_database = glue.CfnDatabase(
+#             self,
+#             "FlightDatabase",
+#             catalog_id=self.account,
+#             database_input=glue.CfnDatabase.DatabaseInputProperty(
+#                 name="flight_db", description="Flight events database"
+#             ),
+#         )
+
+#         # Glue ETL Job
+#         self.etl_job = glue.CfnJob(
+#             self,
+#             "ETLJob",
+#             name=f"{project_name}-etl-job",
+#             role=self.glue_role.role_arn,
+#             command=glue.CfnJob.JobCommandProperty(
+#                 name="glueetl",
+#                 python_version="3",
+#                 script_location=f"s3://{artifacts_bucket.bucket_name}/glue-scripts/spark_etl_job.py",
+#             ),
+#             default_arguments={
+#                 "--job-bookmark-option": "job-bookmark-enable",
+#                 "--enable-metrics": "true",
+#                 "--enable-continuous-cloudwatch-log": "true",
+#                 "--job-language": "python",
+#                 "--source-bucket": data_bucket.bucket_name,
+#                 "--target-bucket": data_bucket.bucket_name,
+#                 "--TempDir": f"s3://{artifacts_bucket.bucket_name}/temp/",
+#             },
+#             max_capacity=2.0,
+#             timeout=60,
+#             glue_version="4.0",
+#         )
+
+#         # Lambda Role
+#         etl_trigger_lambda_role = iam.Role(
+#             self,
+#             "ETLTriggerLambdaRole",
+#             assumed_by=iam.ServicePrincipal("lambda.amazonaws.com"),
+#             managed_policies=[
+#                 iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AWSLambdaBasicExecutionRole")
+#             ],
+#         )
+
+#         etl_trigger_lambda_role.add_to_policy(
+#             iam.PolicyStatement(
+#                 actions=[
+#                     "glue:StartJobRun",
+#                     "glue:StartCrawler",
+#                 ],
+#                 resources=["*"],
+#             )
+#         )
+
+#         # Lambda to trigger Glue Job
+#         etl_trigger_lambda = lambda_.Function(
+#             self,
+#             "TriggerETLJobLambda",
+#             runtime=lambda_.Runtime.PYTHON_3_9,
+#             handler="index.lambda_handler",
+#             code=lambda_.Code.from_asset("data_engineering/lambda_funcs/trigger_etl_job"),
+#             environment={"GLUE_JOB_NAME": f"{project_name}-etl-job"},
+#             role=etl_trigger_lambda_role,
+#             timeout=Duration.seconds(30),
+#         )
+
+#         # EventBridge Rule to schedule Glue Job via Lambda
+#         events.Rule(
+#             self,
+#             "ScheduleGlueJobRule",
+#             schedule=events.Schedule.cron(minute="0", hour="3"),
+#             targets=[targets.LambdaFunction(etl_trigger_lambda)],
+#         )
+
+#         # Glue Crawler
+#         self.processed_crawler = glue.CfnCrawler(
+#             self,
+#             "ProcessedDataCrawler",
+#             name=f"{project_name}-processed-crawler",
+#             role=self.glue_role.role_arn,
+#             database_name=self.glue_database.ref,
+#             targets=glue.CfnCrawler.TargetsProperty(
+#                 s3_targets=[
+#                     glue.CfnCrawler.S3TargetProperty(
+#                         path=f"s3://{data_bucket.bucket_name}/processed/flight-events/"
+#                     )
+#                 ]
+#             ),
+#         )
+
+#         # Lambda to start crawler
+#         start_crawler_lambda = lambda_.Function(
+#             self,
+#             "StartCrawlerLambda",
+#             runtime=lambda_.Runtime.PYTHON_3_9,
+#             handler="index.lambda_handler",
+#             code=lambda_.Code.from_asset("data_engineering/lambda_funcs/start_crawler"),
+#             environment={"CRAWLER_NAME": f"{project_name}-processed-crawler"}, 
+#             role=etl_trigger_lambda_role,
+#             timeout=Duration.seconds(30),
+#         )
+
+#         # SNS Topic for notifications
+#         job_notification_topic = sns.Topic(self, "GlueJobNotificationTopic")
+#         job_notification_topic.add_subscription(subscriptions.EmailSubscription(notification_email))
+
+#         # EventBridge rule for job success
+#         events.Rule(
+#             self,
+#             "GlueJobSucceededRule",
+#             event_pattern=events.EventPattern(
+#                 source=["aws.glue"],
+#                 detail_type=["Glue Job State Change"],
+#                 detail={
+#                     "jobName": [f"{project_name}-etl-job"],
+#                     "state": ["SUCCEEDED"],
+#                 },
+#             ),
+#             targets=[
+#                 targets.LambdaFunction(start_crawler_lambda),
+#                 targets.SnsTopic(job_notification_topic),
+#             ],
+#         )
+
+#         # EventBridge rule for job failure
+#         events.Rule(
+#             self,
+#             "GlueJobFailedRule",
+#             event_pattern=events.EventPattern(
+#                 source=["aws.glue"],
+#                 detail_type=["Glue Job State Change"],
+#                 detail={
+#                     "jobName": [f"{project_name}-etl-job"],
+#                     "state": ["FAILED"],
+#                 },
+#             ),
+#             targets=[targets.SnsTopic(job_notification_topic)],
+#         )
+
+#         # Logs
+#         logs.LogGroup(
+#             self,
+#             "GlueJobLogGroup",
+#             log_group_name=f"/aws-glue/jobs/{project_name}",
+#             retention=logs.RetentionDays.ONE_WEEK,
+#             removal_policy=RemovalPolicy.DESTROY,
+#         )
+
+#         # Outputs
+#         CfnOutput(self, "GlueDatabaseName", value=self.glue_database.ref)
+#         CfnOutput(self, "GlueETLJobName", value=self.etl_job.ref)
+#         CfnOutput(self, "GlueRoleArn", value=self.glue_role.role_arn)
+#         CfnOutput(self, "SnsTopicName", value=job_notification_topic.topic_name)
