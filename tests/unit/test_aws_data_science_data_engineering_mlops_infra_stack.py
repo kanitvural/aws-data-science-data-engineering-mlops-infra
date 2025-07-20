@@ -1,7 +1,7 @@
 import aws_cdk as core
 import aws_cdk.assertions as assertions
 
-from aws_data_science_data_engineering_mlops_infra.aws_data_science_data_engineering_mlops_infra_stack import AwsDataScienceDataEngineeringMlopsInfraStack
+from data_engineering.aws_data_science_data_engineering_mlops_infra_stack import AwsDataScienceDataEngineeringMlopsInfraStack
 
 # example tests. To run these tests, uncomment this file along with the example
 # resource in aws_data_science_data_engineering_mlops_infra/aws_data_science_data_engineering_mlops_infra_stack.py

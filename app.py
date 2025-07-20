@@ -3,7 +3,7 @@ import os
 
 import aws_cdk as cdk
 
-from aws_data_science_data_engineering_mlops_infra.aws_data_science_data_engineering_mlops_infra_stack import AwsDataScienceDataEngineeringMlopsInfraStack
+from data_engineering.aws_data_science_data_engineering_mlops_infra_stack import AwsDataScienceDataEngineeringMlopsInfraStack
 
 
 app = cdk.App()
