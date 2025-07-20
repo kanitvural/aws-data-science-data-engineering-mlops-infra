@@ -11,6 +11,9 @@ class InfraPipelineStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs):
         super().__init__(scope, construct_id, **kwargs)
         
+        # Environment'ı sakla
+        self._env = kwargs.get('env')
+        
         # Context'ten parametreleri al
         project_name = self.node.try_get_context("project_name") or "data-engineering"
         notification_email = self.node.try_get_context("notification_email")
@@ -48,25 +51,12 @@ class InfraPipelineStack(Stack):
         data_eng_stage = DataEngineeringStage(
             self, 
             "DataEngineeringStage",
-            env=self.env,
+            env=self._env,
             project_name=project_name,
             notification_email=notification_email
         )
         
         pipeline.add_stage(data_eng_stage)
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
