@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
 import aws_cdk as cdk
-from data_engineering.stacks.s3_stack import S3Stack
-from data_engineering.stacks.kinesis_stack import KinesisStack
-from data_engineering.stacks.glue_stack import GlueStack
-from data_engineering.stacks.ec2_stack import EC2Stack
+from infra_pipeline.infra_pipeline_stack import InfraPipelineStack
 
 app = cdk.App()
 
@@ -14,48 +11,15 @@ env = cdk.Environment(
 )
 
 # Project prefix
-project_name = "data-engineering"
+project_name = app.node.try_get_context("project_name") or "data-engineering"
+notification_email = app.node.try_get_context("notification_email")
 
-# S3 Stack (önce bu)
-s3_stack = S3Stack(
+InfraPipelineStack(
     app, 
-    f"{project_name}-s3",
+    "InfraPipelineStack", 
+    env=env,
     project_name=project_name,
-    env=env
+    notification_email=notification_email
 )
-
-# Kinesis Stack
-kinesis_stack = KinesisStack(
-    app,
-    f"{project_name}-kinesis",
-    project_name=project_name,
-    data_bucket=s3_stack.data_bucket,
-    env=env
-)
-
-# Glue Stack
-glue_stack = GlueStack(
-    app,
-    f"{project_name}-glue",
-    project_name=project_name,
-    data_bucket=s3_stack.data_bucket,
-    artifacts_bucket=s3_stack.artifacts_bucket,
-    notification_email=app.node.try_get_context("notification_email"),
-    env=env
-)
-
-# EC2 Stack
-ec2_stack = EC2Stack(
-    app,
-    f"{project_name}-ec2",
-    project_name=project_name,
-    kinesis_stream=kinesis_stack.kinesis_stream,
-    env=env
-)
-
-# Dependencies
-kinesis_stack.add_dependency(s3_stack)
-glue_stack.add_dependency(s3_stack)
-ec2_stack.add_dependency(kinesis_stack)
 
 app.synth()
