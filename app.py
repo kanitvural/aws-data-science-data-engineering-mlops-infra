@@ -1,28 +1,61 @@
 #!/usr/bin/env python3
-import os
-
 import aws_cdk as cdk
-
-from data_engineering.aws_data_science_data_engineering_mlops_infra_stack import AwsDataScienceDataEngineeringMlopsInfraStack
-
+from data_engineering.stacks.s3_stack import S3Stack
+from data_engineering.stacks.kinesis_stack import KinesisStack
+from data_engineering.stacks.glue_stack import GlueStack
+from data_engineering.stacks.ec2_stack import EC2Stack
 
 app = cdk.App()
-AwsDataScienceDataEngineeringMlopsInfraStack(app, "AwsDataScienceDataEngineeringMlopsInfraStack",
-    # If you don't specify 'env', this stack will be environment-agnostic.
-    # Account/Region-dependent features and context lookups will not work,
-    # but a single synthesized template can be deployed anywhere.
 
-    # Uncomment the next line to specialize this stack for the AWS Account
-    # and Region that are implied by the current CLI configuration.
+# Environment
+env = cdk.Environment(
+    account=app.node.try_get_context("account"),
+    region=app.node.try_get_context("region") or "eu-central-1"
+)
 
-    #env=cdk.Environment(account=os.getenv('CDK_DEFAULT_ACCOUNT'), region=os.getenv('CDK_DEFAULT_REGION')),
+# Project prefix
+project_name = "data-engineering"
 
-    # Uncomment the next line if you know exactly what Account and Region you
-    # want to deploy the stack to. */
+# S3 Stack (önce bu)
+s3_stack = S3Stack(
+    app, 
+    f"{project_name}-s3",
+    project_name=project_name,
+    env=env
+)
 
-    #env=cdk.Environment(account='123456789012', region='us-east-1'),
+# Kinesis Stack
+kinesis_stack = KinesisStack(
+    app,
+    f"{project_name}-kinesis",
+    project_name=project_name,
+    data_bucket=s3_stack.data_bucket,
+    env=env
+)
 
-    # For more information, see https://docs.aws.amazon.com/cdk/latest/guide/environments.html
-    )
+# Glue Stack
+glue_stack = GlueStack(
+    app,
+    f"{project_name}-glue",
+    project_name=project_name,
+    data_bucket=s3_stack.data_bucket,
+    artifacts_bucket=s3_stack.artifacts_bucket,
+    notification_email=app.node.try_get_context("notification_email"),
+    env=env
+)
+
+# EC2 Stack
+ec2_stack = EC2Stack(
+    app,
+    f"{project_name}-ec2",
+    project_name=project_name,
+    kinesis_stream=kinesis_stack.kinesis_stream,
+    env=env
+)
+
+# Dependencies
+kinesis_stack.add_dependency(s3_stack)
+glue_stack.add_dependency(s3_stack)
+ec2_stack.add_dependency(kinesis_stack)
 
 app.synth()
