@@ -178,11 +178,7 @@ class GlueStack(Stack):
         )
 
         # SNS Topic for notifications
-        job_notification_topic = sns.Topic(
-            self,
-            "GlueJobNotificationTopic",
-            removal_policy=RemovalPolicy.RETAIN,
-        )
+        job_notification_topic = sns.Topic(self, "GlueJobNotificationTopic")
         job_notification_topic.add_subscription(subscriptions.EmailSubscription(notification_email))
 
         # EventBridge rule for job success
