@@ -1,7 +1,7 @@
 
 #!/usr/bin/env python3
 import aws_cdk as cdk
-from infrastructure.cdk_pipeline_stack import CDKPipelineStack
+from data_engineering.cdk_pipeline.cdk_data_engineering_pipeline import CDKPipelineStack
 
 app = cdk.App()
 

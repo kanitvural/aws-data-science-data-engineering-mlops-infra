@@ -1,9 +1,9 @@
 from aws_cdk import Stage
 from constructs import Construct
-from infrastructure.data_engineering.stacks.s3_stack import S3Stack
-from infrastructure.data_engineering.stacks.kinesis_stack import KinesisStack
-from infrastructure.data_engineering.stacks.ec2_stack import EC2Stack
-from infrastructure.data_engineering.stacks.glue_stack import GlueStack
+from data_engineering.stacks.s3_stack import S3Stack
+from data_engineering.stacks.kinesis_stack import KinesisStack
+from data_engineering.stacks.ec2_stack import EC2Stack
+from data_engineering.stacks.glue_stack import GlueStack
 
 
 class DataEngineeringStage(Stage):

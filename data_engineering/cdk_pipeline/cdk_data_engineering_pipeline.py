@@ -43,7 +43,7 @@ class CDKPipelineStack(Stack):
         # Pipeline'ı oluştur
         pipeline = pipelines_.CodePipeline(
             self,
-            "InfraPipeline",
+            "CDKPipeline",
             synth=synth_step,
         )
         
