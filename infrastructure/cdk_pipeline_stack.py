@@ -7,7 +7,7 @@ from aws_cdk import (
 from constructs import Construct
 from .data_engineering_stage import DataEngineeringStage
 
-class InfraPipelineStack(Stack):
+class CDKPipelineStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs):
         super().__init__(scope, construct_id, **kwargs)
         

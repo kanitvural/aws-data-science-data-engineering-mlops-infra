@@ -1,7 +1,7 @@
 
 #!/usr/bin/env python3
 import aws_cdk as cdk
-from infra_pipeline.infra_pipeline_stack import InfraPipelineStack
+from infrastructure.cdk_pipeline_stack import CDKPipelineStack
 
 app = cdk.App()
 
@@ -12,7 +12,7 @@ env = cdk.Environment(
 )
 
 # Stack'i sadece CDK parametreleriyle oluştur
-InfraPipelineStack(app, "InfraPipelineStack", env=env)
+CDKPipelineStack(app, "CDKPipelineStack", env=env)
 
 app.synth()
 
