@@ -15,3 +15,8 @@ env = cdk.Environment(
 InfraPipelineStack(app, "InfraPipelineStack", env=env)
 
 app.synth()
+
+
+# aws cloudformation list-stacks --stack-status-filter CREATE_COMPLETE UPDATE_COMPLETE
+
+# aws cloudformation delete-stack --stack-name STACK_NAME

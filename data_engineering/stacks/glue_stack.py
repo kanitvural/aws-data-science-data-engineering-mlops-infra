@@ -160,9 +160,7 @@ class GlueStack(Stack):
             database_name=self.glue_database.ref,
             targets=glue.CfnCrawler.TargetsProperty(
                 s3_targets=[
-                    glue.CfnCrawler.S3TargetProperty(
-                        path=f"s3://{data_bucket.bucket_name}/processed/flight-events/"
-                    )
+                    glue.CfnCrawler.S3TargetProperty(path=f"s3://{data_bucket.bucket_name}/processed/flight-events/")
                 ]
             ),
         )
@@ -174,13 +172,17 @@ class GlueStack(Stack):
             runtime=lambda_.Runtime.PYTHON_3_9,
             handler="index.lambda_handler",
             code=lambda_.Code.from_asset("data_engineering/lambda_funcs/start_crawler"),
-            environment={"CRAWLER_NAME": f"{project_name}-processed-crawler"}, 
+            environment={"CRAWLER_NAME": f"{project_name}-processed-crawler"},
             role=etl_trigger_lambda_role,
             timeout=Duration.seconds(30),
         )
 
         # SNS Topic for notifications
-        job_notification_topic = sns.Topic(self, "GlueJobNotificationTopic")
+        job_notification_topic = sns.Topic(
+            self,
+            "GlueJobNotificationTopic",
+            removal_policy=RemovalPolicy.RETAIN,
+        )
         job_notification_topic.add_subscription(subscriptions.EmailSubscription(notification_email))
 
         # EventBridge rule for job success

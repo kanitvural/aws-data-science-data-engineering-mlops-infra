@@ -14,7 +14,7 @@ class DataEngineeringStage(Stage):
             self, 
             f"{project_name}-s3",
             project_name=project_name,
-            env=env
+            env=env,
         )
         
         # Kinesis Stack
