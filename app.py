@@ -1,28 +1,26 @@
 #!/usr/bin/env python3
-import os
-
 import aws_cdk as cdk
-
-from data_engineering.aws_data_science_data_engineering_mlops_infra_stack import AwsDataScienceDataEngineeringMlopsInfraStack
-
+from data_engineering.cdk_pipeline.cdk_data_engineering_pipeline import CDKDEPipelineStack
 
 app = cdk.App()
-AwsDataScienceDataEngineeringMlopsInfraStack(app, "AwsDataScienceDataEngineeringMlopsInfraStack",
-    # If you don't specify 'env', this stack will be environment-agnostic.
-    # Account/Region-dependent features and context lookups will not work,
-    # but a single synthesized template can be deployed anywhere.
 
-    # Uncomment the next line to specialize this stack for the AWS Account
-    # and Region that are implied by the current CLI configuration.
+# Environment
+env = cdk.Environment(
+    account=app.node.try_get_context("account"), region=app.node.try_get_context("region") or "eu-central-1"
+)
 
-    #env=cdk.Environment(account=os.getenv('CDK_DEFAULT_ACCOUNT'), region=os.getenv('CDK_DEFAULT_REGION')),
-
-    # Uncomment the next line if you know exactly what Account and Region you
-    # want to deploy the stack to. */
-
-    #env=cdk.Environment(account='123456789012', region='us-east-1'),
-
-    # For more information, see https://docs.aws.amazon.com/cdk/latest/guide/environments.html
-    )
+# Stack'i sadece CDK parametreleriyle oluştur
+CDKDEPipelineStack(app, "CDKPipelineStack", env=env)
 
 app.synth()
+
+
+# aws cloudformation list-stacks --stack-status-filter CREATE_COMPLETE UPDATE_COMPLETE
+
+# Stack silme işleminin event'lerini gerçek zamanlı olarak izlemek için
+
+# aws cloudformation delete-stack --stack-name DataEngineeringStage-data-engineering-ec2
+# aws cloudformation delete-stack --stack-name DataEngineeringStage-data-engineering-kinesis
+# aws cloudformation delete-stack --stack-name DataEngineeringStage-data-engineering-glue
+# aws cloudformation delete-stack --stack-name DataEngineeringStage-data-engineering-s3
+# aws cloudformation delete-stack --stack-name CDKToolkit

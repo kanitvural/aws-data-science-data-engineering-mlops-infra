@@ -16,6 +16,9 @@
   },
   "context": {
     "@aws-cdk/aws-lambda:recognizeLayerVersion": true,
+    "githubConnectionArn": "arn:aws:codeconnections:eu-central-1:058264126563:connection/668abd4b-6565-4aa3-af64-71ca6a7a5636",
+    "key_name": "demo",
+    "notification_email": "kanitvural@gmail.com",
     "@aws-cdk/core:checkSecretUsage": true,
     "@aws-cdk/core:target-partitions": [
       "aws",
