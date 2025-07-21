@@ -19,4 +19,12 @@ app.synth()
 
 # aws cloudformation list-stacks --stack-status-filter CREATE_COMPLETE UPDATE_COMPLETE
 
-# aws cloudformation delete-stack --stack-name STACK_NAME
+# Stack silme işleminin event'lerini gerçek zamanlı olarak izlemek için
+
+# aws cloudformation delete-stack --stack-name DataEngineeringStage-data-engineering-ec2
+# aws cloudformation delete-stack --stack-name DataEngineeringStage-data-engineering-kinesis
+# aws cloudformation delete-stack --stack-name DataEngineeringStage-data-engineering-glue
+# aws cloudformation delete-stack --stack-name DataEngineeringStage-data-engineering-s3
+# aws cloudformation delete-stack --stack-name CDKToolkit
+
+

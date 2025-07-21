@@ -34,7 +34,7 @@ class GlueStack(Stack):
         s3deploy.BucketDeployment(
             self,
             "DeployGlueScript",
-            sources=[s3deploy.Source.asset("data_engineering/scripts/")],
+            sources=[s3deploy.Source.asset("infrastructure/data_engineering/scripts/")],
             destination_bucket=artifacts_bucket,
             destination_key_prefix="glue-scripts/",
         )
@@ -137,7 +137,7 @@ class GlueStack(Stack):
             "TriggerETLJobLambda",
             runtime=lambda_.Runtime.PYTHON_3_9,
             handler="index.lambda_handler",
-            code=lambda_.Code.from_asset("data_engineering/lambda_funcs/trigger_etl_job"),
+            code=lambda_.Code.from_asset("infrastructure/data_engineering/lambda_funcs/trigger_etl_job"),
             environment={"GLUE_JOB_NAME": f"{project_name}-etl-job"},
             role=etl_trigger_lambda_role,
             timeout=Duration.seconds(30),
@@ -171,7 +171,7 @@ class GlueStack(Stack):
             "StartCrawlerLambda",
             runtime=lambda_.Runtime.PYTHON_3_9,
             handler="index.lambda_handler",
-            code=lambda_.Code.from_asset("data_engineering/lambda_funcs/start_crawler"),
+            code=lambda_.Code.from_asset("infrastructure/data_engineering/lambda_funcs/start_crawler"),
             environment={"CRAWLER_NAME": f"{project_name}-processed-crawler"},
             role=etl_trigger_lambda_role,
             timeout=Duration.seconds(30),
