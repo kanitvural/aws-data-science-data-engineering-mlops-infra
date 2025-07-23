@@ -54,6 +54,18 @@ class S3Stack(Stack):
         except Exception as e:
             print(f"Warning: Could not deploy scripts: {e}")
             
+        # Upload data to S3
+        try:
+            s3_deployment.BucketDeployment(
+                self,
+                "DeployData",
+                sources=[s3_deployment.Source.asset("./data")],
+                destination_bucket=self.data_bucket,
+                destination_key_prefix="data/"
+            )
+        except Exception as e:
+            print(f"Warning: Could not deploy scripts: {e}")
+            
             
         try: 
             # Artifacts Bucket (for Glue scripts, etc.)

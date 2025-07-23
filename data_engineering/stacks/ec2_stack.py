@@ -89,7 +89,7 @@ mkdir -p /opt/data-simulator
 sudo chown ec2-user:ec2-user /opt/data-simulator
 cd /opt/data-simulator
 
-aws s3 cp s3://kntbucket/2020-Jan.csv .
+aws s3 cp s3://kntbucket/flights_weather2022.csv .
 
 cat > data_simulator.py << EOF
 import pandas as pd
@@ -111,28 +111,45 @@ class DataSimulator:
         self.df = pd.read_csv(csv_path)
         self.current_index = 0
         
-    def generate_web_log(self, row):
+    def generate_flight_event(self, row):
         return {{
-            "timestamp": datetime.now().isoformat() + "Z",
-            "user_id": str(row['user_id']),
-            "session_id": str(row['user_session']),
-            "event_type": row['event_type'],
-            "product_id": str(row['product_id']),
-            "category": row['category_code'] if pd.notna(row['category_code']) else "unknown",
-            "brand": row['brand'] if pd.notna(row['brand']) else "unknown",
-            "price": float(row['price']) if pd.notna(row['price']) else 0.0,
-            "ip_address": f"192.168.{{random.randint(1,255)}}.{{random.randint(1,255)}}",
-            "user_agent": "Mozilla/5.0 (compatible; DataSimulator/1.0)",
-            "page_url": f"/product/{{row['product_id']}}",
-            "referrer": "https://google.com" if random.random() > 0.3 else "direct"
-        }}
+        "year": int(row['year']),
+        "month": int(row['month']),
+        "day": int(row['day']),
+        "dep_time": float(row['dep_time']) if pd.notna(row['dep_time']) else None,
+        "sched_dep_time": int(row['sched_dep_time']) if pd.notna(row['sched_dep_time']) else None,
+        "dep_delay": float(row['dep_delay']) if pd.notna(row['dep_delay']) else None,
+        "arr_time": float(row['arr_time']) if pd.notna(row['arr_time']) else None,
+        "sched_arr_time": int(row['sched_arr_time']) if pd.notna(row['sched_arr_time']) else None,
+        "arr_delay": float(row['arr_delay']) if pd.notna(row['arr_delay']) else None,
+        "carrier": row['carrier'],
+        "flight": int(row['flight']),
+        "tailnum": row['tailnum'],
+        "origin": row['origin'],
+        "dest": row['dest'],
+        "air_time": float(row['air_time']) if pd.notna(row['air_time']) else None,
+        "distance": float(row['distance']) if pd.notna(row['distance']) else None,
+        "hour": int(row['hour']),
+        "minute": int(row['minute']),
+        "airline": row['airline'],
+        "route": row['route'],
+        "temp": float(row['temp']) if pd.notna(row['temp']) else None,
+        "dewp": float(row['dewp']) if pd.notna(row['dewp']) else None,
+        "humid": float(row['humid']) if pd.notna(row['humid']) else None,
+        "wind_dir": float(row['wind_dir']) if pd.notna(row['wind_dir']) else None,
+        "wind_speed": float(row['wind_speed']) if pd.notna(row['wind_speed']) else None,
+        "wind_gust": float(row['wind_gust']) if pd.notna(row['wind_gust']) else None,
+        "precip": float(row['precip']) if pd.notna(row['precip']) else None,
+        "pressure": float(row['pressure']) if pd.notna(row['pressure']) else None,
+        "visib": float(row['visib']) if pd.notna(row['visib']) else None
+    }}
     
     def send_to_kinesis(self, data):
         try:
             response = self.kinesis_client.put_record(
                 StreamName=self.stream_name,
                 Data=json.dumps(data),
-                PartitionKey=str(data['user_id'])
+                PartitionKey=str(data['flight'])
             )
             logger.info(f"Kinesis put_record response: {{response}}")
             return response
@@ -206,3 +223,74 @@ sudo systemctl start data-simulator.service
         CfnOutput(self, "EC2InstanceId", value=self.ec2_instance.instance_id)
         CfnOutput(self, "EC2PublicIP", value=self.ec2_instance.instance_public_ip)
         CfnOutput(self, "EC2PrivateIP", value=self.ec2_instance.instance_private_ip)
+        
+ 
+ 
+ 
+ 
+  
+
+#data generator
+
+# import pandas as pd
+# import json
+# import boto3
+# import numpy as np
+# from datetime import datetime
+# import time
+# import random
+# import logging
+
+# logging.basicConfig(level=logging.INFO)
+# logger = logging.getLogger(__name__)
+
+# class DataSimulator:
+#     def __init__(self, kinesis_stream_name, csv_path):
+#         self.kinesis_client = boto3.client('kinesis',region_name='eu-central-1')
+#         self.stream_name = kinesis_stream_name
+#         self.df = pd.read_csv(csv_path)
+#         self.current_index = 0
+        
+#     def generate_web_log(self, row):
+#         return {{
+#             "timestamp": datetime.now().isoformat() + "Z",
+#             "user_id": str(row['user_id']),
+#             "session_id": str(row['user_session']),
+#             "event_type": row['event_type'],
+#             "product_id": str(row['product_id']),
+#             "category": row['category_code'] if pd.notna(row['category_code']) else "unknown",
+#             "brand": row['brand'] if pd.notna(row['brand']) else "unknown",
+#             "price": float(row['price']) if pd.notna(row['price']) else 0.0,
+#             "ip_address": f"192.168.{{random.randint(1,255)}}.{{random.randint(1,255)}}",
+#             "user_agent": "Mozilla/5.0 (compatible; DataSimulator/1.0)",
+#             "page_url": f"/product/{{row['product_id']}}",
+#             "referrer": "https://google.com" if random.random() > 0.3 else "direct"
+#         }}
+    
+#     def send_to_kinesis(self, data):
+#         try:
+#             response = self.kinesis_client.put_record(
+#                 StreamName=self.stream_name,
+#                 Data=json.dumps(data),
+#                 PartitionKey=str(data['user_id'])
+#             )
+#             logger.info(f"Kinesis put_record response: {{response}}")
+#             return response
+#         except Exception as e:
+#             logger.error(f"Error sending to Kinesis: {{e}}")
+#             return None
+    
+#     def start_streaming(self, events_per_second=5):
+#         logger.info(f"Streaming to {{self.stream_name}} at {{events_per_second}} events/sec")
+#         while self.current_index < len(self.df):
+#             row = self.df.iloc[self.current_index]
+#             event = self.generate_web_log(row)
+#             self.send_to_kinesis(event)
+#             logger.info(f"Sent event {{self.current_index + 1}}/{{len(self.df)}}")
+#             self.current_index += 1
+#             time.sleep(1.0 / events_per_second)
+
+# if __name__ == "__main__":
+#     stream_name = "{kinesis_stream.stream_name}"
+#     simulator = DataSimulator(stream_name, "2020-Jan.csv")
+#     simulator.start_streaming(events_per_second=2)
