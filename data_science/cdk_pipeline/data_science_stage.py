@@ -18,6 +18,7 @@ class DataScienceStage(Stage):
         ECRStack(
             self,
             f"{project_name}-ecr",
-            project_name=project_name
+            project_name=project_name,
+            env=env,
         )
         

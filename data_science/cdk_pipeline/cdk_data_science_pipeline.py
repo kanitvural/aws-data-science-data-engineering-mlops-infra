@@ -17,7 +17,7 @@ class CDKDSPipelineStack(Stack):
 
         # Context'ten parametreleri al
         project_name = self.node.try_get_context("project_name") or "data-science"
-        notification_email = self.node.try_get_context("notification_email")
+        #notification_email = self.node.try_get_context("notification_email")
 
         # GitHub connections information
         github_repo = "kanitvural/aws-data-science-data-engineering-mlops-infra"
@@ -44,17 +44,16 @@ class CDKDSPipelineStack(Stack):
         # Pipeline'ı oluştur
         pipeline = pipelines_.CodePipeline(
             self,
-            "CDKPipeline",
+            "CDKDSPipeline",
             synth=synth_step,
         )
 
         # DataScienceStage parametrelerle oluştur
-        data_eng_stage = DataScienceStage(
+        data_science_stage = DataScienceStage(
             self,
             "DataScienceStage",
             env=self._env,
             project_name=project_name,
-            notification_email=notification_email,
         )
 
-        pipeline.add_stage(data_eng_stage)
+        pipeline.add_stage(data_science_stage)
