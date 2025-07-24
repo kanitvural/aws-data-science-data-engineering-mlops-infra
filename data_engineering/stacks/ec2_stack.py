@@ -125,7 +125,7 @@ class DataSimulator:
             "arr_delay": float(row['arr_delay']) if pd.notna(row['arr_delay']) else None,
             "carrier": row['carrier'],
             "flight": int(row['flight']),
-            "tailnum": row['tailnum'],
+            "tailnum": str(row['tailnum']) if pd.notna(row['tailnum']) else None
             "origin": row['origin'],
             "dest": row['dest'],
             "air_time": float(row['air_time']) if pd.notna(row['air_time']) else None,
