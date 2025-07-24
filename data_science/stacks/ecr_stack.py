@@ -12,6 +12,6 @@ class ECRStack(Stack):
         self.training_repo = ecr.Repository(
             self,
             "TrainingContainerRepo",
-            repository_name=f"{project_name}-training-container",
+            repository_name=f"{project_name}-repository-{self.account}",
             image_scan_on_push=True
         )

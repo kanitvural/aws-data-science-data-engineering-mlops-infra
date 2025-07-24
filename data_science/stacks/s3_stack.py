@@ -13,7 +13,7 @@ class S3Stack(Stack):
         self.bucket = s3.Bucket(
             self,
             "DataScienceBucket",
-            bucket_name=f"{project_name}-bucket",
+            bucket_name=f"{project_name}-bucket-{self.account}",
             versioned=True,
             removal_policy=RemovalPolicy.DESTROY,  # Prod'da RETAIN olmalı
             auto_delete_objects=True,               # Eğitimde kolaylık için
