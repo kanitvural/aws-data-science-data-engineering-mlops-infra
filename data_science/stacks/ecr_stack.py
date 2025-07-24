@@ -1,6 +1,7 @@
 from aws_cdk import (
     Stack,
     aws_ecr as ecr,
+    RemovalPolicy,
 )
 from constructs import Construct
 
@@ -11,7 +12,8 @@ class ECRStack(Stack):
 
         self.training_repo = ecr.Repository(
             self,
-            "TrainingContainerRepo",
+            "DataScienceRepo",
             repository_name=f"{project_name}-repository-{self.account}",
-            image_scan_on_push=True
+            image_scan_on_push=False,
+            removal_policy=RemovalPolicy.DESTROY
         )

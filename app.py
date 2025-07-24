@@ -15,6 +15,9 @@ CDKDSPipelineStack(app, "CDKDSPipelineStack", env=env)
 
 app.synth()
 
+# Stack'i sadece CDK parametreleriyle oluştur
+# CDKDEPipelineStack(app, "CDKPipelineStack", env=env)
+
 
 # aws cloudformation list-stacks --stack-status-filter CREATE_COMPLETE UPDATE_COMPLETE
 
