@@ -10,7 +10,7 @@ class ECRStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, project_name: str, **kwargs):
         super().__init__(scope, construct_id, **kwargs)
 
-        self.training_repo = ecr.Repository(
+        self.data_science_repo = ecr.Repository(
             self,
             "DataScienceRepo",
             repository_name=f"{project_name}-repository-{self.account}",
