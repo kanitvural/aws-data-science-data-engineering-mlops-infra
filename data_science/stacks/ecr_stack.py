@@ -1,0 +1,17 @@
+from aws_cdk import (
+    Stack,
+    aws_ecr as ecr,
+)
+from constructs import Construct
+
+
+class ECRStack(Stack):
+    def __init__(self, scope: Construct, construct_id: str, project_name: str, **kwargs):
+        super().__init__(scope, construct_id, **kwargs)
+
+        self.training_repo = ecr.Repository(
+            self,
+            "TrainingContainerRepo",
+            repository_name=f"{project_name}-training-container",
+            image_scan_on_push=True
+        )
