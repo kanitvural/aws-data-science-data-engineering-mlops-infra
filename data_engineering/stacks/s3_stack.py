@@ -47,7 +47,7 @@ class S3Stack(Stack):
             s3_deployment.BucketDeployment(
                 self,
                 "DeployScripts",
-                sources=[s3_deployment.Source.asset("./scripts")],
+                sources=[s3_deployment.Source.asset("data_engineering/scripts")],
                 destination_bucket=self.data_bucket,
                 destination_key_prefix="scripts/"
             )
@@ -59,7 +59,7 @@ class S3Stack(Stack):
             s3_deployment.BucketDeployment(
                 self,
                 "DeployData",
-                sources=[s3_deployment.Source.asset("./data")],
+                sources=[s3_deployment.Source.asset("data_engineering/data")],
                 destination_bucket=self.data_bucket,
                 destination_key_prefix="data/"
             )

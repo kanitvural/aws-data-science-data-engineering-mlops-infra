@@ -161,7 +161,7 @@ class DataSimulator:
         logger.info(f"Streaming to {{self.stream_name}} at {{events_per_second}} events/sec")
         while self.current_index < len(self.df):
             row = self.df.iloc[self.current_index]
-            event = self.generate_web_log(row)
+            event = self.generate_flight_event(row)
             self.send_to_kinesis(event)
             logger.info(f"Sent event {{self.current_index + 1}}/{{len(self.df)}}")
             self.current_index += 1
@@ -169,7 +169,7 @@ class DataSimulator:
 
 if __name__ == "__main__":
     stream_name = "{kinesis_stream.stream_name}"
-    simulator = DataSimulator(stream_name, "2020-Jan.csv")
+    simulator = DataSimulator(stream_name, "flights_weather2022.csv")
     simulator.start_streaming(events_per_second=2)
 EOF
 
