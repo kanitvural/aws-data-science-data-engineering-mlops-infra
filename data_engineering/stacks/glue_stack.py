@@ -29,15 +29,19 @@ class GlueStack(Stack):
         **kwargs,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
+        
 
         # Deploy Glue ETL script to artifacts bucket
-        s3deploy.BucketDeployment(
-            self,
-            "DeployGlueScript",
-            sources=[s3deploy.Source.asset("data_engineering/scripts/")],
-            destination_bucket=artifacts_bucket,
-            destination_key_prefix="glue-scripts/",
+        try:
+            s3deploy.BucketDeployment(
+                    self,
+                    "DeployGlueScript",
+                    sources=[s3deploy.Source.asset("data_engineering/scripts/")],
+                    destination_bucket=artifacts_bucket,
+                    destination_key_prefix="glue-scripts/",
         )
+        except Exception as e:
+            print(f"Warning: Could not deploy scripts: {e}")
 
         # Glue Role
         self.glue_role = iam.Role(

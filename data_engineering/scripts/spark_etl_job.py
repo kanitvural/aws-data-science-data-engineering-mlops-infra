@@ -7,6 +7,7 @@ from awsglue.context import GlueContext
 from awsglue.job import Job
 from awsglue.dynamicframe import DynamicFrame
 from pyspark.sql import functions as F
+from pyspark.sql.window import Window
 import logging
 
 # Configure logging
@@ -23,7 +24,6 @@ spark = glueContext.spark_session
 job = Job(glueContext)
 job.init(args['JOB_NAME'], args)
 
-# Defaults in case arguments are missing
 default_source = "data-engineering-data-lake-058264126563"
 default_target = "data-engineering-data-lake-058264126563"
 
@@ -39,9 +39,7 @@ def main():
             target_bucket = default_target
 
         logger.info(f"Starting ETL job for source bucket: {source_bucket}")
-
         raw_data_path = f"s3://{source_bucket}/raw/flight-events/"
-        logger.info(f"Reading raw data from: {raw_data_path}")
 
         raw_dynamic_frame = glueContext.create_dynamic_frame.from_options(
             connection_type="s3",
@@ -55,68 +53,81 @@ def main():
             transformation_ctx="raw_dynamic_frame_json"
         )
 
-
         row_count = raw_dynamic_frame.count()
         logger.info(f"Raw data count: {row_count}")
-
         if row_count == 0:
             logger.error("No data found in S3 JSON files.")
             return
 
         df = raw_dynamic_frame.toDF()
-        logger.info("Raw Data Schema:")
         df.printSchema()
-        logger.info("Preview of data:")
         df.show(5, truncate=False)
 
-        # Clean and transform
-        df_cleaned = df.select(
-            F.col("timestamp").cast("timestamp").alias("event_timestamp"),
-            F.col("user_id").cast("string").alias("user_id"),
-            F.col("session_id").cast("string").alias("session_id"),
-            F.col("event_type").cast("string").alias("event_type"),
-            F.col("product_id").cast("string").alias("product_id"),
-            F.coalesce(F.col("category"), F.lit("unknown")).alias("category"),
-            F.coalesce(F.col("brand"), F.lit("unknown")).alias("brand"),
-            F.col("price").cast("double").alias("price"),
-            F.col("ip_address").cast("string").alias("ip_address"),
-            F.col("user_agent").cast("string").alias("user_agent"),
-            F.col("page_url").cast("string").alias("page_url"),
-            F.col("referrer").cast("string").alias("referrer")
-        ).filter(
-            F.col("user_id").isNotNull() & 
-            F.col("event_type").isNotNull() & 
-            F.col("product_id").isNotNull()
-        ).dropDuplicates(
-            ["event_timestamp", "user_id", "session_id", "event_type", "product_id"]
-        )
+        # ============ TRANSFORMATIONS ============
 
-        df_enriched = df_cleaned.withColumn(
-            "event_date", F.to_date(F.col("event_timestamp"))
-        ).withColumn(
-            "event_hour", F.hour(F.col("event_timestamp"))
-        ).withColumn(
-            "year", F.year(F.col("event_timestamp"))
-        ).withColumn(
-            "month", F.month(F.col("event_timestamp"))
-        ).withColumn(
-            "day", F.dayofmonth(F.col("event_timestamp"))
-        )
+        df_cleaned = df
+
+        # Drop rows where all of these columns are null
+        df_cleaned = df_cleaned.na.drop(subset=["dep_time", "dep_delay", "arr_time", "arr_delay", "air_time"], how="all")
+        df_cleaned = df_cleaned.na.drop(subset=["arr_time", "arr_delay", "air_time"])
+
+        # Create date string
+        df_cleaned = df_cleaned.withColumn("date", F.to_date(F.concat_ws("-", F.col("year"), F.col("month"), F.col("day"))))
+        df_cleaned = df_cleaned.withColumn("date_string", F.date_format(F.col("date"), "yyyyMMdd"))
+
+        # Fill zero-padding for time columns (as string)
+        for colname in ["dep_time", "arr_time"]:
+            df_cleaned = df_cleaned.withColumn(colname, F.when(F.col(colname).isNotNull(), F.lpad(F.col(colname).cast("int").cast("string"), 4, "0")))
+
+        for colname in ["sched_dep_time", "sched_arr_time"]:
+            df_cleaned = df_cleaned.withColumn(colname, F.lpad(F.col(colname).cast("string"), 4, "0"))
+
+        # Format to full timestamp (e.g. 202301011230)
+        for colname in ["sched_dep_time", "sched_arr_time", "dep_time", "arr_time"]:
+            df_cleaned = df_cleaned.withColumn(colname, F.when(F.col(colname) == "2400", "0000").otherwise(F.col(colname)))
+            df_cleaned = df_cleaned.withColumn(colname, F.concat(F.col("date_string"), F.col(colname)))
+            df_cleaned = df_cleaned.withColumn(colname, F.to_timestamp(F.col(colname), "yyyyMMddHHmm"))
+
+        # Adjust for midnight edge case (e.g. 00:00 → +1 day)
+        df_cleaned = df_cleaned.withColumn("dep_time", F.when(F.hour("dep_time") == 0, F.col("dep_time") + F.expr("INTERVAL 1 DAY")).otherwise(F.col("dep_time")))
+        df_cleaned = df_cleaned.withColumn("arr_time", F.when(F.hour("arr_time") == 0, F.col("arr_time") + F.expr("INTERVAL 1 DAY")).otherwise(F.col("arr_time")))
+
+        # Sort by dep_time
+        df_cleaned = df_cleaned.orderBy("dep_time")
+
+        # Remove last 10 rows if dataset > 10
+        total_rows = df_cleaned.count()
+        if total_rows > 10:
+            df_cleaned = df_cleaned.limit(total_rows - 10)
+
+        # Forward fill wind data using window
+        window_spec = Window.orderBy("dep_time").rowsBetween(-sys.maxsize, 0)
+        for colname in ["wind_dir", "wind_speed", "wind_gust"]:
+            df_cleaned = df_cleaned.withColumn(colname, F.last(F.col(colname), ignorenulls=True).over(window_spec))
+
+        # Check and filter delays
+        df_cleaned = df_cleaned.withColumn("calc_dep_delay", (F.col("dep_time").cast("long") - F.col("sched_dep_time").cast("long")) / 60)
+        df_cleaned = df_cleaned.withColumn("calc_arr_delay", (F.col("arr_time").cast("long") - F.col("sched_arr_time").cast("long")) / 60)
+        df_cleaned = df_cleaned.filter(F.col("dep_delay") == F.col("calc_dep_delay"))
+        df_cleaned = df_cleaned.filter(F.col("arr_delay") == F.col("calc_arr_delay"))
+
+        # Drop duplicates
+        df_cleaned = df_cleaned.dropDuplicates()
+
+        # Drop temp calc columns
+        df_enriched = df_cleaned.drop("calc_dep_delay", "calc_arr_delay")
 
         logger.info(f"Cleaned data count: {df_enriched.count()}")
+
+        # ============ SAVE ============
 
         processed_dynamic_frame = DynamicFrame.fromDF(df_enriched, glueContext, "processed_dynamic_frame")
 
         output_path = f"s3://{target_bucket}/processed/flight-events/"
-        logger.info(f"Writing cleaned data to: {output_path}")
-
         glueContext.write_dynamic_frame.from_options(
             frame=processed_dynamic_frame,
             connection_type="s3",
-            connection_options={
-                "path": output_path,
-                "partitionKeys": ["year", "month", "day"]
-            },
+            connection_options={"path": output_path, "partitionKeys": ["year", "month", "day"]},
             format="parquet",
             transformation_ctx="write_processed_data"
         )
