@@ -44,6 +44,7 @@ class DataEngineeringStage(Stage):
             f"{project_name}-ec2",
             project_name=project_name,
             kinesis_stream=kinesis_stack.kinesis_stream,
+            data_bucket=s3_stack.data_bucket,
             env=env,
         )
 
