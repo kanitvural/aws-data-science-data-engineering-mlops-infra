@@ -90,7 +90,7 @@ mkdir -p /opt/data-simulator
 sudo chown ec2-user:ec2-user /opt/data-simulator
 cd /opt/data-simulator
 
-aws s3 cp {data_bucket.bucket_name}/data/flights_weather2022.csv .
+aws s3 cp s3://{data_bucket.bucket_name}/data/flights_weather2022.csv .
 
 cat > data_simulator.py << EOF
 import pandas as pd

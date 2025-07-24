@@ -42,17 +42,6 @@ class S3Stack(Stack):
             ]
         )
         
-        # Upload scripts to S3
-        try:
-            s3_deployment.BucketDeployment(
-                self,
-                "DeployScripts",
-                sources=[s3_deployment.Source.asset("data_engineering/scripts")],
-                destination_bucket=self.data_bucket,
-                destination_key_prefix="scripts/"
-            )
-        except Exception as e:
-            print(f"Warning: Could not deploy scripts: {e}")
             
         # Upload data to S3
         try:
