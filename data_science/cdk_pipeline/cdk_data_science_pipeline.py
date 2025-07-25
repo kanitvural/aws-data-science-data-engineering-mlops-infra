@@ -94,26 +94,9 @@ class CDKDataSciencePipelineStack(Stack):
             ],
         )
         
-                # Pipeline aşamasını oluştur
-        
         pipeline_stage = pipeline.add_stage(data_science_stage)
-
-        # Çıktıları ekle (ECR ve S3)
-        pipeline_stage.add_outputs(
-            pipelines_.StackOutput(
-                data_science_stage.ecr_stack,
-                output_name="ECRRepositoryURI"  # ECRStack içinde CfnOutput adı
-            ),
-            pipelines_.StackOutput(
-                data_science_stage.s3_stack,
-                output_name="S3BucketName"  # S3Stack içinde CfnOutput adı
-            )
-        )
-
-        # Docker push işlemini post step olarak ekle
         pipeline_stage.add_post(build_and_push_image)
-
-
+        
         
         # pipeline_stage_post_build = pipeline_stage.add_post(build_and_push_image)
         # pipeline_stage_post_build.add_post(run_sagemaker_pipeline)
