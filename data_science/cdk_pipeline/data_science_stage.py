@@ -5,20 +5,18 @@ from data_science.stacks.s3_stack import S3Stack
 
 
 class DataScienceStage(Stage):
-    def __init__(self, scope: Construct, id: str, env, project_name: str, **kwargs):
-        super().__init__(scope, id, **kwargs)
+    def __init__(self, scope: Construct, construct_id: str, project_name: str, **kwargs):
+        super().__init__(scope, construct_id, **kwargs)
 
         S3Stack(
             self,
-            f"{project_name}-s3",
+            construct_id="S3Infrastructure",
             project_name=project_name,
-            env=env,
         )
 
         ECRStack(
             self,
-            f"{project_name}-ecr",
+            construct_id="ECRInfrastructure", 
             project_name=project_name,
-            env=env,
         )
         
