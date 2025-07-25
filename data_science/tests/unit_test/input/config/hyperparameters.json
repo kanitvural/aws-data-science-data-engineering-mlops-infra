@@ -1,0 +1,8 @@
+{
+    "alpha": 0.7,
+    "booster": "gbtree",
+    "colsample_bytree": 0.9,
+    "learning_rate": 0.09,
+    "max_depth": 2,
+    "n_estimators": 250
+}
