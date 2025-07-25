@@ -90,7 +90,7 @@ def train(args):
 
         # Train the model
         logging.info("Starting training...")
-        xgb = xgb.train(
+        model = xgb.train(
             params=params,
             dtrain=dtrain,
             num_boost_round=num_rounds,
@@ -101,7 +101,7 @@ def train(args):
         # Save the model
         logging.info(f"Saving model to {args.model_path}")
         
-        xgb.save_model(args.model_path)
+        model.save_model(args.model_path)
         logging.info("Model saved.")
         
     except Exception as e:
