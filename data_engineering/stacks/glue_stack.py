@@ -13,6 +13,7 @@ from aws_cdk import (
     aws_sns_subscriptions as subscriptions,
     CfnOutput,
     RemovalPolicy,
+    Fn
 )
 from constructs import Construct
 
@@ -21,32 +22,34 @@ class GlueStack(Stack):
     def __init__(
         self,
         scope: Construct,
-        construct_id: str,
+        id: str,
         project_name: str,
-        data_bucket: s3.Bucket,
-        artifacts_bucket: s3.Bucket,
         notification_email: str,
         **kwargs,
     ) -> None:
-        super().__init__(scope, construct_id, **kwargs)
+        super().__init__(scope, id, **kwargs)
         
+        artifacts_bucket_name = Fn.import_value("ArtifactsBucketName")
+        artifacts_bucket_arn = Fn.import_value("ArtifactsBucketArn")
+        data_bucket_name = Fn.import_value("DataLakeBucketName")
+        data_bucket_arn = Fn.import_value("DataLakeBucketArn")
 
         # Deploy Glue ETL script to artifacts bucket
         try:
             s3deploy.BucketDeployment(
-                    self,
-                    "DeployGlueScript",
-                    sources=[s3deploy.Source.asset("data_engineering/scripts/")],
-                    destination_bucket=artifacts_bucket,
-                    destination_key_prefix="glue-scripts/",
-        )
+                self,
+                id="DeployGlueScript",
+                sources=[s3deploy.Source.asset("data_engineering/scripts/")],
+                destination_bucket=artifacts_bucket_name,
+                destination_key_prefix="glue-scripts/",
+            )
         except Exception as e:
             print(f"Warning: Could not deploy scripts: {e}")
 
         # Glue Role
         self.glue_role = iam.Role(
             self,
-            "GlueServiceRole",
+            id="GlueServiceRole",
             assumed_by=iam.ServicePrincipal("glue.amazonaws.com"),
             managed_policies=[iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AWSGlueServiceRole")],
         )
@@ -61,10 +64,10 @@ class GlueStack(Stack):
                     "s3:ListBucket",
                 ],
                 resources=[
-                    data_bucket.bucket_arn,
-                    f"{data_bucket.bucket_arn}/*",
-                    artifacts_bucket.bucket_arn,
-                    f"{artifacts_bucket.bucket_arn}/*",
+                    data_bucket_arn,
+                    f"{data_bucket_arn}/*",
+                    artifacts_bucket_arn,
+                    f"{artifacts_bucket_arn}/*",
                 ],
             )
         )
@@ -99,16 +102,16 @@ class GlueStack(Stack):
             command=glue.CfnJob.JobCommandProperty(
                 name="glueetl",
                 python_version="3",
-                script_location=f"s3://{artifacts_bucket.bucket_name}/glue-scripts/spark_etl_job.py",
+                script_location=f"s3://{artifacts_bucket_name}/glue-scripts/spark_etl_job.py",
             ),
             default_arguments={
                 "--job-bookmark-option": "job-bookmark-enable",
                 "--enable-metrics": "true",
                 "--enable-continuous-cloudwatch-log": "true",
                 "--job-language": "python",
-                "--source-bucket": data_bucket.bucket_name,
-                "--target-bucket": data_bucket.bucket_name,
-                "--TempDir": f"s3://{artifacts_bucket.bucket_name}/temp/",
+                "--source-bucket": data_bucket_name,
+                "--target-bucket": data_bucket_name,
+                "--TempDir": f"s3://{artifacts_bucket_name}/temp/",
             },
             max_capacity=2.0,
             timeout=60,
@@ -118,7 +121,7 @@ class GlueStack(Stack):
         # Lambda Role
         etl_trigger_lambda_role = iam.Role(
             self,
-            "ETLTriggerLambdaRole",
+            id="ETLTriggerLambdaRole",
             assumed_by=iam.ServicePrincipal("lambda.amazonaws.com"),
             managed_policies=[
                 iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AWSLambdaBasicExecutionRole")
@@ -138,7 +141,7 @@ class GlueStack(Stack):
         # Lambda to trigger Glue Job
         etl_trigger_lambda = lambda_.Function(
             self,
-            "TriggerETLJobLambda",
+            id="TriggerETLJobLambda",
             runtime=lambda_.Runtime.PYTHON_3_9,
             handler="index.lambda_handler",
             code=lambda_.Code.from_asset("data_engineering/lambda_funcs/trigger_etl_job"),
@@ -158,13 +161,13 @@ class GlueStack(Stack):
         # Glue Crawler
         self.processed_crawler = glue.CfnCrawler(
             self,
-            "ProcessedDataCrawler",
+            id="ProcessedDataCrawler",
             name=f"{project_name}-processed-crawler",
             role=self.glue_role.role_arn,
             database_name=self.glue_database.ref,
             targets=glue.CfnCrawler.TargetsProperty(
                 s3_targets=[
-                    glue.CfnCrawler.S3TargetProperty(path=f"s3://{data_bucket.bucket_name}/processed/flight-events/")
+                    glue.CfnCrawler.S3TargetProperty(path=f"s3://{data_bucket_name}/processed/flight-events/")
                 ]
             ),
         )
@@ -228,7 +231,31 @@ class GlueStack(Stack):
         )
 
         # Outputs
-        CfnOutput(self, "GlueDatabaseName", value=self.glue_database.ref)
-        CfnOutput(self, "GlueETLJobName", value=self.etl_job.ref)
-        CfnOutput(self, "GlueRoleArn", value=self.glue_role.role_arn)
-        CfnOutput(self, "SnsTopicName", value=job_notification_topic.topic_name)
+        CfnOutput(
+            self,
+            "GlueDatabaseName",
+            value=self.glue_database.ref,
+            export_name="GlueDatabaseName",
+        )
+        CfnOutput(
+            self,
+            "GlueETLJobName",
+            value=self.etl_job.ref,
+            export_name="GlueETLJobName",
+        )
+        CfnOutput(
+            self,
+            "GlueTableName",
+            value="flight_events",
+            export_name="GlueTableName",
+        )
+        CfnOutput(
+            self,
+            "GlueRoleArn",
+            value=self.glue_role.role_arn,
+        )
+        CfnOutput(
+            self,
+            "SnsTopicName",
+            value=job_notification_topic.topic_name,
+        )

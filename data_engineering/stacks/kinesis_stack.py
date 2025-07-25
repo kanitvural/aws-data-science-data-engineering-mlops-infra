@@ -14,13 +14,13 @@ from aws_cdk import (
 from constructs import Construct
 
 class KinesisStack(Stack):
-    def __init__(self, scope: Construct, construct_id: str, project_name: str, data_bucket: s3.Bucket, **kwargs) -> None:
-        super().__init__(scope, construct_id, **kwargs)
+    def __init__(self, scope: Construct, id: str, project_name: str, data_bucket: s3.Bucket, **kwargs) -> None:
+        super().__init__(scope, id, **kwargs)
 
         # Kinesis Stream
         self.kinesis_stream = kinesis.Stream(
             self,
-            "FlightsEventsStream",
+            id="FlightsEventsStream",
             stream_name=f"{project_name}-events-stream",
             shard_count=1,  
             retention_period=Duration.days(1), 
@@ -30,7 +30,7 @@ class KinesisStack(Stack):
         # CloudWatch Log Group for Firehose
         firehose_log_group = logs.LogGroup(
             self,
-            "FirehoseLogGroup",
+            id="FirehoseLogGroup",
             log_group_name=f"/aws/kinesisfirehose/{project_name}-events-firehose",
             retention=logs.RetentionDays.ONE_WEEK,
             removal_policy=RemovalPolicy.DESTROY 
@@ -39,7 +39,7 @@ class KinesisStack(Stack):
         # CloudWatch Log Stream for Firehose
         firehose_log_stream = logs.LogStream(
             self,
-            "FirehoseLogStream",
+            id="FirehoseLogStream",
             log_group=firehose_log_group,
             log_stream_name="S3Delivery"
         )
@@ -47,7 +47,7 @@ class KinesisStack(Stack):
         # Firehose Delivery Stream IAM Role
         firehose_role = iam.Role(
             self,
-            "FirehoseDeliveryRole",
+            id="FirehoseDeliveryRole",
             assumed_by=iam.ServicePrincipal("firehose.amazonaws.com"),
             managed_policies=[
                 iam.ManagedPolicy.from_aws_managed_policy_name("AmazonKinesisReadOnlyAccess")
@@ -89,7 +89,7 @@ class KinesisStack(Stack):
         # Firehose Delivery Stream
         self.firehose_stream = firehose.CfnDeliveryStream(
             self,
-            "FlightsEventsFirehose",
+            id="FlightsEventsFirehose",
             delivery_stream_name=f"{project_name}-events-firehose",
             delivery_stream_type="KinesisStreamAsSource",
             kinesis_stream_source_configuration=firehose.CfnDeliveryStream.KinesisStreamSourceConfigurationProperty(
@@ -117,21 +117,24 @@ class KinesisStack(Stack):
         # Outputs
         CfnOutput(
             self,
-            "KinesisStreamName",
+            id="KinesisStreamName",
             value=self.kinesis_stream.stream_name,
-            description="Kinesis Stream Name"
+            description="Kinesis Stream Name",
+            export_name="KinesisStreamName"
         )
 
         CfnOutput(
             self,
-            "KinesisStreamArn",
+            id="KinesisStreamArn",
             value=self.kinesis_stream.stream_arn,
-            description="Kinesis Stream ARN"
+            description="Kinesis Stream ARN",
+            export_name="KinesisStreamArn"
         )
 
         CfnOutput(
             self,
-            "FirehoseStreamName",
+            id="FirehoseStreamName",
             value=self.firehose_stream.delivery_stream_name,
-            description="Firehose Delivery Stream Name"
+            description="Firehose Delivery Stream Name",
+            export_name="FirehoseStreamName"
         )

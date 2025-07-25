@@ -8,12 +8,9 @@ from constructs import Construct
 from .data_engineering_stage import DataEngineeringStage
 
 
-class CDKDEPipelineStack(Stack):
-    def __init__(self, scope: Construct, construct_id: str, **kwargs):
-        super().__init__(scope, construct_id, **kwargs)
-
-        # Environment'ı sakla
-        self._env = kwargs.get("env")
+class CDKDataEngineeringPipelineStack(Stack):
+    def __init__(self, scope: Construct, id: str, **kwargs):
+        super().__init__(scope, id, **kwargs)
 
         # Context'ten parametreleri al
         project_name = self.node.try_get_context("project_name") or "data-engineering"
@@ -44,15 +41,14 @@ class CDKDEPipelineStack(Stack):
         # Pipeline'ı oluştur
         pipeline = pipelines_.CodePipeline(
             self,
-            "CDKPipeline",
+            id="CDKDataEngineeringPipeline",
             synth=synth_step,
         )
 
         # DataEngineeringStage'i parametrelerle oluştur
         data_eng_stage = DataEngineeringStage(
             self,
-            "DataEngineeringStage",
-            env=self._env,
+            id="DataEngineeringStage",
             project_name=project_name,
             notification_email=notification_email,
         )

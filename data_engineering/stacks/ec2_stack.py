@@ -1,73 +1,67 @@
-# stacks/ec2_stack.py  
+# stacks/ec2_stack.py
 
-from aws_cdk import (
-    Stack,
-    aws_ec2 as ec2,
-    aws_s3 as s3,
-    aws_kinesis as kinesis,
-    aws_iam as iam,
-    CfnOutput
-)
+from aws_cdk import Stack, aws_ec2 as ec2, aws_s3 as s3, aws_kinesis as kinesis, aws_iam as iam, CfnOutput, Fn
 from constructs import Construct
 
 
 class EC2Stack(Stack):
-    def __init__(self, scope: Construct, construct_id: str, project_name: str, kinesis_stream: kinesis.Stream, data_bucket: s3.Bucket, **kwargs) -> None:
-        super().__init__(scope, construct_id, **kwargs)
+    def __init__(
+        self,
+        scope: Construct,
+        id: str,
+        project_name: str,
+        **kwargs,
+    ) -> None:
+        super().__init__(scope, id, **kwargs)
+
+        data_bucket_name = Fn.import_value("DataLakeBucketName")
+        kinesis_stream_name = Fn.import_value("KinesisStreamName")
 
         # ✅ Custom VPC (10.0.0.0/16 with 3 public subnets matching the image)
         vpc = ec2.Vpc(
             self,
-            "DataDepartmentVPC",
+            id="DataDepartmentVPC",
             ip_addresses=ec2.IpAddresses.cidr("10.0.0.0/16"),
             availability_zones=["eu-central-1a", "eu-central-1b", "eu-central-1c"],
             subnet_configuration=[
-                ec2.SubnetConfiguration(
-                    name="PublicSubnet",
-                    subnet_type=ec2.SubnetType.PUBLIC,
-                    cidr_mask=24
-                )
+                ec2.SubnetConfiguration(name="PublicSubnet", subnet_type=ec2.SubnetType.PUBLIC, cidr_mask=24)
             ],
             nat_gateways=0,
             enable_dns_hostnames=True,
-            enable_dns_support=True
+            enable_dns_support=True,
         )
-        
+
         # ✅ S3 VPC Endpoint (Gateway endpoint)
         vpc.add_gateway_endpoint(
-            "S3Endpoint",
+            id="S3Endpoint",
             service=ec2.GatewayVpcEndpointAwsService.S3,
-            subnets=[ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC)]
+            subnets=[ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC)],
         )
-        
 
         # ✅ Security Group
         security_group = ec2.SecurityGroup(
             self,
-            "DataSimulatorSecurityGroup",
+            id="DataSimulatorSecurityGroup",
             vpc=vpc,
             description="Security group for EC2 data simulator",
-            allow_all_outbound=True
+            allow_all_outbound=True,
         )
 
         security_group.add_ingress_rule(
-            peer=ec2.Peer.any_ipv4(),
-            connection=ec2.Port.tcp(22),
-            description="SSH access"
+            peer=ec2.Peer.any_ipv4(), connection=ec2.Port.tcp(22), description="SSH access"
         )
 
         # ✅ IAM Role for EC2
         ec2_role = iam.Role(
             self,
-            "DataSimulatorRole",
+            id="DataSimulatorRole",
             assumed_by=iam.ServicePrincipal("ec2.amazonaws.com"),
             managed_policies=[
                 iam.ManagedPolicy.from_aws_managed_policy_name("AmazonKinesisFullAccess"),
                 iam.ManagedPolicy.from_aws_managed_policy_name("CloudWatchAgentServerPolicy"),
-                iam.ManagedPolicy.from_aws_managed_policy_name("AmazonS3FullAccess")
-            ]
+                iam.ManagedPolicy.from_aws_managed_policy_name("AmazonS3FullAccess"),
+            ],
         )
-        
 
         # ✅ Amazon Linux 2023 User Data Script
         user_data_script = f"""#!/bin/bash
@@ -90,7 +84,7 @@ mkdir -p /opt/data-simulator
 sudo chown ec2-user:ec2-user /opt/data-simulator
 cd /opt/data-simulator
 
-aws s3 cp s3://{data_bucket.bucket_name}/data/flights_weather2022.csv .
+aws s3 cp s3://{data_bucket_name}/data/flights_weather2022.csv .
 
 cat > data_simulator.py << EOF
 import pandas as pd
@@ -190,7 +184,7 @@ class DataSimulator:
             time.sleep(sleep_time)
 
 if __name__ == "__main__":
-    stream_name = "{kinesis_stream.stream_name}"
+    stream_name = "{kinesis_stream_name}"
     simulator = DataSimulator(stream_name, "flights_weather2022.csv")
     simulator.start_streaming(events_per_second=500)
 EOF
@@ -221,16 +215,17 @@ sudo systemctl start data-simulator.service
 """
 
         key_pair = ec2.KeyPair.from_key_pair_name(
-            self,
-            "ImportedKeyPair",
-            key_pair_name=self.node.try_get_context("key_name")
+            self, "ImportedKeyPair", key_pair_name=self.node.try_get_context("key_name")
         )
-       
+
         # ✅ EC2 Instance (Amazon Linux 2023)
         self.ec2_instance = ec2.Instance(
             self,
-            "DataSimulatorInstance",
-            instance_type=ec2.InstanceType.of(ec2.InstanceClass.T3, ec2.InstanceSize.MEDIUM),
+            id="DataSimulatorInstance",
+            instance_type=ec2.InstanceType.of(
+                ec2.InstanceClass.T3,
+                ec2.InstanceSize.MEDIUM,
+            ),
             machine_image=ec2.MachineImage.latest_amazon_linux2023(),
             vpc=vpc,
             vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC),
@@ -239,17 +234,27 @@ sudo systemctl start data-simulator.service
             user_data=ec2.UserData.custom(user_data_script),
             key_pair=key_pair,
         )
-        
 
         # ✅ Outputs
-        CfnOutput(self, "EC2InstanceId", value=self.ec2_instance.instance_id)
-        CfnOutput(self, "EC2PublicIP", value=self.ec2_instance.instance_public_ip)
-        CfnOutput(self, "EC2PrivateIP", value=self.ec2_instance.instance_private_ip)
-        
- 
- 
- 
- 
+        CfnOutput(
+            self,
+            "EC2InstanceId",
+            value=self.ec2_instance.instance_id,
+            export_name="EC2InstanceId",
+        )
+        CfnOutput(
+            self,
+            "EC2PublicIP",
+            value=self.ec2_instance.instance_public_ip,
+            export_name="EC2PublicIP",
+        )
+        CfnOutput(
+            self,
+            "EC2PrivateIP",
+            value=self.ec2_instance.instance_private_ip,
+            export_name="EC2PrivateIP",
+        )
+
 
 # Bu örnek kinesise tek tek veri yolluyor. Mevcutta batch olarak gönderiliyor.
 
@@ -271,7 +276,7 @@ sudo systemctl start data-simulator.service
 #         self.stream_name = kinesis_stream_name
 #         self.df = pd.read_csv(csv_path)
 #         self.current_index = 0
-        
+
 #     def generate_flight_event(self, row):
 #         return {{
 #         "year": int(row['year']),
@@ -304,7 +309,7 @@ sudo systemctl start data-simulator.service
 #         "pressure": float(row['pressure']) if pd.notna(row['pressure']) else None,
 #         "visib": float(row['visib']) if pd.notna(row['visib']) else None
 #     }}
-    
+
 #     def send_to_kinesis(self, data):
 #         try:
 #             response = self.kinesis_client.put_record(
@@ -317,7 +322,7 @@ sudo systemctl start data-simulator.service
 #         except Exception as e:
 #             logger.error(f"Error sending to Kinesis: {{e}}")
 #             return None
-    
+
 #     def start_streaming(self, events_per_second=5):
 #         logger.info(f"Streaming to {{self.stream_name}} at {{events_per_second}} events/sec")
 #         while self.current_index < len(self.df):
