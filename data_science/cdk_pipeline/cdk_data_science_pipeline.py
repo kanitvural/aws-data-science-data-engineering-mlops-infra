@@ -56,43 +56,6 @@ class CDKDataSciencePipelineStack(Stack):
 
         # 2. Stage: ECR'ye Docker image pushla
 
-        # build_and_push_image = pipelines_.CodeBuildStep(
-        #     "BuildAndPushImageToECR",
-        #     input=source,
-        #     build_environment=codebuild.BuildEnvironment(privileged=True),
-        #     commands=[
-        #         # == install + pre_build ==
-        #         "printenv",
-        #         "echo Updating Packages ...",
-        #         "pip install --upgrade pip",
-        #         # == build ==
-        #         "echo Build started on `date`",
-        #         "echo Logging in to the Data Science Container Repository ...",
-        #         f"aws ecr get-login-password --region {self.region} | docker login --username AWS --password-stdin {self.account}.dkr.ecr.{self.region}.amazonaws.com",
-        #         "echo Building the Container image...",
-        #         f"docker build --build-arg REGION={self.region} -t {project_name}-repository-{self.account}:latest ./data_science/train_container/",
-        #         f"docker tag {project_name}-repository-{self.account}:latest {self.account}.dkr.ecr.{self.region}.amazonaws.com/{project_name}-repository-{self.account}:latest",
-        #         # == post_build ==
-        #         "echo Pushing the Container image...",
-        #         f"docker push {self.account}.dkr.ecr.{self.region}.amazonaws.com/{project_name}-repository-{self.account}:latest",
-        #         "echo Build completed on `date`",
-        #     ],
-        #     role_policy_statements=[
-        #         iam.PolicyStatement(
-        #             actions=[
-        #                 "ecr:GetAuthorizationToken",
-        #                 "ecr:BatchCheckLayerAvailability",
-        #                 "ecr:CompleteLayerUpload",
-        #                 "ecr:GetDownloadUrlForLayer",
-        #                 "ecr:InitiateLayerUpload",
-        #                 "ecr:PutImage",
-        #                 "ecr:UploadLayerPart",
-        #             ],
-        #             resources=["*"],
-        #         )
-        #     ],
-        # )
-
         build_and_push_image = pipelines_.CodeBuildStep(
             "BuildAndPushImageToECR",
             input=source,
@@ -102,21 +65,16 @@ class CDKDataSciencePipelineStack(Stack):
                 "printenv",
                 "echo Updating Packages ...",
                 "pip install --upgrade pip",
-                # Check if docker build is necessary
-                "echo Checking for Docker-related changes...",
-                "CHANGED_FILES=$(git diff --name-only HEAD^ HEAD)",
-                "echo Changed files: $CHANGED_FILES",
-                "if echo \"$CHANGED_FILES\" | grep -qE 'data_science/train_container/|Dockerfile|requirements.txt|train.py'; then BUILD_IMAGE=true; else BUILD_IMAGE=false; fi",
-                'if [ "$BUILD_IMAGE" = true ]; then',
-                "  echo 'Changes detected, building Docker image...';",
-                # Docker build + push
-                f"  aws ecr get-login-password --region {self.region} | docker login --username AWS --password-stdin {self.account}.dkr.ecr.{self.region}.amazonaws.com",
-                f"  docker build --build-arg REGION={self.region} -t {project_name}-repository-{self.account}:latest ./data_science/train_container/",
-                f"  docker tag {project_name}-repository-{self.account}:latest {self.account}.dkr.ecr.{self.region}.amazonaws.com/{project_name}-repository-{self.account}:latest",
-                f"  docker push {self.account}.dkr.ecr.{self.region}.amazonaws.com/{project_name}-repository-{self.account}:latest",
-                "else",
-                "  echo 'No Docker-related changes detected. Skipping Docker build.';",
-                "fi",
+                # == build ==
+                "echo Build started on `date`",
+                "echo Logging in to the Data Science Container Repository ...",
+                f"aws ecr get-login-password --region {self.region} | docker login --username AWS --password-stdin {self.account}.dkr.ecr.{self.region}.amazonaws.com",
+                "echo Building the Container image...",
+                f"docker build --build-arg REGION={self.region} -t {project_name}-repository-{self.account}:latest ./data_science/train_container/",
+                f"docker tag {project_name}-repository-{self.account}:latest {self.account}.dkr.ecr.{self.region}.amazonaws.com/{project_name}-repository-{self.account}:latest",
+                # == post_build ==
+                "echo Pushing the Container image...",
+                f"docker push {self.account}.dkr.ecr.{self.region}.amazonaws.com/{project_name}-repository-{self.account}:latest",
                 "echo Build completed on `date`",
             ],
             role_policy_statements=[
