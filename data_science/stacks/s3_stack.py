@@ -25,5 +25,5 @@ class S3Stack(Stack):
             "S3BucketName",
             value=self.bucket.bucket_name,
             description="S3 Bucket name for Data Science data",
-            export_name=f"{project_name}-s3-bucket-name",
+            export_name="DataScienceBucketName",
         )

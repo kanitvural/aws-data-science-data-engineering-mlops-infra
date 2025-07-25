@@ -5,6 +5,7 @@ from aws_cdk import (
     aws_codepipeline_actions as codepipeline_actions,
     aws_codebuild as codebuild,
     aws_iam as iam,
+    Fn
 )
 from constructs import Construct
 from .data_science_stage import DataScienceStage
@@ -93,8 +94,41 @@ class CDKDataSciencePipelineStack(Stack):
             ],
         )
 
+
+        athena_query_step = pipelines_.CodeBuildStep(
+            "AthenaSamplingAndCopy",
+            input=source,
+            build_environment=codebuild.BuildEnvironment(
+                build_image=codebuild.LinuxBuildImage.STANDARD_5_0,
+            ),
+            commands=[
+                "pip install boto3 pandas pyarrow",
+                "python data_science/scripts/athena_query.py",
+            ],
+            env={
+                "ATHENA_DB": "your_glue_db_name",
+                "TABLE_NAME": "your_glue_table",
+                "OUTPUT_BUCKET": "s3://your-temp-athena-output-bucket/query-results/",
+                "DEST_BUCKET": Fn.import_value("DataScienceBucketName") + "/sample.csv", # CFN Output'tan al export_name den erişilir
+            },
+            role_policy_statements=[
+                iam.PolicyStatement(
+                    actions=[
+                        "athena:StartQueryExecution",
+                        "athena:GetQueryExecution",
+                        "athena:GetQueryResults",
+                        "glue:GetTable",
+                        "glue:GetDatabase",
+                        "s3:GetObject",
+                        "s3:PutObject",
+                    ],
+                    resources=["*"],
+                )
+            ],
+        )
+
         pipeline_stage = pipeline.add_stage(data_science_stage)
-        pipeline_stage.add_post(build_and_push_image)
+        pipeline_stage.add_post(build_and_push_image, athena_query_step)
 
         # pipeline_stage_post_build = pipeline_stage.add_post(build_and_push_image)
         # pipeline_stage_post_build.add_post(run_sagemaker_pipeline)
