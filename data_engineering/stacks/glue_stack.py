@@ -13,7 +13,7 @@ from aws_cdk import (
     aws_sns_subscriptions as subscriptions,
     CfnOutput,
     RemovalPolicy,
-    Fn
+    Fn,
 )
 from constructs import Construct
 
@@ -28,11 +28,13 @@ class GlueStack(Stack):
         **kwargs,
     ) -> None:
         super().__init__(scope, id, **kwargs)
-        
+
         artifacts_bucket_name = Fn.import_value("ArtifactsBucketName")
         artifacts_bucket_arn = Fn.import_value("ArtifactsBucketArn")
         data_bucket_name = Fn.import_value("DataLakeBucketName")
         data_bucket_arn = Fn.import_value("DataLakeBucketArn")
+
+        artifacts_bucket_name_obj = s3.Bucket.from_bucket_name(self, "ImportedArtifactsBucket", artifacts_bucket_name) # Bucket deployment IBucket objesi bekliyor
 
         # Deploy Glue ETL script to artifacts bucket
         try:
@@ -40,7 +42,7 @@ class GlueStack(Stack):
                 self,
                 id="DeployGlueScript",
                 sources=[s3deploy.Source.asset("data_engineering/scripts/")],
-                destination_bucket=artifacts_bucket_name,
+                destination_bucket=artifacts_bucket_name_obj,
                 destination_key_prefix="glue-scripts/",
             )
         except Exception as e:
@@ -166,9 +168,7 @@ class GlueStack(Stack):
             role=self.glue_role.role_arn,
             database_name=self.glue_database.ref,
             targets=glue.CfnCrawler.TargetsProperty(
-                s3_targets=[
-                    glue.CfnCrawler.S3TargetProperty(path=f"s3://{data_bucket_name}/processed/flight-events/")
-                ]
+                s3_targets=[glue.CfnCrawler.S3TargetProperty(path=f"s3://{data_bucket_name}/processed/flight-events/")]
             ),
         )
 
