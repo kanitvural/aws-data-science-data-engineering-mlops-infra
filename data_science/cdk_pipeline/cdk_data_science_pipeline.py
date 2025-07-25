@@ -70,15 +70,13 @@ class CDKDataSciencePipelineStack(Stack):
         #         # == build ==
         #         "echo Build started on `date`",
         #         "echo Logging in to the Data Science Container Repository ...",
-        #         f"aws ecr get-login-password --region {self.region} | docker login --username AWS --password-stdin 763104351884.dkr.ecr.{self.region}.amazonaws.com",
-        #         "echo Building the Container image...",
-        #         f"docker build --build-arg REGION={self.region} -t {project_name}-ecr:latest ./model",
-        #         f"docker tag {project_name}-ecr:latest {self.account}.dkr.ecr.{self.region}.amazonaws.com/{project_name}-ecr:latest",
-        #         # == post_build ==
-        #         "echo Logging in to ECR Repository...",
         #         f"aws ecr get-login-password --region {self.region} | docker login --username AWS --password-stdin {self.account}.dkr.ecr.{self.region}.amazonaws.com",
+        #         "echo Building the Container image...",
+        #         f"docker build --build-arg REGION={self.region} -t {project_name}-repository-{self.account}:latest ./data_science/train_container/",
+        #         f"docker tag {project_name}-repository-{self.account}:latest {self.account}.dkr.ecr.{self.region}.amazonaws.com/{project_name}-repository-{self.account}:latest",
+        #         # == post_build ==
         #         "echo Pushing the Container image...",
-        #         f"docker push {self.account}.dkr.ecr.{self.region}.amazonaws.com/{project_name}-ecr:latest",
+        #         f"docker push {self.account}.dkr.ecr.{self.region}.amazonaws.com/{project_name}-repository-{self.account}:latest",
         #         "echo Build completed on `date`",
         #     ],
         #     role_policy_statements=[
