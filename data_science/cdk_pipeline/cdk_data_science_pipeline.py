@@ -10,9 +10,9 @@ from constructs import Construct
 from .data_science_stage import DataScienceStage
 
 
-class CDKDSPipelineStack(Stack):
-    def __init__(self, scope: Construct, construct_id: str, **kwargs):
-        super().__init__(scope, construct_id, **kwargs)
+class CDKDataSciencePipelineStack(Stack):
+    def __init__(self, scope: Construct, id: str, **kwargs):
+        super().__init__(scope, id, **kwargs)
 
         # Context'ten parametreleri al
         project_name = self.node.try_get_context("project_name") or "data-science"
@@ -43,14 +43,14 @@ class CDKDSPipelineStack(Stack):
         # Pipeline'ı oluştur
         pipeline = pipelines_.CodePipeline(
             self,
-            "CDKDSPipeline",
+            id="CDKDataSciencePipeline",
             synth=synth_step,
         )
 
         # DataScienceStage parametrelerle oluştur
         data_science_stage = DataScienceStage(
             self,
-            "DataScienceStage", 
+            id="DataScienceStage", 
             project_name=project_name,
         )
 
