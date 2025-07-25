@@ -53,50 +53,68 @@ class CDKDataSciencePipelineStack(Stack):
             id="DataScienceStage", 
             project_name=project_name,
         )
-
-        pipeline.add_stage(data_science_stage)
+        
 
         # 2. Stage: ECR'ye Docker image pushla
 
-        # build_and_push_image = pipelines_.CodeBuildStep(
-        #     "BuildAndPushImageToECR",
-        #     input=source,
-        #     build_environment=codebuild.BuildEnvironment(privileged=True),
-        #     commands=[
-        #         # == install + pre_build ==
-        #         "printenv",
-        #         "echo Updating Packages ...",
-        #         "pip install --upgrade pip",
-        #         # == build ==
-        #         "echo Build started on `date`",
-        #         "echo Logging in to the Data Science Container Repository ...",
-        #         f"aws ecr get-login-password --region {self.region} | docker login --username AWS --password-stdin {self.account}.dkr.ecr.{self.region}.amazonaws.com",
-        #         "echo Building the Container image...",
-        #         f"docker build --build-arg REGION={self.region} -t {project_name}-repository-{self.account}:latest ./data_science/train_container/",
-        #         f"docker tag {project_name}-repository-{self.account}:latest {self.account}.dkr.ecr.{self.region}.amazonaws.com/{project_name}-repository-{self.account}:latest",
-        #         # == post_build ==
-        #         "echo Pushing the Container image...",
-        #         f"docker push {self.account}.dkr.ecr.{self.region}.amazonaws.com/{project_name}-repository-{self.account}:latest",
-        #         "echo Build completed on `date`",
-        #     ],
-        #     role_policy_statements=[
-        #         iam.PolicyStatement(
-        #             actions=[
-        #                 "ecr:GetAuthorizationToken",
-        #                 "ecr:BatchCheckLayerAvailability",
-        #                 "ecr:CompleteLayerUpload",
-        #                 "ecr:GetDownloadUrlForLayer",
-        #                 "ecr:InitiateLayerUpload",
-        #                 "ecr:PutImage",
-        #                 "ecr:UploadLayerPart",
-        #             ],
-        #             resources=["*"],
-        #         )
-        #     ],
-        # )
+        build_and_push_image = pipelines_.CodeBuildStep(
+            "BuildAndPushImageToECR",
+            input=source,
+            build_environment=codebuild.BuildEnvironment(privileged=True),
+            commands=[
+                # == install + pre_build ==
+                "printenv",
+                "echo Updating Packages ...",
+                "pip install --upgrade pip",
+                # == build ==
+                "echo Build started on `date`",
+                "echo Logging in to the Data Science Container Repository ...",
+                f"aws ecr get-login-password --region {self.region} | docker login --username AWS --password-stdin {self.account}.dkr.ecr.{self.region}.amazonaws.com",
+                "echo Building the Container image...",
+                f"docker build --build-arg REGION={self.region} -t {project_name}-repository-{self.account}:latest ./data_science/train_container/",
+                f"docker tag {project_name}-repository-{self.account}:latest {self.account}.dkr.ecr.{self.region}.amazonaws.com/{project_name}-repository-{self.account}:latest",
+                # == post_build ==
+                "echo Pushing the Container image...",
+                f"docker push {self.account}.dkr.ecr.{self.region}.amazonaws.com/{project_name}-repository-{self.account}:latest",
+                "echo Build completed on `date`",
+            ],
+            role_policy_statements=[
+                iam.PolicyStatement(
+                    actions=[
+                        "ecr:GetAuthorizationToken",
+                        "ecr:BatchCheckLayerAvailability",
+                        "ecr:CompleteLayerUpload",
+                        "ecr:GetDownloadUrlForLayer",
+                        "ecr:InitiateLayerUpload",
+                        "ecr:PutImage",
+                        "ecr:UploadLayerPart",
+                    ],
+                    resources=["*"],
+                )
+            ],
+        )
+        
+                # Pipeline aşamasını oluştur
+        
+        pipeline_stage = pipeline.add_stage(data_science_stage)
 
-        # pipeline_stage = pipeline.add_stage(data_science_stage)
-        # pipeline_stage.add_post(build_and_push_image)
+        # Çıktıları ekle (ECR ve S3)
+        pipeline_stage.add_outputs(
+            pipelines_.StackOutput(
+                data_science_stage.ecr_stack,
+                output_name="ECRRepositoryURI"  # ECRStack içinde CfnOutput adı
+            ),
+            pipelines_.StackOutput(
+                data_science_stage.s3_stack,
+                output_name="S3BucketName"  # S3Stack içinde CfnOutput adı
+            )
+        )
+
+        # Docker push işlemini post step olarak ekle
+        pipeline_stage.add_post(build_and_push_image)
+
+
+        
         # pipeline_stage_post_build = pipeline_stage.add_post(build_and_push_image)
         # pipeline_stage_post_build.add_post(run_sagemaker_pipeline)
 
@@ -128,3 +146,5 @@ class CDKDataSciencePipelineStack(Stack):
         # # Stage'leri post olarak sırayla ekle
         # pipeline.add_stage(pipelines_.Stage(self, "BuildAndPushStage")).add_post(build_and_push_image)
         # pipeline.add_stage(pipelines_.Stage(self, "SageMakerPipelineStage")).add_post(run_sagemaker_pipeline)
+        
+        # pipeline.add_stage(data_science_stage)
