@@ -30,12 +30,25 @@ logging.basicConfig(
 )
 
 def load_hyperparameters(path):
+    """JSON'dan hiperparametre yükle, string değerleri dönüştür."""
     logging.info(f"Loading hyperparameters from: {path}")
+    
     with open(path, 'r') as f:
         params = json.load(f)
-    params = {k: float(v) if '.' in str(v) else int(v) if str(v).isdigit() else v for k, v in params.items()}
-    logging.info(f"Loaded hyperparameters: {params}")
+    
+    # Sadece string değerleri dönüştür
+    for k, v in params.items():
+        if isinstance(v, str):
+            # Bool check
+            if v.lower() in ['true', 'false']:
+                params[k] = v.lower() == 'true'
+            # Number check  
+            elif v.replace('.', '').replace('-', '').isdigit():
+                params[k] = int(v) if '.' not in v else float(v)
+    
+    logging.info(f"Loaded: {params}")
     return params
+
 
 def parse_args():
     parser = argparse.ArgumentParser()

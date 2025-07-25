@@ -1,7 +1,7 @@
-ARG REGION=eu-central-1
-FROM 763104351884.dkr.ecr.${REGION}.amazonaws.com/xgboost-training:1.5-1-cpu-py3
+FROM python:3.10-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
  && rm -rf /var/lib/apt/lists/*
 
 # SageMaker'in beklediği klasörleri oluştur
@@ -28,8 +28,8 @@ ENV SM_FAILURE_DIR=/opt/ml/failure
 
 
 COPY requirements.txt /opt/ml/code/
-COPY train.py  /opt/ml/code/
 RUN pip install --upgrade pip && pip install -r /opt/ml/code/requirements.txt --no-cache-dir
+COPY train.py  /opt/ml/code/
 
 WORKDIR /opt/ml/code
 
