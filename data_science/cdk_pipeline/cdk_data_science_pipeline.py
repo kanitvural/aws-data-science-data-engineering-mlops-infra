@@ -50,10 +50,9 @@ class CDKDataSciencePipelineStack(Stack):
         # DataScienceStage parametrelerle oluştur
         data_science_stage = DataScienceStage(
             self,
-            id="DataScienceStage", 
+            id="DataScienceStage",
             project_name=project_name,
         )
-        
 
         # 2. Stage: ECR'ye Docker image pushla
 
@@ -92,12 +91,19 @@ class CDKDataSciencePipelineStack(Stack):
                     resources=["*"],
                 )
             ],
+            # Condition: Only run this step if there are changes in the train_container directory or Dockerfile
+            # or requirements.txt or train.py
+            condition=(
+                pipelines_.StepCondition.file_matches("data_science/train_container/**")
+                | pipelines_.StepCondition.file_matches("Dockerfile")
+                | pipelines_.StepCondition.file_matches("requirements.txt")
+                | pipelines_.StepCondition.file_matches("train.py")
+            ),
         )
-        
+
         pipeline_stage = pipeline.add_stage(data_science_stage)
         pipeline_stage.add_post(build_and_push_image)
-        
-        
+
         # pipeline_stage_post_build = pipeline_stage.add_post(build_and_push_image)
         # pipeline_stage_post_build.add_post(run_sagemaker_pipeline)
 
@@ -129,5 +135,5 @@ class CDKDataSciencePipelineStack(Stack):
         # # Stage'leri post olarak sırayla ekle
         # pipeline.add_stage(pipelines_.Stage(self, "BuildAndPushStage")).add_post(build_and_push_image)
         # pipeline.add_stage(pipelines_.Stage(self, "SageMakerPipelineStage")).add_post(run_sagemaker_pipeline)
-        
+
         # pipeline.add_stage(data_science_stage)
