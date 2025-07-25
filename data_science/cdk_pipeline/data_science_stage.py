@@ -10,13 +10,13 @@ class DataScienceStage(Stage):
 
         S3Stack(
             self,
-            construct_id="S3Infrastructure",
+            "S3Infrastructure",
             project_name=project_name,
         )
 
         ECRStack(
             self,
-            construct_id="ECRInfrastructure", 
+            "ECRInfrastructure", 
             project_name=project_name,
         )
         

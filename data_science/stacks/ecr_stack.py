@@ -12,7 +12,7 @@ class ECRStack(Stack):
 
         self.data_science_repo = ecr.Repository(
             self,
-            construct_id="DataScienceRepo",
+            "DataScienceRepo",
             repository_name=f"{project_name}-repository-{self.account}",
             image_scan_on_push=False,
             removal_policy=RemovalPolicy.DESTROY

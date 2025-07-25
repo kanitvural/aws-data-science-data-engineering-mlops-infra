@@ -43,14 +43,14 @@ class CDKDSPipelineStack(Stack):
         # Pipeline'ı oluştur
         pipeline = pipelines_.CodePipeline(
             self,
-            construct_id="CDKDSPipeline",
+            "CDKDSPipeline",
             synth=synth_step,
         )
 
         # DataScienceStage parametrelerle oluştur
         data_science_stage = DataScienceStage(
             self,
-            construct_id="DataScienceStage", 
+            "DataScienceStage", 
             project_name=project_name,
         )
 
