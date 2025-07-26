@@ -5,7 +5,7 @@ from aws_cdk import (
     aws_codepipeline_actions as codepipeline_actions,
     aws_codebuild as codebuild,
     aws_iam as iam,
-    Fn
+    Fn,
 )
 from constructs import Construct
 from .data_science_stage import DataScienceStage
@@ -23,6 +23,12 @@ class CDKDataSciencePipelineStack(Stack):
         github_repo = "kanitvural/aws-data-science-data-engineering-mlops-infra"
         github_branch = "datascience"
         connection_arn = self.node.try_get_context("githubConnectionArn")
+
+        # Athena ENV variables
+        glue_db_name = Fn.import_value("GlueDatabaseName")
+        glue_table_name = Fn.import_value("GlueTableName")
+        athena_output_bucket_name = Fn.import_value("ArtifactsBucketName")
+        data_science_bucket_name = Fn.import_value("DataScienceBucketName")
 
         # Source aşaması
         source = pipelines_.CodePipelineSource.connection(
@@ -94,7 +100,6 @@ class CDKDataSciencePipelineStack(Stack):
             ],
         )
 
-
         athena_query_step = pipelines_.CodeBuildStep(
             "AthenaSamplingAndCopy",
             input=source,
@@ -106,26 +111,57 @@ class CDKDataSciencePipelineStack(Stack):
                 "python data_science/scripts/athena_query.py",
             ],
             env={
-                "ATHENA_DB": "your_glue_db_name",
-                "TABLE_NAME": "your_glue_table",
-                "OUTPUT_BUCKET": "s3://your-temp-athena-output-bucket/query-results/",
-                "DEST_BUCKET": Fn.import_value("DataScienceBucketName") + "/sample.csv", # CFN Output'tan al export_name den erişilir
+                "GLUE_DB_NAME": glue_db_name,
+                "GLUE_TABLE_NAME": glue_table_name,
+                "ATHENA_OUTPUT_BUCKET_NAME": f"s3://{athena_output_bucket_name}/query-results/",
+                "DEST_BUCKET_NAME": f"s3://{data_science_bucket_name}/athena-sample/flights_sample.csv",
             },
             role_policy_statements=[
+                # Athena permissions
                 iam.PolicyStatement(
                     actions=[
                         "athena:StartQueryExecution",
                         "athena:GetQueryExecution",
                         "athena:GetQueryResults",
+                        "athena:StopQueryExecution",
+                        "athena:GetWorkGroup"
+                    ],
+                    resources=[
+                        f"arn:aws:athena:{self.region}:{self.account}:workgroup/primary",
+                        f"arn:aws:athena:{self.region}:{self.account}:datacatalog/*"
+                    ],
+                ),
+                # Glue permissions
+                iam.PolicyStatement(
+                    actions=[
                         "glue:GetTable",
                         "glue:GetDatabase",
+                        "glue:GetPartitions"
+                    ],
+                    resources=[
+                        f"arn:aws:glue:{self.region}:{self.account}:catalog",
+                        f"arn:aws:glue:{self.region}:{self.account}:database/*",
+                        f"arn:aws:glue:{self.region}:{self.account}:table/*/*"
+                    ],
+                ),
+                # S3 permissions
+                iam.PolicyStatement(
+                    actions=[
                         "s3:GetObject",
                         "s3:PutObject",
+                        "s3:ListBucket",
+                        "s3:GetBucketLocation"
                     ],
-                    resources=["*"],
+                    resources=[
+                        f"arn:aws:s3:::{athena_output_bucket_name}",
+                        f"arn:aws:s3:::{athena_output_bucket_name}/*",
+                        f"arn:aws:s3:::{data_science_bucket_name}",
+                        f"arn:aws:s3:::{data_science_bucket_name}/*",
+                    ],
                 )
             ],
         )
+
 
         pipeline_stage = pipeline.add_stage(data_science_stage)
         pipeline_stage.add_post(build_and_push_image, athena_query_step)
