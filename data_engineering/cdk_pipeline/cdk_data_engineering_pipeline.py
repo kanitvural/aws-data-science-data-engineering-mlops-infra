@@ -1,8 +1,6 @@
 from aws_cdk import (
     Stack,
     pipelines as pipelines_,
-    aws_codepipeline as codepipeline,
-    aws_codepipeline_actions as codepipeline_actions,
 )
 from constructs import Construct
 from .data_engineering_stage import DataEngineeringStage
@@ -12,7 +10,6 @@ class CDKDataEngineeringPipelineStack(Stack):
     def __init__(self, scope: Construct, id: str, **kwargs):
         super().__init__(scope, id, **kwargs)
 
-        # Context'ten parametreleri al
         project_name = self.node.try_get_context("project_name") or "data-engineering"
         notification_email = self.node.try_get_context("notification_email")
 
@@ -21,7 +18,6 @@ class CDKDataEngineeringPipelineStack(Stack):
         github_branch = "dataengineering"
         connection_arn = self.node.try_get_context("githubConnectionArn")
 
-        # Source aşaması
         source = pipelines_.CodePipelineSource.connection(
             repo_string=github_repo,
             branch=github_branch,
@@ -38,14 +34,14 @@ class CDKDataEngineeringPipelineStack(Stack):
             ],
         )
 
-        # Pipeline'ı oluştur
+        # Create the CodePipeline
         pipeline = pipelines_.CodePipeline(
             self,
             id="CDKDataEngineeringPipeline",
             synth=synth_step,
         )
 
-        # DataEngineeringStage'i parametrelerle oluştur
+        # Add the DataEngineeringStage to the pipeline
         data_eng_stage = DataEngineeringStage(
             self,
             id="DataEngineeringStage",

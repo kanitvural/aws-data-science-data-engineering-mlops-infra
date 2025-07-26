@@ -34,7 +34,7 @@ class GlueStack(Stack):
         data_bucket_name = Fn.import_value("DataLakeBucketName")
         data_bucket_arn = Fn.import_value("DataLakeBucketArn")
 
-        artifacts_bucket_name_obj = s3.Bucket.from_bucket_name(self, "ImportedArtifactsBucket", artifacts_bucket_name) # Bucket deployment IBucket objesi bekliyor
+        artifacts_bucket_name_obj = s3.Bucket.from_bucket_name(self, "ImportedArtifactsBucket", artifacts_bucket_name) # Bucket deployment expects IBucket object
 
         # Deploy Glue ETL script to artifacts bucket
         try:

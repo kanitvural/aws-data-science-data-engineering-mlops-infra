@@ -9,7 +9,6 @@ class EC2Stack(Stack):
         self,
         scope: Construct,
         id: str,
-        project_name: str,
         **kwargs,
     ) -> None:
         super().__init__(scope, id, **kwargs)
