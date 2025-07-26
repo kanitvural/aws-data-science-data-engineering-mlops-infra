@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import aws_cdk as cdk
+
 from data_science.cdk_pipeline.cdk_data_science_pipeline import CDKDataSciencePipelineStack
+
 
 app = cdk.App()
 
@@ -11,7 +13,9 @@ env = cdk.Environment(
 )
 
 # Stack'i sadece CDK parametreleriyle oluştur
+
 CDKDataSciencePipelineStack(app, id="CDKDataSciencePipelineStack", env=env)
+
 
 app.synth()
 
