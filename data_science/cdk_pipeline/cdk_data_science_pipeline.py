@@ -98,7 +98,8 @@ class CDKDataSciencePipelineStack(Stack):
         glue_db_name = Fn.import_value("GlueDatabaseName")
         glue_table_name = Fn.import_value("GlueTableName")
         athena_output_bucket_name = Fn.import_value("ArtifactsBucketName")
-        data_science_bucket_name = Fn.import_value("DataScienceBucketName")
+        # data_science_bucket_name = Fn.import_value("DataScienceBucketName")
+        data_science_bucket_name = data_science_stage.s3_stack.bucket.bucket_name
 
         athena_query_step = pipelines_.CodeBuildStep(
             "AthenaSamplingAndCopy",
