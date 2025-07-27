@@ -30,7 +30,7 @@ class CDKDataEngineeringPipelineStack(Stack):
             commands=[
                 "npm install -g aws-cdk",
                 "pip install -r requirements.txt",
-                "cdk synth",
+                "cdk synth --context @aws-cdk/core:bootstrapQualifier=de",
             ],
         )
 
