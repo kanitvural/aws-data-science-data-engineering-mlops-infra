@@ -24,12 +24,6 @@ class CDKDataSciencePipelineStack(Stack):
         github_branch = "datascience"
         connection_arn = self.node.try_get_context("githubConnectionArn")
 
-        # Athena ENV variables
-        glue_db_name = Fn.import_value("GlueDatabaseName")
-        glue_table_name = Fn.import_value("GlueTableName")
-        athena_output_bucket_name = Fn.import_value("ArtifactsBucketName")
-        data_science_bucket_name = Fn.import_value("DataScienceBucketName")
-
         # Source aşaması
         source = pipelines_.CodePipelineSource.connection(
             repo_string=github_repo,
@@ -99,6 +93,12 @@ class CDKDataSciencePipelineStack(Stack):
                 )
             ],
         )
+        
+        # Athena ENV variables
+        glue_db_name = Fn.import_value("GlueDatabaseName")
+        glue_table_name = Fn.import_value("GlueTableName")
+        athena_output_bucket_name = Fn.import_value("ArtifactsBucketName")
+        data_science_bucket_name = Fn.import_value("DataScienceBucketName")
 
         athena_query_step = pipelines_.CodeBuildStep(
             "AthenaSamplingAndCopy",
