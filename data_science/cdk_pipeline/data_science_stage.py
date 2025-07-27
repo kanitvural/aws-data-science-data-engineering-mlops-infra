@@ -8,14 +8,15 @@ class DataScienceStage(Stage):
     def __init__(self, scope: Construct, id: str, project_name: str, **kwargs):
         super().__init__(scope, id, **kwargs)
 
-        self.s3_stack = S3Stack(
+        S3Stack(
             self,
             id="S3Infrastructure",
             project_name=project_name,
         )
 
-        self.ecr_stack = ECRStack(
+        ECRStack(
             self,
             id="ECRInfrastructure", 
             project_name=project_name,
         )
+        
