@@ -11,13 +11,13 @@ from constructs import Construct
 
 
 class S3Stack(Stack):
-    def __init__(self, scope: Construct, construct_id: str, project_name: str, **kwargs) -> None:
-        super().__init__(scope, construct_id, **kwargs)
+    def __init__(self, scope: Construct, id: str, project_name: str, **kwargs) -> None:
+        super().__init__(scope, id, **kwargs)
 
         # Data Lake Bucket
         self.data_bucket = s3.Bucket(
             self, 
-            "DataLakeBucket",
+            id="DataLakeBucket",
             bucket_name=f"{project_name}-data-lake-{self.account}",
             versioned=True,
             encryption=s3.BucketEncryption.S3_MANAGED,
@@ -47,7 +47,7 @@ class S3Stack(Stack):
         try:
             s3_deployment.BucketDeployment(
                 self,
-                "DeployData",
+                id="DeployData",
                 sources=[s3_deployment.Source.asset("data_engineering/data")],
                 destination_bucket=self.data_bucket,
                 destination_key_prefix="data/"
@@ -60,7 +60,7 @@ class S3Stack(Stack):
             # Artifacts Bucket (for Glue scripts, etc.)
             self.artifacts_bucket = s3.Bucket(
                 self,
-                "ArtifactsBucket",
+                id="ArtifactsBucket",
                 bucket_name=f"{project_name}-artifacts-{self.account}",
                 versioned=True,
                 encryption=s3.BucketEncryption.S3_MANAGED,
@@ -74,22 +74,33 @@ class S3Stack(Stack):
         # Outputs
         CfnOutput(
             self,
-            "DataLakeBucketName",
+            id="DataLakeBucketName",
             value=self.data_bucket.bucket_name,
-            description="Data Lake S3 Bucket Name"
+            description="Data Lake S3 Bucket Name",
+            export_name="DataLakeBucketName"
         )
 
         CfnOutput(
             self,
-            "DataLakeBucketArn",
+            id="DataLakeBucketArn",
             value=self.data_bucket.bucket_arn,
-            description="Data Lake S3 Bucket ARN"
+            description="Data Lake S3 Bucket ARN",
+            export_name="DataLakeBucketArn"
         )
 
         CfnOutput(
             self,
-            "ArtifactsBucketName", 
+            id="ArtifactsBucketName", 
             value=self.artifacts_bucket.bucket_name,
-            description="Artifacts S3 Bucket Name"
+            description="Artifacts S3 Bucket Name",
+            export_name="ArtifactsBucketName"
+        )
+        
+        CfnOutput(
+            self,
+            id="ArtifactsBucketArn",
+            value=self.artifacts_bucket.bucket_arn,
+            description="Artifacts S3 Bucket ARN",
+            export_name="ArtifactsBucketArn"
         )
         
