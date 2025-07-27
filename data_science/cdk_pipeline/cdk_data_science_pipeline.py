@@ -145,7 +145,12 @@ class CDKDataSciencePipelineStack(Stack):
                 ),
                 # S3 permissions
                 iam.PolicyStatement(
-                    actions=["s3:GetObject", "s3:PutObject", "s3:ListBucket", "s3:GetBucketLocation"],
+                    actions=[
+                        "s3:GetObject",
+                        "s3:PutObject",
+                        "s3:ListBucket",
+                        "s3:GetBucketLocation",
+                    ],
                     resources=[
                         f"arn:aws:s3:::{athena_output_bucket_name}",
                         f"arn:aws:s3:::{athena_output_bucket_name}/*",
