@@ -108,7 +108,6 @@ def main():
         df = pd.read_csv(io.BytesIO(content))
         logger.info(f"DataFrame created with {len(df)} rows and {len(df.columns)} columns")
 
-        df['date_string'] = df['date_string'].astype(str)
         df['distance'] = df['distance'].astype(int)
 
         # 5. Write DataFrame to CSV buffer with explicit formatting
