@@ -108,61 +108,8 @@ def main():
         df = pd.read_csv(io.BytesIO(content))
         logger.info(f"DataFrame created with {len(df)} rows and {len(df.columns)} columns")
 
-        # ============ DATA TYPE CORRECTIONS ============
-        
-        # Convert DateTime columns to datetime format
-        datetime_columns = ['dep_time', 'sched_dep_time', 'arr_time', 'sched_arr_time', 'date']
-        for col in datetime_columns:
-            if col in df.columns:
-                df[col] = pd.to_datetime(df[col])
-                logger.info(f"Converted {col} to datetime")
-        
-        # Keep date_string as string
-        if 'date_string' in df.columns:
-            df['date_string'] = df['date_string'].astype(str)
-            logger.info("Ensured date_string is string type")
-        
-        # Keep distance as integer
-        if 'distance' in df.columns:
-            df['distance'] = df['distance'].astype('int64')
-            logger.info("Converted distance to int64")
-
-        # ============ COMPREHENSIVE SCIENTIFIC NOTATION FIXES ============
-        
-        # Fix float columns - round to 6 decimal places to prevent scientific notation
-        float_columns = df.select_dtypes(include=['float64', 'float32']).columns
-        for col in float_columns:
-            df[col] = df[col].round(6)
-            logger.info(f"Applied rounding to float column: {col}")
-        
-        # Ensure integer columns display properly
-        int_columns = df.select_dtypes(include=['int64', 'int32']).columns
-        for col in int_columns:
-            # Ensure they stay as proper integers
-            df[col] = df[col].astype('int64')
-            logger.info(f"Ensured integer format for column: {col}")
-
-        logger.info(f"Final DataFrame info:")
-        logger.info(f"Shape: {df.shape}")
-        logger.info(f"Columns: {df.columns.tolist()}")
-        logger.info(f"Data types: {df.dtypes.to_dict()}")
-
-        # Custom describe function to avoid scientific notation in logs
-        def format_describe_output(desc_df):
-            """Format describe output to avoid scientific notation"""
-            formatted_desc = desc_df.copy()
-            for col in formatted_desc.columns:
-                if formatted_desc[col].dtype in ['float64', 'float32']:
-                    formatted_desc[col] = formatted_desc[col].apply(lambda x: f"{x:.6f}" if pd.notnull(x) else x)
-            return formatted_desc
-
-        logger.info("Sample statistics (formatted to avoid scientific notation):")
-        try:
-            desc_output = format_describe_output(df.describe())
-            logger.info(f"\n{desc_output}")
-        except Exception as e:
-            logger.warning(f"Could not format describe output: {e}")
-            logger.info(f"\n{df.describe()}")
+        df['date_string'] = df['date_string'].astype(str)
+        df['distance'] = df['distance'].astype(int)
 
         # 5. Write DataFrame to CSV buffer with explicit formatting
         logger.info("Preparing data for upload")

@@ -19,70 +19,8 @@ def load_data(file_path):
     if not os.path.exists(file_path):
         logging.error(f"Dataset not found: {file_path}")
         sys.exit(1)
-    df = pd.read_csv(file_path)
+    df = pd.read_csv(file_path, parse_dates = ['dep_time', 'sched_dep_time', 'arr_time', 'sched_arr_time', 'date'])
     logging.info(f"Dataset shape: {df.shape}")
-    return df
-
-# ----------------------------------------
-# Data Cleaning Functions
-# ----------------------------------------
-def drop_missing_values(df):
-    logging.info("Dropping missing values...")
-    df.dropna(subset=["dep_time", "dep_delay", "arr_time", "arr_delay", "air_time"], how="all", inplace=True)
-    df.dropna(subset=["arr_time", "arr_delay", "air_time"], inplace=True)
-    return df
-
-def clean_time_columns(df):
-    logging.info("Cleaning time columns...")
-    df["date"] = pd.to_datetime(df[["year", "month", "day"]])
-    df["date_string"] = df["date"].astype(str).str.replace("-", "")
-
-    df["dep_time"] = df["dep_time"].astype(int).astype(str).str.zfill(4)
-    df["sched_dep_time"] = df["sched_dep_time"].astype(str).str.zfill(4)
-    df["arr_time"] = df["arr_time"].astype(int).astype(str).str.zfill(4)
-    df["sched_arr_time"] = df["sched_arr_time"].astype(str).str.zfill(4)
-
-    df["sched_dep_time"] = df["date_string"].str.cat(df["sched_dep_time"])
-    df["sched_dep_time"] = pd.to_datetime(df["sched_dep_time"], format="%Y%m%d%H%M")
-
-    df["sched_arr_time"] = df["date_string"].str.cat(df["sched_arr_time"])
-    df["sched_arr_time"] = pd.to_datetime(df["sched_arr_time"], format="%Y%m%d%H%M")
-
-    df["dep_time"] = df["dep_time"].replace({"2400": "0000"})
-    df["dep_time"] = df["date_string"].str.cat(df["dep_time"])
-    df["dep_time"] = pd.to_datetime(df["dep_time"], format="%Y%m%d%H%M")
-    df.loc[df["dep_time"].dt.hour == 0, "dep_time"] += pd.Timedelta(days=1)
-
-    df["arr_time"] = df["arr_time"].replace({"2400": "0000"})
-    df["arr_time"] = df["date_string"].str.cat(df["arr_time"])
-    df["arr_time"] = pd.to_datetime(df["arr_time"], format="%Y%m%d%H%M")
-    df.loc[df["arr_time"].dt.hour == 0, "arr_time"] += pd.Timedelta(days=1)
-
-    return df
-
-def fill_missing_wind_data(df):
-    logging.info("Filling missing wind data...")
-    df = df.sort_values("dep_time").reset_index(drop=True)
-    if len(df) > 10:
-        df = df[:-10]
-
-    wind_data_to_be_filled = ["wind_dir", "wind_speed", "wind_gust"]
-    for value in wind_data_to_be_filled:
-        df[value]=df[value].ffill()
-    return df
-
-def clean_inconsistent_features(df):
-    logging.info("Cleaning inconsistent features...")
-    dep_delay_check = df['dep_delay'] == ((df['dep_time'] - df['sched_dep_time']).dt.total_seconds() / 60)
-    df = df[dep_delay_check]
-
-    arr_delay_check = df['arr_delay'] == ((df['arr_time'] - df['sched_arr_time']).dt.total_seconds() / 60)
-    df = df[arr_delay_check]
-    return df
-
-def drop_duplicates(df):
-    logging.info("Dropping duplicates...")
-    df.drop_duplicates(inplace=True)
     return df
 
 # ----------------------------------------
@@ -115,7 +53,7 @@ def feature_engineering(df):
     labels = ["Level 1", "Level 2", "Level 3", "Level 4", "Level 5"]
     df["dep_delay_category"] = pd.cut(df["dep_delay"], bins=bins, labels=labels)
 
-    columns_to_be_remove = ["date_string", "hour_check_dep", "hour_check_sched"]
+    columns_to_be_remove = ["date_string"]
     corrs = ["air_time", "flight", "dewp", "wind_gust", "daily_flight_count"]
     cat_with_high_card = [col for col in df.columns if df[col].nunique() > 80 and str(df[col].dtypes) in ["category", "object"]]
     date_features = df.select_dtypes(include="datetime64").columns.to_list()
