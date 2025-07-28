@@ -8,6 +8,7 @@ from awsglue.job import Job
 from awsglue.dynamicframe import DynamicFrame
 from pyspark.sql import functions as F
 from pyspark.sql.window import Window
+from pyspark.sql.types import IntegerType, StringType
 import logging
 
 # Configure logging
@@ -73,7 +74,7 @@ def main():
 
         # Create date string
         df_cleaned = df_cleaned.withColumn("date", F.to_date(F.concat_ws("-", F.col("year"), F.col("month"), F.col("day"))))
-        df_cleaned = df_cleaned.withColumn("date_string", F.date_format(F.col("date"), "yyyyMMdd"))
+        df_cleaned = df_cleaned.withColumn("date_string", F.date_format(F.col("date"), "yyyyMMdd").cast(StringType()))
 
         # Fill zero-padding for time columns (as string)
         for colname in ["dep_time", "arr_time"]:
@@ -116,6 +117,7 @@ def main():
 
         # Drop temp calc columns
         df_enriched = df_cleaned.drop("calc_dep_delay", "calc_arr_delay")
+        df_enriched = df_enriched.withColumn("distance", F.col("distance").cast(IntegerType()))
 
         logger.info(f"Cleaned data count: {df_enriched.count()}")
 
