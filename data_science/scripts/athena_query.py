@@ -17,13 +17,18 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Pandas display options to avoid scientific notation for ALL numeric types
+pd.set_option('display.float_format', '{:.6f}'.format)
+pd.set_option('display.precision', 6)
+pd.options.display.float_format = '{:.6f}'.format
+
 # Environment variables
 GLUE_DB_NAME = os.environ["GLUE_DB_NAME"]
 GLUE_TABLE_NAME = os.environ["GLUE_TABLE_NAME"]
 ATHENA_OUTPUT_BUCKET_NAME = os.environ["ATHENA_OUTPUT_BUCKET_NAME"]
 DEST_BUCKET_NAME = os.environ["DEST_BUCKET_NAME"]
 
-# SQL Query for sampling (1 for collecting all data, 0.01 for 10% sample for big data)
+# SQL Query for sampling - sadece gerekli kolonları seç, row_num ve group_size dahil etme
 QUERY = f"""
 WITH numbered_rows AS (
   SELECT *,
@@ -31,7 +36,11 @@ WITH numbered_rows AS (
          COUNT(*) OVER (PARTITION BY airline, route) AS group_size
   FROM {GLUE_DB_NAME}.{GLUE_TABLE_NAME}
 )
-SELECT *
+SELECT year, month, day, dep_time, sched_dep_time, dep_delay,
+       arr_time, sched_arr_time, arr_delay, carrier, flight,
+       tailnum, origin, dest, air_time, distance, hour, minute,
+       airline, route, temp, dewp, humid, wind_dir, wind_speed,
+       wind_gust, precip, pressure, visib, date, date_string
 FROM numbered_rows
 WHERE row_num <= CEIL(group_size * 1);
 """
@@ -58,7 +67,7 @@ def main():
         logger.info(f"Query started successfully with ID: {query_id}")
 
         # 2. Wait for the query to complete with proper error handling
-        max_wait_time = 300  # 5 dakika timeout
+        max_wait_time = 300  # 5 minutes timeout
         start_time = time.time()
         
         logger.info("Waiting for query completion...")
@@ -99,10 +108,67 @@ def main():
         df = pd.read_csv(io.BytesIO(content))
         logger.info(f"DataFrame created with {len(df)} rows and {len(df.columns)} columns")
 
-        # 5. Write DataFrame to CSV buffer
+        # ============ DATA TYPE CORRECTIONS ============
+        
+        # Convert DateTime columns to datetime format
+        datetime_columns = ['dep_time', 'sched_dep_time', 'arr_time', 'sched_arr_time', 'date']
+        for col in datetime_columns:
+            if col in df.columns:
+                df[col] = pd.to_datetime(df[col])
+                logger.info(f"Converted {col} to datetime")
+        
+        # Keep date_string as string
+        if 'date_string' in df.columns:
+            df['date_string'] = df['date_string'].astype(str)
+            logger.info("Ensured date_string is string type")
+        
+        # Keep distance as integer
+        if 'distance' in df.columns:
+            df['distance'] = df['distance'].astype('int64')
+            logger.info("Converted distance to int64")
+
+        # ============ COMPREHENSIVE SCIENTIFIC NOTATION FIXES ============
+        
+        # Fix float columns - round to 6 decimal places to prevent scientific notation
+        float_columns = df.select_dtypes(include=['float64', 'float32']).columns
+        for col in float_columns:
+            df[col] = df[col].round(6)
+            logger.info(f"Applied rounding to float column: {col}")
+        
+        # Ensure integer columns display properly
+        int_columns = df.select_dtypes(include=['int64', 'int32']).columns
+        for col in int_columns:
+            # Ensure they stay as proper integers
+            df[col] = df[col].astype('int64')
+            logger.info(f"Ensured integer format for column: {col}")
+
+        logger.info(f"Final DataFrame info:")
+        logger.info(f"Shape: {df.shape}")
+        logger.info(f"Columns: {df.columns.tolist()}")
+        logger.info(f"Data types: {df.dtypes.to_dict()}")
+
+        # Custom describe function to avoid scientific notation in logs
+        def format_describe_output(desc_df):
+            """Format describe output to avoid scientific notation"""
+            formatted_desc = desc_df.copy()
+            for col in formatted_desc.columns:
+                if formatted_desc[col].dtype in ['float64', 'float32']:
+                    formatted_desc[col] = formatted_desc[col].apply(lambda x: f"{x:.6f}" if pd.notnull(x) else x)
+            return formatted_desc
+
+        logger.info("Sample statistics (formatted to avoid scientific notation):")
+        try:
+            desc_output = format_describe_output(df.describe())
+            logger.info(f"\n{desc_output}")
+        except Exception as e:
+            logger.warning(f"Could not format describe output: {e}")
+            logger.info(f"\n{df.describe()}")
+
+        # 5. Write DataFrame to CSV buffer with explicit formatting
         logger.info("Preparing data for upload")
         csv_buffer = io.StringIO()
-        df.to_csv(csv_buffer, index=False)
+        # Use explicit float_format to ensure no scientific notation in CSV
+        df.to_csv(csv_buffer, index=False, float_format='%.6f')
         csv_buffer.seek(0)
         csv_size = len(csv_buffer.getvalue())
         logger.info(f"CSV buffer prepared with {csv_size} characters")
