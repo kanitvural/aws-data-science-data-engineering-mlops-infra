@@ -46,6 +46,12 @@ def load_hyperparameters(path):
             elif v.replace('.', '').replace('-', '').isdigit():
                 params[k] = int(v) if '.' not in v else float(v)
     
+    if "learning_rate" in params:
+        params["eta"] = params.pop("learning_rate")
+    
+    params.setdefault("objective", "reg:squarederror")
+    params.setdefault("eval_metric", "rmse")
+
     logging.info(f"Loaded: {params}")
     return params
 
@@ -59,7 +65,7 @@ def parse_args():
     parser.add_argument("--hyperparameters-path", type=str, default=HYPERPARAMS_PATH)
     parser.add_argument("--failure-path", type=str, default=FAILURE_PATH)
 
-    return parser.parse_args()
+    return parser.parse_known_args()
 
 def train(args):
     try:
@@ -70,7 +76,7 @@ def train(args):
             logging.error(f"Hyperparameters file not found at: {args.hyperparameters_path}")
             sys.exit(1)
         params = load_hyperparameters(args.hyperparameters_path)
-        num_rounds = int(params.pop("n_estimators", 250))
+        num_rounds = int(params.pop("num_round", 250))
         
         # Load train and validation datasets
         
@@ -132,5 +138,5 @@ def train(args):
     
 
 if __name__ == "__main__":
-    args = parse_args()
+    args, _ = parse_args()
     train(args)
