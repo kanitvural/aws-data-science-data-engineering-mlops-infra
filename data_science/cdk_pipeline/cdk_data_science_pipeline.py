@@ -69,7 +69,10 @@ class CDKDataSciencePipelineStack(Stack):
         build_and_push_image = pipelines_.CodeBuildStep(
             "BuildAndPushImageToECR",
             input=source,
-            build_environment=codebuild.BuildEnvironment(privileged=True),
+            build_environment=codebuild.BuildEnvironment(
+                compute_type=codebuild.ComputeType.SMALL,  # 3GB RAM, 2 vCPU
+                build_image=codebuild.LinuxBuildImage.STANDARD_7_0,  # Ubuntu 22.04
+            ),
             commands=[
                 # == install + pre_build ==
                 "printenv",
@@ -107,7 +110,8 @@ class CDKDataSciencePipelineStack(Stack):
             "AthenaSamplingAndCopy",
             input=source,
             build_environment=codebuild.BuildEnvironment(
-                build_image=codebuild.LinuxBuildImage.STANDARD_5_0,
+                compute_type=codebuild.ComputeType.SMALL,  # 3GB RAM, 2 vCPU
+                build_image=codebuild.LinuxBuildImage.STANDARD_7_0,  # Ubuntu 22.04
             ),
             commands=[
                 "pip install boto3 pandas pyarrow",
