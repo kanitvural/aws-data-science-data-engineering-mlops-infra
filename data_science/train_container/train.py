@@ -124,11 +124,16 @@ def train(args):
             early_stopping_rounds=10,
         )
         
-        logging.info(
-            f"best-train-rmse={evals_result['train']['rmse'][model.best_iteration]} | "
-            f"best-validation-rmse={evals_result['validation']['rmse'][model.best_iteration]}"
-        )
-
+        if has_validation:
+            train_rmse = evals_result['train']['rmse'][model.best_iteration]
+            val_rmse = evals_result['validation']['rmse'][model.best_iteration]
+            logging.info("Best iteration results")
+            logging.info(f"train-rmse={train_rmse} | validation-rmse={val_rmse}")
+        else:
+            logging.info("Best iteration result")
+            train_rmse = evals_result['train']['rmse'][-1]
+            logging.info(f"train-rmse={train_rmse}")
+        
         logging.info("Training completed.")
 
         # Save the model
