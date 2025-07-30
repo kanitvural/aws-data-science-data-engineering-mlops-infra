@@ -120,7 +120,7 @@ def save_data(train_df, val_df, test_df, output_dir):
     
     # combined_df for final training job.
     combined_df = pd.concat([train_df, val_df], ignore_index=True)
-    combined_df.to_csv(os.path.join(COMBINED_DIR, "combined.csv"), index=False)
+    combined_df.to_csv(os.path.join(COMBINED_DIR, "train.csv"), index=False)
     
     # baseline_df for sagemaker model monitoring.
     baseline_df = combined_df.copy()
