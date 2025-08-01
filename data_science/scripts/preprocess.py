@@ -3,32 +3,46 @@ import pandas as pd
 import sys
 import os
 import logging
+import argparse
 from sklearn.model_selection import train_test_split
 
 
 BASE_DIR = "/opt/ml/processing"
-INPUT_PATH = f"{BASE_DIR}/input/flights_sample.csv"
+INPUT_DIR = os.path.join(BASE_DIR, "input")
 OUTPUT_DIR = os.path.join(BASE_DIR, "output")
-
 TRAIN_DIR = os.path.join(OUTPUT_DIR, "train")
 VALIDATION_DIR = os.path.join(OUTPUT_DIR, "validation")
 TEST_DIR = os.path.join(OUTPUT_DIR, "test")
-
 # Combined dataset directory for final training job
 COMBINED_DIR = os.path.join(OUTPUT_DIR, "combined")
-
 # Baseline dataset directory for sagemaker model monitoring
 BASELINE_DIR = os.path.join(OUTPUT_DIR, "baseline")
 
-# ----------------------------------------
-# Logging Setup
-# ----------------------------------------
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+
+INPUT_PATH = os.path.join(INPUT_DIR, "flights_sample.csv")
+TRAIN_PATH = os.path.join(TRAIN_DIR, "train.csv")
+VALIDATION_PATH = os.path.join(VALIDATION_DIR, "validation.csv")
+TEST_PATH = os.path.join(TEST_DIR, "test.csv")
+COMBINED_PATH = os.path.join(COMBINED_DIR, "train.csv")
+BASELINE_PATH = os.path.join(BASELINE_DIR, "baseline.csv")
+
+logging.basicConfig(
+    level=logging.INFO, format="[%(asctime)s] %(levelname)s: %(message)s", handlers=[logging.StreamHandler(sys.stdout)]
+)
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--output-dir", type=str, default=OUTPUT_DIR)
+    parser.add_argument("--input-path", type=str, default=INPUT_PATH)
+    parser.add_argument("--train-path", type=str, default=TRAIN_PATH)
+    parser.add_argument("--validation-path", type=str, default=VALIDATION_PATH)
+    parser.add_argument("--test-path", type=str, default=TEST_PATH)
+    parser.add_argument("--combined-path", type=str, default=COMBINED_PATH)
+    parser.add_argument("--baseline-path", type=str, default=BASELINE_PATH)
+
+    return parser.parse_known_args()
 
 
-# ----------------------------------------
-# Load the dataset
-# ----------------------------------------
 def load_data(file_path):
     logging.info(f"Loading dataset from {file_path}")
     if not os.path.exists(file_path):
@@ -40,9 +54,6 @@ def load_data(file_path):
     return df
 
 
-# ----------------------------------------
-# Feature Engineering
-# ----------------------------------------
 def feature_engineering(df):
     logging.info("Starting feature engineering...")
 
@@ -95,9 +106,6 @@ def feature_engineering(df):
     return df
 
 
-# ----------------------------------------
-# Data Split and Save
-# ----------------------------------------
 def split_data(df, test_size=0.2, val_size=0.2, random_state=42, shuffle=True):
     logging.info("Splitting data into train, validation, and test sets...")
     df_train_val, df_test = train_test_split(df, test_size=test_size, random_state=random_state, shuffle=shuffle)
@@ -106,26 +114,26 @@ def split_data(df, test_size=0.2, val_size=0.2, random_state=42, shuffle=True):
     return df_train, df_val, df_test
 
 
-def save_data(train_df, val_df, test_df, output_dir):
-    logging.info(f"Saving datasets to {output_dir}...")
-    os.makedirs(output_dir, exist_ok=True)
+def save_data(train_df, val_df, test_df, args):
+    logging.info(f"Saving datasets to {args.output_dir}...")
+    os.makedirs(args.output_dir, exist_ok=True)
 
     dirs = ["train", "validation", "test", "combined", "baseline"]
     for d in dirs:
-        os.makedirs(os.path.join(output_dir, d), exist_ok=True)
-    
-    train_df.to_csv(os.path.join(TRAIN_DIR, "train.csv"), index=False)
-    val_df.to_csv(os.path.join(VALIDATION_DIR, "validation.csv"), index=False)
-    test_df.to_csv(os.path.join(TEST_DIR, "test.csv"), index=False)
-    
+        os.makedirs(os.path.join(args.output_dir, d), exist_ok=True)
+
+    train_df.to_csv(args.train_path, index=False)
+    val_df.to_csv(args.validation_path, index=False)
+    test_df.to_csv(args.test_path, index=False)
+
     # combined_df for final training job.
     combined_df = pd.concat([train_df, val_df], ignore_index=True)
-    combined_df.to_csv(os.path.join(COMBINED_DIR, "train.csv"), index=False)
-    
+    combined_df.to_csv(args.combined_path, index=False)
+
     # baseline_df for sagemaker model monitoring.
     baseline_df = combined_df.copy()
-    baseline_df.to_csv(os.path.join(BASELINE_DIR, "baseline.csv"), index=False)
-    
+    baseline_df.to_csv(args.baseline_path, index=False)
+
     logging.info(f"Train shape: {train_df.shape}")
     logging.info(f"Validation shape: {val_df.shape}")
     logging.info(f"Test shape: {test_df.shape}")
@@ -134,15 +142,15 @@ def save_data(train_df, val_df, test_df, output_dir):
     logging.info("Data saved successfully.")
 
 
-# ----------------------------------------
-# Main
-# ----------------------------------------
-def main():
-    df = load_data(INPUT_PATH)
+def main(args):
+    df = load_data(args.input_path)
     df = feature_engineering(df)
     df_train, df_val, df_test = split_data(df)
-    save_data(df_train, df_val, df_test, OUTPUT_DIR)
+    save_data(df_train, df_val, df_test, args)
 
 
 if __name__ == "__main__":
-    main()
+    logging.info("Starting preprocessing...")
+    args, _ = parse_args()
+    main(args)
+    logging.info("Preprocessing completed.")
