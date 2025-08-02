@@ -17,15 +17,22 @@ cd data_science/tests/unit_test
 
 Test without Mlflow
 ```bash
- docker run --rm --name 'my_model' \                                                                                                            
+docker run --rm --name 'my_model' \
     -v "$PWD/model:/opt/ml/model" \
     -v "$PWD/output:/opt/ml/output" \
-    -v "$PWD/input:/opt/ml/input" xgboost:1.0
+    -v "$PWD/input:/opt/ml/input" \
+    xgboost:1.0
 ```
 
 
 Test with Mlflow
-````bash
+
+```bash
+
+source .venv/bin/activate 
+pip install mlflow
+mlflow server --host 127.0.0.1 --port 5000 
+
 docker run --rm --name 'my_model' \
     --network="host" \
     -e MLFLOW_TRACKING_URI="http://127.0.0.1:5000" \

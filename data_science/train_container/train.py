@@ -73,16 +73,19 @@ def train(args):
 
         # MLflow setup - environment variable'ları kontrol et
         mlflow_uri = os.environ.get("MLFLOW_TRACKING_URI")
+        mlflow_arn = os.environ.get("MLFLOW_TRACKING_ARN") 
         mlflow_experiment = os.environ.get("MLFLOW_EXPERIMENT_NAME", "sagemaker-xgboost")
         mlflow_run_name = os.environ.get("MLFLOW_RUN_NAME")
         
-        if MLFLOW_AVAILABLE and mlflow_uri:
+        if MLFLOW_AVAILABLE and mlflow_uri and mlflow_arn:
+            os.environ["MLFLOW_TRACKING_AWS_SIGV4"] = "true" 
+            
             mlflow.set_tracking_uri(mlflow_uri)
             mlflow.set_experiment(mlflow_experiment)
             mlflow.start_run(run_name=mlflow_run_name)
             logging.info(f"MLflow enabled: {mlflow_uri}, experiment: {mlflow_experiment}")
         else:
-            logging.info("MLflow disabled")
+            logging.info("MLflow disabled - missing URI or ARN")
 
         # Load hyperparameters
         if not os.path.exists(args.hyperparameters_path):
@@ -108,6 +111,8 @@ def train(args):
         # Separate features and labels
         target = "dep_delay"
         X_train = train_df.drop(columns=[target])
+        X_train = X_train.astype({col: "float64" for col in X_train.select_dtypes(include="int").columns})
+
         y_train = train_df[target]
 
         # Convert to DMatrix
@@ -122,6 +127,7 @@ def train(args):
             val_df = pd.read_csv(args.validation_path)
 
             X_val = val_df.drop(columns=[target])
+            X_val = X_val.astype({col: "float64" for col in X_val.select_dtypes(include="int").columns})
             y_val = val_df[target]
             dval = xgb.DMatrix(data=X_val, label=y_val)
 
@@ -165,23 +171,28 @@ def train(args):
         
         logging.info("Training completed.")
 
-        # Save the model
+     
         logging.info(f"Saving model to {args.model_path}")
         model.save_model(args.model_path)
-        
-        # MLflow log model
+  
         if MLFLOW_AVAILABLE and mlflow.active_run():
-            # ignore warning
+            run_id = mlflow.active_run().info.run_id
+            model_uri = f"runs:/{run_id}/model"
+
             input_example = X_train.head(5) if len(X_train) > 0 else None
-            
+
             mlflow.xgboost.log_model(
                 model, 
-                artifact_path="model", 
+                name="model", 
                 input_example=input_example,  
                 model_format="json"  
             )
-        
-        logging.info("Model saved.")
+
+            logging.info("Model logged.")
+
+            # registered_model_name = "XGBoostModel"
+            # mlflow.register_model(model_uri, registered_model_name)
+            # logging.info(f"Model registered in MLflow Model Registry as {registered_model_name}")
 
         # Save feature importance for analysis
         importance_path = os.path.join(MODEL_DIR, "feature_importance.json")
