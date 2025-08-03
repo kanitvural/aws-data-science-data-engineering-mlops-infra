@@ -73,12 +73,12 @@ def train(args):
 
         # MLflow setup - environment variable'ları kontrol et
         mlflow_uri = os.environ.get("MLFLOW_TRACKING_URI")
-        #mlflow_arn = os.environ.get("MLFLOW_TRACKING_ARN") 
+        mlflow_arn = os.environ.get("MLFLOW_TRACKING_ARN") 
         mlflow_experiment = os.environ.get("MLFLOW_EXPERIMENT_NAME", "sagemaker-xgboost")
         mlflow_run_name = os.environ.get("MLFLOW_RUN_NAME")
         
-        if MLFLOW_AVAILABLE and mlflow_uri:# and mlflow_arn:
-            # os.environ["MLFLOW_TRACKING_AWS_SIGV4"] = "true" 
+        if MLFLOW_AVAILABLE and mlflow_uri and mlflow_arn:
+            os.environ["MLFLOW_TRACKING_AWS_SIGV4"] = "true" 
             
             mlflow.set_tracking_uri(mlflow_uri)
             mlflow.set_experiment(mlflow_experiment)
@@ -176,8 +176,8 @@ def train(args):
         model.save_model(args.model_path)
   
         if MLFLOW_AVAILABLE and mlflow.active_run():
-            run_id = mlflow.active_run().info.run_id
-            model_uri = f"runs:/{run_id}/model"
+            # run_id = mlflow.active_run().info.run_id
+            # model_uri = f"runs:/{run_id}/model"
 
             input_example = X_train.head(5) if len(X_train) > 0 else None
 
