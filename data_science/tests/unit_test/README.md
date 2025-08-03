@@ -36,7 +36,7 @@ mlflow server --host 127.0.0.1 --port 5000
 docker run --rm --name 'my_model' \
     --network="host" \
     -e MLFLOW_TRACKING_URI="http://127.0.0.1:5000" \
-    -e MLFLOW_EXPERIMENT_NAME="local-test" \
+    -e MLFLOW_EXPERIMENT_NAME="local-test-1" \
     -e MLFLOW_RUN_NAME="test-run-1" \
     -v "$PWD/model:/opt/ml/model" \
     -v "$PWD/output:/opt/ml/output" \
