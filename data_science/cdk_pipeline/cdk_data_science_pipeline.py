@@ -27,11 +27,14 @@ class CDKDataSciencePipelineStack(Stack):
         glue_db_name = Fn.import_value("GlueDatabaseName")
         glue_table_name = Fn.import_value("GlueTableName")
         athena_output_bucket_name = Fn.import_value("ArtifactsBucketName")
-        data_science_bucket_name = f"{project_name}-bucket-{self.account}"
+        data_science_bucket_name = Fn.import_value("DataScienceBucketName")
         data_engineering_bucket_name = Fn.import_value("DataLakeBucketName")
         
         # Sagemaker ENV variables
         processing_instance_count = 1
+        sagemaker_execution_role_arn = Fn.import_value(f"{project_name}-sagemaker-execution-role-arn")
+        ecr_repository_arn = Fn.import_value(f"{project_name}-ecr-repository-uri")
+        sns_topic_arn = Fn.import_value(f"{project_name}-sns-topic-arn")
         processing_instance_type = "ml.t3.large"
         training_instance_count = 1
         training_instance_type = "ml.t3.large"
@@ -187,13 +190,13 @@ class CDKDataSciencePipelineStack(Stack):
                 "cd data_science/scripts && python sm_pipeline.py",
             ],
             env={
-                "SAGEMAKER_EXECUTION_ROLE_ARN": f"arn:aws:iam::{self.account}:role/SageMakerExecutionRole-{project_name}-{self.account}",
+                "SAGEMAKER_EXECUTION_ROLE_ARN": sagemaker_execution_role_arn,
                 "PROJECT_NAME": project_name,
                 "INPUT_DATA": input_data,
                 "AWS_DEFAULT_REGION": self.region,
-                "ECR_REPOSITORY_URI": f"{self.account}.dkr.ecr.{self.region}.amazonaws.com/{project_name}-repository-{self.account}:latest",
+                "ECR_REPOSITORY_URI": ecr_repository_arn,
                 "S3_BUCKET_NAME": data_science_bucket_name,
-                "SNS_TOPIC_ARN": f"arn:aws:sns:{self.region}:{self.account}:DataScienceStage-SageMakerNotificationStack-SageMakerJobNotificationTopic756338A3-6XjUY4SHVZm8",
+                "SNS_TOPIC_ARN": sns_topic_arn,
                 "PROCESSING_INSTANCE_COUNT": str(processing_instance_count),
                 "PROCESSING_INSTANCE_TYPE": processing_instance_type,
                 "TRAINING_INSTANCE_COUNT": str(training_instance_count),
