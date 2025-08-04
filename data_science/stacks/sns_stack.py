@@ -2,7 +2,8 @@ from aws_cdk import (
     Stack,
     aws_sns as sns,
     aws_sns_subscriptions as subs,
-    aws_iam as iam,
+    CfnOutput
+ 
 )
 from constructs import Construct
 
@@ -17,5 +18,10 @@ class SNSStack(Stack):
         )
 
         self.topic.add_subscription(subs.EmailSubscription(notification_email))
+        
+        CfnOutput(
+            self, "SNSNotificationTopicArn",
+            value=self.topic.topic_arn,
+            export_name="SageMakerNotificationTopicArn"
+        )
 
-       
