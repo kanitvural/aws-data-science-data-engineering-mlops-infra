@@ -33,8 +33,8 @@ class CDKDataSciencePipelineStack(Stack):
         
         # Sagemaker ENV variables
         processing_instance_count = 1
-        sagemaker_execution_role_arn =  f"arn:aws:iam::{self.account}:role/SageMakerExecutionRole-{project_name}-{self.account}",
-        ecr_repository_arn = f"{self.account}.dkr.ecr.{self.region}.amazonaws.com/{project_name}-repository-{self.account}:latest",
+        sagemaker_execution_role_arn =  f"arn:aws:iam::{self.account}:role/SageMakerExecutionRole-{project_name}-{self.account}"
+        ecr_repository_arn = f"{self.account}.dkr.ecr.{self.region}.amazonaws.com/{project_name}-repository-{self.account}:latest"
         sns_topic_arn = f"arn:aws:sns:{self.region}:{self.account}:DataScienceStage-SageMakerNotificationStack-SageMakerJobNotificationTopic756338A3-6XjUY4SHVZm8"
         processing_instance_type = "ml.t3.large"
         training_instance_count = 1
