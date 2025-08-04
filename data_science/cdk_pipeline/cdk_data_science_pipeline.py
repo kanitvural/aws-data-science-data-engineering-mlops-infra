@@ -287,7 +287,8 @@ class CDKDataSciencePipelineStack(Stack):
                 ),
             ],
         )
-        pipeline_stage = pipeline.add_stage(data_science_stage)
-        pipeline_stage_post_build = pipeline_stage.add_post(build_and_push_image, athena_query_step)
-        pipeline_stage_post_build.add_post(run_sagemaker_pipeline)
+
+        deploy_stage = pipeline.add_stage(data_science_stage)
+        deploy_stage.add_post(build_and_push_image, athena_query_step)
+        deploy_stage.add_post(run_sagemaker_pipeline)
 
