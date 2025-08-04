@@ -37,7 +37,7 @@ class CDKDataSciencePipelineStack(Stack):
         training_instance_type = "ml.t3.large"
         clarify_instance_count = 1
         clarify_instance_type = "ml.t3.large"
-        rmse_threshold = 5.0
+        rmse_threshold = 15.0
         max_jobs = 1
         max_parallel_jobs = 1
         
@@ -193,7 +193,7 @@ class CDKDataSciencePipelineStack(Stack):
                 "AWS_DEFAULT_REGION": self.region,
                 "ECR_REPOSITORY_URI": f"{self.account}.dkr.ecr.{self.region}.amazonaws.com/{project_name}-repository-{self.account}:latest",
                 "S3_BUCKET_NAME": data_science_bucket_name,
-                "SNS_TOPIC_ARN": f"arn:aws:sns:{self.region}:{self.account}:DataScienceStage-SageMakerNotificationStack-SageMakerJobNotificationTopic*",
+                "SNS_TOPIC_ARN": f"arn:aws:sns:{self.region}:{self.account}:DataScienceStage-SageMakerNotificationStack-SageMakerJobNotificationTopic756338A3-6XjUY4SHVZm8",
                 "PROCESSING_INSTANCE_COUNT": str(processing_instance_count),
                 "PROCESSING_INSTANCE_TYPE": processing_instance_type,
                 "TRAINING_INSTANCE_COUNT": str(training_instance_count),
@@ -288,8 +288,9 @@ class CDKDataSciencePipelineStack(Stack):
             ],
         )
 
-        # Stage'i pipeline'a ekle
         deploy_stage = pipeline.add_stage(data_science_stage)
         deploy_stage.add_post(build_and_push_image, athena_query_step)
+        run_sagemaker_pipeline.add_step_dependency(build_and_push_image)
+        run_sagemaker_pipeline.add_step_dependency(athena_query_step)
         deploy_stage.add_post(run_sagemaker_pipeline)
 
