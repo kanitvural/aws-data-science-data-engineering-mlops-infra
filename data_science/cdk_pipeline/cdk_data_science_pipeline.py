@@ -31,7 +31,6 @@ class CDKDataSciencePipelineStack(Stack):
         data_engineering_bucket_name = Fn.import_value("DataLakeBucketName")
         
         
-        
         # Sagemaker ENV variables
         processing_instance_count = 1
         sagemaker_execution_role_arn =  f"arn:aws:iam::{self.account}:role/SageMakerExecutionRole-{project_name}-{self.account}",
