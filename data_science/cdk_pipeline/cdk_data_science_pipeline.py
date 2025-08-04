@@ -187,22 +187,22 @@ class CDKDataSciencePipelineStack(Stack):
                 "python data_science/scripts/sm_pipeline.py",
             ],
             env={
-                "SAGEMAKER_EXECUTION_ROLE_ARN":data_science_stage.sagemaker_execution_role_arn,
+                "SAGEMAKER_EXECUTION_ROLE_ARN": data_science_stage.sagemaker_execution_role_arn,
                 "PROJECT_NAME": project_name,
                 "INPUT_DATA": input_data,
                 "AWS_DEFAULT_REGION": self.region,
                 "ECR_REPOSITORY_URI": data_science_stage.ecr_repository_uri,
                 "S3_BUCKET_NAME": data_science_bucket_name,
                 "SNS_TOPIC_ARN": data_science_stage.sns_topic_arn,
-                "PROCESSING_INSTANCE_COUNT": processing_instance_count,
+                "PROCESSING_INSTANCE_COUNT": str(processing_instance_count),
                 "PROCESSING_INSTANCE_TYPE": processing_instance_type,
-                "TRAINING_INSTANCE_COUNT": training_instance_count,
+                "TRAINING_INSTANCE_COUNT": str(training_instance_count),
                 "TRAINING_INSTANCE_TYPE": training_instance_type,
-                "CLARIFY_INSTANCE_COUNT": clarify_instance_count,
+                "CLARIFY_INSTANCE_COUNT": str(clarify_instance_count),
                 "CLARIFY_INSTANCE_TYPE": clarify_instance_type,
-                "RMSE_THRESHOLD": rmse_threshold,
-                "MAX_JOBS": max_jobs,
-                "MAX_PARALLEL_JOBS": max_parallel_jobs
+                "RMSE_THRESHOLD": str(rmse_threshold),
+                "MAX_JOBS": str(max_jobs),
+                "MAX_PARALLEL_JOBS": str(max_parallel_jobs)
             },
             role_policy_statements=[
                 # SageMaker permissions
