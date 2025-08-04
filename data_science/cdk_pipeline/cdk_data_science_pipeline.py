@@ -187,13 +187,13 @@ class CDKDataSciencePipelineStack(Stack):
                 "python data_science/scripts/sm_pipeline.py",
             ],
             env={
-                "SAGEMAKER_EXECUTION_ROLE_ARN": data_science_stage.sagemaker_execution_role_arn,
+                "SAGEMAKER_EXECUTION_ROLE_ARN": f"arn:aws:iam::{self.account}:role/SageMakerExecutionRole-{project_name}-{self.account}",
                 "PROJECT_NAME": project_name,
                 "INPUT_DATA": input_data,
                 "AWS_DEFAULT_REGION": self.region,
-                "ECR_REPOSITORY_URI": data_science_stage.ecr_repository_uri,
+                "ECR_REPOSITORY_URI": f"{self.account}.dkr.ecr.{self.region}.amazonaws.com/{project_name}-repository-{self.account}:latest",
                 "S3_BUCKET_NAME": data_science_bucket_name,
-                "SNS_TOPIC_ARN": data_science_stage.sns_topic_arn,
+                "SNS_TOPIC_ARN": f"arn:aws:sns:{self.region}:{self.account}:{project_name}-notifications",
                 "PROCESSING_INSTANCE_COUNT": str(processing_instance_count),
                 "PROCESSING_INSTANCE_TYPE": processing_instance_type,
                 "TRAINING_INSTANCE_COUNT": str(training_instance_count),
@@ -288,6 +288,7 @@ class CDKDataSciencePipelineStack(Stack):
             ],
         )
 
+        # Stage'i pipeline'a ekle
         deploy_stage = pipeline.add_stage(data_science_stage)
         deploy_stage.add_post(build_and_push_image, athena_query_step)
         deploy_stage.add_post(run_sagemaker_pipeline)

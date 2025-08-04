@@ -16,25 +16,20 @@ class DataScienceStage(Stage):
             project_name=project_name,
         )
 
-        ecr_stack = ECRStack(
+        ECRStack(
             self,
             id="ECRInfrastructure",
             project_name=project_name,
         )
-        self.ecr_repository_uri = ecr_stack.data_science_repo.repository_uri
 
-        sns_stack = SNSStack(
+        SNSStack(
             self,
             id="SageMakerNotificationStack",
             notification_email=notification_email,
         )
-        
-        self.sns_topic_arn = sns_stack.topic.topic_arn
 
-        sagemaker_role_stack = SageMakerRoleStack(
+        SageMakerRoleStack(
             self,
             id="SageMakerRoleStack",
             project_name=project_name,
         )
-        
-        self.sagemaker_execution_role_arn = sagemaker_role_stack.sagemaker_execution_role.role_arn
