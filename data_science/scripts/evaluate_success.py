@@ -86,6 +86,7 @@ def send_mail(args, evaluated_rmse):
         )
         subject = "✅ SageMaker Model Evaluation - PASSED"
 
+        logging.info(f"📤 Sending SNS notification to topic: {args.sns_topic_arn}")
         response = sns_client.publish(
             TopicArn=args.sns_topic_arn,
             Message=message,
@@ -94,6 +95,7 @@ def send_mail(args, evaluated_rmse):
         logging.info(f"📨 SNS notification sent. MessageId: {response['MessageId']}")
     except Exception as e:
         logging.error(f"❌ Failed to send SNS notification: {str(e)}")
+        logging.error(f"   Topic ARN used: {args.sns_topic_arn}")
 
 
 def main(args):
