@@ -184,7 +184,7 @@ class CDKDataSciencePipelineStack(Stack):
             commands=[
                 "echo Starting SageMaker Pipeline execution...",
                 "pip install boto3 sagemaker",
-                "python data_science/scripts/sm_pipeline.py",
+                "cd data_science/scripts && python sm_pipeline.py",
             ],
             env={
                 "SAGEMAKER_EXECUTION_ROLE_ARN": f"arn:aws:iam::{self.account}:role/SageMakerExecutionRole-{project_name}-{self.account}",
@@ -193,7 +193,7 @@ class CDKDataSciencePipelineStack(Stack):
                 "AWS_DEFAULT_REGION": self.region,
                 "ECR_REPOSITORY_URI": f"{self.account}.dkr.ecr.{self.region}.amazonaws.com/{project_name}-repository-{self.account}:latest",
                 "S3_BUCKET_NAME": data_science_bucket_name,
-                "SNS_TOPIC_ARN": f"arn:aws:sns:{self.region}:{self.account}:{project_name}-notifications",
+                "SNS_TOPIC_ARN": f"arn:aws:sns:{self.region}:{self.account}:DataScienceStage-SageMakerNotificationStack-SageMakerJobNotificationTopic*",
                 "PROCESSING_INSTANCE_COUNT": str(processing_instance_count),
                 "PROCESSING_INSTANCE_TYPE": processing_instance_type,
                 "TRAINING_INSTANCE_COUNT": str(training_instance_count),
