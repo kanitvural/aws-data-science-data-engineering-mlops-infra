@@ -35,6 +35,8 @@ class DataScienceStage(Stage):
             project_name=project_name,
         )
 
-        sagemaker_stack.add_dependency(s3_stack)
+        ecr_stack.add_dependency(s3_stack)
+        sns_stack.add_dependency(s3_stack)
         sagemaker_stack.add_dependency(ecr_stack)
-        sagemaker_stack.add_dependency(sns_stack)
+        
+        
