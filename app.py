@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
+
 import aws_cdk as cdk
 
-from data_science.cdk_pipeline.cdk_data_science_pipeline import CDKDataSciencePipelineStack
-
+from mlops.cdk_pipeline.cdk_mlops_pipeline import CDKMLOpsPipelineStack
 
 app = cdk.App()
 
@@ -12,9 +12,28 @@ env = cdk.Environment(
     region=app.node.try_get_context("region") or "eu-central-1",
 )
 
-# Stack'i sadece CDK parametreleriyle oluştur
+CDKMLOpsPipelineStack(app, "CDKMLOpsPipelineStack", env=env)
 
-CDKDataSciencePipelineStack(app, id="CDKDataSciencePipelineStack", env=env)
+app.synth()
+
+
+
+# import aws_cdk as cdk
+
+# from data_science.cdk_pipeline.cdk_data_science_pipeline import CDKDataSciencePipelineStack
+
+
+# app = cdk.App()
+
+# # Environment
+# env = cdk.Environment(
+#     account=app.node.try_get_context("account"),
+#     region=app.node.try_get_context("region") or "eu-central-1",
+# )
+
+# # Stack'i sadece CDK parametreleriyle oluştur
+
+# CDKDataSciencePipelineStack(app, id="CDKDataSciencePipelineStack", env=env)
 
 
 app.synth()
@@ -34,9 +53,6 @@ app.synth()
 # CDKDataEngineeringPipelineStack(app, "CDKDataEngineeringPipelineStack", env=env)
 
 # app.synth()
-
-
-
 
 
 # Stack'i sadece CDK parametreleriyle oluştur
