@@ -59,7 +59,6 @@ class CDKDataSciencePipelineStack(Stack):
             input=source,
             commands=[
                 "npm install -g aws-cdk",
-                "pip install --upgrade pip",
                 "pip install -r requirements.txt",
                 "cdk synth --context @aws-cdk/core:bootstrapQualifier=ds",
             ],
