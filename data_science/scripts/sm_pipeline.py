@@ -19,13 +19,20 @@ from sagemaker.workflow.functions import JsonGet
 from sagemaker.workflow.pipeline import Pipeline
 from sagemaker.workflow.properties import PropertyFile
 
+def get_sns_topic_arn():
+    cf = boto3.client('cloudformation')
+    response = cf.describe_stacks(StackName="DataScienceStage-SageMakerNotificationStack")
+    for output in response['Stacks'][0]['Outputs']:
+        if output['OutputKey'] == 'SNSNotificationTopicArn':
+            return output['OutputValue']
+
 # Environment Variables
 PROJECT_NAME = os.environ["PROJECT_NAME"]
 INPUT_DATA = os.environ["INPUT_DATA"]
 AWS_DEFAULT_REGION = os.environ["AWS_DEFAULT_REGION"]
 ECR_REPOSITORY_URI = os.environ["ECR_REPOSITORY_URI"]
 S3_BUCKET_NAME = os.environ["S3_BUCKET_NAME"]
-SNS_TOPIC_ARN = os.environ["SNS_TOPIC_ARN"]
+SNS_TOPIC_ARN = get_sns_topic_arn()
 PROCESSING_INSTANCE_COUNT = int(os.environ["PROCESSING_INSTANCE_COUNT"])
 PROCESSING_INSTANCE_TYPE = os.environ["PROCESSING_INSTANCE_TYPE"]
 TRAINING_INSTANCE_COUNT = int(os.environ["TRAINING_INSTANCE_COUNT"])

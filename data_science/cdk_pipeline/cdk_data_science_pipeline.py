@@ -29,13 +29,16 @@ class CDKDataSciencePipelineStack(Stack):
         athena_output_bucket_name = Fn.import_value("ArtifactsBucketName")
         data_science_bucket_name = f"{project_name}-bucket-{self.account}"
         data_engineering_bucket_name = Fn.import_value("DataLakeBucketName")
-        
-        
+
         # Sagemaker ENV variables
         processing_instance_count = 1
-        sagemaker_execution_role_arn =  f"arn:aws:iam::{self.account}:role/SageMakerExecutionRole-{project_name}-{self.account}"
-        ecr_repository_arn = f"{self.account}.dkr.ecr.{self.region}.amazonaws.com/{project_name}-repository-{self.account}:latest"
-        sns_topic_arn = f"arn:aws:sns:{self.region}:{self.account}:DataScienceStage-SageMakerNotificationStack-SageMakerJobNotificationTopic756338A3-6XjUY4SHVZm8"
+        sagemaker_execution_role_arn = (
+            f"arn:aws:iam::{self.account}:role/SageMakerExecutionRole-{project_name}-{self.account}"
+        )
+        ecr_repository_arn = (
+            f"{self.account}.dkr.ecr.{self.region}.amazonaws.com/{project_name}-repository-{self.account}:latest"
+        )
+        # sns_topic_arn = This value is retrieved using boto3 in sm_pipeline.py
         processing_instance_type = "ml.t3.large"
         training_instance_count = 1
         training_instance_type = "ml.t3.large"
@@ -44,8 +47,7 @@ class CDKDataSciencePipelineStack(Stack):
         rmse_threshold = 15.0
         max_jobs = 1
         max_parallel_jobs = 1
-        
-        
+
         source = pipelines_.CodePipelineSource.connection(
             repo_string=github_repo,
             branch=github_branch,
@@ -69,12 +71,8 @@ class CDKDataSciencePipelineStack(Stack):
         )
 
         data_science_stage = DataScienceStage(
-            self,
-            id="DataScienceStage",
-            project_name=project_name,
-            notification_email=notification_email
+            self, id="DataScienceStage", project_name=project_name, notification_email=notification_email
         )
-
 
         build_and_push_image = pipelines_.CodeBuildStep(
             "BuildAndPushImageToECR",
@@ -177,7 +175,7 @@ class CDKDataSciencePipelineStack(Stack):
                 ),
             ],
         )
-        
+
         run_sagemaker_pipeline = pipelines_.CodeBuildStep(
             "RunSageMakerPipeline",
             input=source,
@@ -197,7 +195,6 @@ class CDKDataSciencePipelineStack(Stack):
                 "AWS_DEFAULT_REGION": self.region,
                 "ECR_REPOSITORY_URI": ecr_repository_arn,
                 "S3_BUCKET_NAME": data_science_bucket_name,
-                "SNS_TOPIC_ARN": sns_topic_arn,
                 "PROCESSING_INSTANCE_COUNT": str(processing_instance_count),
                 "PROCESSING_INSTANCE_TYPE": processing_instance_type,
                 "TRAINING_INSTANCE_COUNT": str(training_instance_count),
@@ -206,9 +203,17 @@ class CDKDataSciencePipelineStack(Stack):
                 "CLARIFY_INSTANCE_TYPE": clarify_instance_type,
                 "RMSE_THRESHOLD": str(rmse_threshold),
                 "MAX_JOBS": str(max_jobs),
-                "MAX_PARALLEL_JOBS": str(max_parallel_jobs)
+                "MAX_PARALLEL_JOBS": str(max_parallel_jobs),
             },
             role_policy_statements=[
+                # CloudFormation permissions to describe stacks
+                iam.PolicyStatement(
+                    actions=[
+                        "cloudformation:DescribeStacks",
+                        "cloudformation:ListExports",
+                    ],
+                    resources=["*"],
+                ),
                 # SageMaker permissions
                 iam.PolicyStatement(
                     actions=[
@@ -297,4 +302,3 @@ class CDKDataSciencePipelineStack(Stack):
         run_sagemaker_pipeline.add_step_dependency(build_and_push_image)
         run_sagemaker_pipeline.add_step_dependency(athena_query_step)
         deploy_stage.add_post(run_sagemaker_pipeline)
-
