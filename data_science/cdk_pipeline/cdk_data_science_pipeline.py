@@ -59,7 +59,6 @@ class CDKDataSciencePipelineStack(Stack):
             input=source,
             commands=[
                 "npm install -g aws-cdk",
-                "python -m pip install --upgrade pip"
                 "pip install -r requirements.txt",
                 "cdk synth --context @aws-cdk/core:bootstrapQualifier=ds",
             ],
@@ -86,7 +85,7 @@ class CDKDataSciencePipelineStack(Stack):
                 # == install + pre_build ==
                 "printenv",
                 "echo Updating Packages ...",
-                "python -m pip install --upgrade pip",
+                "pip install --upgrade pip",
                 # == build ==
                 "echo Build started on `date`",
                 "echo Logging in to the Data Science Container Repository ...",
@@ -124,8 +123,8 @@ class CDKDataSciencePipelineStack(Stack):
             ),
             commands=[
                 "echo Starting Athena Query...",
-                "python -m pip install --upgrade pip",
-                "python -m pip install boto3 pandas pyarrow",
+                "pip install --upgrade pip",
+                "pip install boto3 pandas pyarrow",
                 "python data_science/scripts/athena_query.py",
             ],
             env={
@@ -187,8 +186,8 @@ class CDKDataSciencePipelineStack(Stack):
             ),
             commands=[
                 "echo Starting SageMaker Pipeline execution...",
-                "python -m pip install --upgrade pip",
-                "python -m pip install boto3 sagemaker",
+                "pip install --upgrade pip",
+                "pip install boto3 sagemaker",
                 "cd data_science/scripts",
                 "python sm_pipeline.py",
             ],
