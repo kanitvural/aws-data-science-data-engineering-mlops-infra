@@ -21,7 +21,7 @@ from sagemaker.workflow.properties import PropertyFile
 
 def get_sns_topic_arn():
     region = os.environ["AWS_DEFAULT_REGION"]
-    cf = boto3.client('cloudformation', region = region)
+    cf = boto3.client('cloudformation', region_name = region)
     response = cf.describe_stacks(StackName="DataScienceStage-SageMakerNotificationStack")
     for output in response['Stacks'][0]['Outputs']:
         if output['OutputKey'] == 'SNSNotificationTopicArn':
