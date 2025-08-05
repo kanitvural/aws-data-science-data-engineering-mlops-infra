@@ -8,7 +8,7 @@ check_env_param() {
   local env=$1
   if [[ -z "$env" ]]; then
     echo "❌ Missing environment parameter!"
-    echo "Usage: make <bootstrap|deploy|destroy> <ds|de|mlops>"
+    echo "Usage: make <bootstrap|deploy|destroy> env=<ds|de|mlops>"
     exit 1
   fi
 }
@@ -96,3 +96,18 @@ destroy() {
     exit 1
   fi
 }
+
+# --- Dispatcher ---
+action=$1
+env=$2
+
+if [[ "$action" == "bootstrap" ]]; then
+    bootstrap "$env"
+elif [[ "$action" == "deploy" ]]; then
+    deploy "$env"
+elif [[ "$action" == "destroy" ]]; then
+    destroy "$env"
+else
+    echo "❌ Invalid action! Use: bootstrap, deploy, or destroy"
+    exit 1
+fi

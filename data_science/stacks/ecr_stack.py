@@ -17,6 +17,7 @@ class ECRStack(Stack):
             repository_name=f"{project_name}-repository-{self.account}",
             image_scan_on_push=False,
             removal_policy=RemovalPolicy.DESTROY,
+            auto_delete_images=True,
         )
 
         CfnOutput(
