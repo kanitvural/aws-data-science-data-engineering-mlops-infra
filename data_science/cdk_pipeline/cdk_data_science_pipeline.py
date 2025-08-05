@@ -189,7 +189,7 @@ class CDKDataSciencePipelineStack(Stack):
                 "echo Starting SageMaker Pipeline execution...",
                 "python -m pip install --upgrade pip",
                 "python -m pip install boto3 sagemaker",
-                "cd data_science/scripts"
+                "cd data_science/scripts",
                 "python sm_pipeline.py",
             ],
             env={
