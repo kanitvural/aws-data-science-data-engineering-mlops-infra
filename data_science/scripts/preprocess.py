@@ -6,15 +6,43 @@ import logging
 import argparse
 from sklearn.model_selection import train_test_split
 
-# ----------------------------------------
-# Logging Setup
-# ----------------------------------------
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+
+BASE_DIR = "/opt/ml/processing"
+INPUT_DIR = os.path.join(BASE_DIR, "input")
+OUTPUT_DIR = os.path.join(BASE_DIR, "output")
+TRAIN_DIR = os.path.join(OUTPUT_DIR, "train")
+VALIDATION_DIR = os.path.join(OUTPUT_DIR, "validation")
+TEST_DIR = os.path.join(OUTPUT_DIR, "test")
+# Combined dataset directory for final training job
+COMBINED_DIR = os.path.join(OUTPUT_DIR, "combined")
+# Baseline dataset directory for sagemaker model monitoring
+BASELINE_DIR = os.path.join(OUTPUT_DIR, "baseline")
 
 
-# ----------------------------------------
-# Load the dataset
-# ----------------------------------------
+INPUT_PATH = os.path.join(INPUT_DIR, "flights_sample.csv")
+TRAIN_PATH = os.path.join(TRAIN_DIR, "train.csv")
+VALIDATION_PATH = os.path.join(VALIDATION_DIR, "validation.csv")
+TEST_PATH = os.path.join(TEST_DIR, "test.csv")
+COMBINED_PATH = os.path.join(COMBINED_DIR, "train.csv")
+BASELINE_PATH = os.path.join(BASELINE_DIR, "baseline.csv")
+
+logging.basicConfig(
+    level=logging.INFO, format="[%(asctime)s] %(levelname)s: %(message)s", handlers=[logging.StreamHandler(sys.stdout)]
+)
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--output-dir", type=str, default=OUTPUT_DIR)
+    parser.add_argument("--input-path", type=str, default=INPUT_PATH)
+    parser.add_argument("--train-path", type=str, default=TRAIN_PATH)
+    parser.add_argument("--validation-path", type=str, default=VALIDATION_PATH)
+    parser.add_argument("--test-path", type=str, default=TEST_PATH)
+    parser.add_argument("--combined-path", type=str, default=COMBINED_PATH)
+    parser.add_argument("--baseline-path", type=str, default=BASELINE_PATH)
+
+    return parser.parse_known_args()
+
+
 def load_data(file_path):
     logging.info(f"Loading dataset from {file_path}")
     if not os.path.exists(file_path):
@@ -26,9 +54,6 @@ def load_data(file_path):
     return df
 
 
-# ----------------------------------------
-# Feature Engineering
-# ----------------------------------------
 def feature_engineering(df):
     logging.info("Starting feature engineering...")
 
@@ -39,14 +64,14 @@ def feature_engineering(df):
     df["distance_category"] = pd.cut(df["distance"], bins=bins, labels=labels, ordered=True)
     df["distance_category"] = df["distance_category"].cat.codes
 
-    df["daily_flight_count"] = df.groupby(["airline", "date"]).transform("size")
+    df["daily_flight_count"] = df.groupby(["airline", "date"])["airline"].transform("count")
 
     airline_delay_group = (
         df.groupby(["airline", "date"])
         .agg({"dep_delay": "sum", "arr_delay": "sum", "daily_flight_count": "mean"})
         .reset_index()
     )
-    
+
     airline_delay_group["airline_daily_performance_kpi"] = (
         airline_delay_group["dep_delay"] + airline_delay_group["arr_delay"]
     ) / airline_delay_group["daily_flight_count"]
@@ -81,9 +106,6 @@ def feature_engineering(df):
     return df
 
 
-# ----------------------------------------
-# Data Split and Save
-# ----------------------------------------
 def split_data(df, test_size=0.2, val_size=0.2, random_state=42, shuffle=True):
     logging.info("Splitting data into train, validation, and test sets...")
     df_train_val, df_test = train_test_split(df, test_size=test_size, random_state=random_state, shuffle=shuffle)
@@ -92,38 +114,43 @@ def split_data(df, test_size=0.2, val_size=0.2, random_state=42, shuffle=True):
     return df_train, df_val, df_test
 
 
-def save_data(train_df, val_df, test_df, output_dir):
-    logging.info(f"Saving datasets to {output_dir}...")
-    os.makedirs(output_dir, exist_ok=True)
+def save_data(train_df, val_df, test_df, args):
+    logging.info(f"Saving datasets to {args.output_dir}...")
+    os.makedirs(args.output_dir, exist_ok=True)
 
-    train_df.to_csv(os.path.join(output_dir, "train.csv"), index=False)
-    val_df.to_csv(os.path.join(output_dir, "validation.csv"), index=False)
-    test_df.to_csv(os.path.join(output_dir, "test.csv"), index=False)
+    dirs = ["train", "validation", "test", "combined", "baseline"]
+    for d in dirs:
+        os.makedirs(os.path.join(args.output_dir, d), exist_ok=True)
+
+    train_df.to_csv(args.train_path, index=False)
+    val_df.to_csv(args.validation_path, index=False)
+    test_df.to_csv(args.test_path, index=False)
+
+    # combined_df for final training job.
+    combined_df = pd.concat([train_df, val_df], ignore_index=True)
+    combined_df.to_csv(args.combined_path, index=False)
+
+    # baseline_df for sagemaker model monitoring.
+    baseline_df = combined_df.copy()
+    baseline_df.to_csv(args.baseline_path, index=False)
 
     logging.info(f"Train shape: {train_df.shape}")
     logging.info(f"Validation shape: {val_df.shape}")
     logging.info(f"Test shape: {test_df.shape}")
+    logging.info(f"Combined df for final trainig job shape: {combined_df.shape}")
+    logging.info(f"Baseline df for sagemaker model monitoring shape: {baseline_df.shape}")
     logging.info("Data saved successfully.")
 
 
-# ----------------------------------------
-# Main
-# ----------------------------------------
 def main(args):
     df = load_data(args.input_path)
     df = feature_engineering(df)
     df_train, df_val, df_test = split_data(df)
-    save_data(df_train, df_val, df_test, args.output_path)
-
-
-def parse_arguments():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--input-path", type=str, default="/opt/ml/processing/input/data.csv")
-    parser.add_argument("--output-path", type=str, default="/opt/ml/processing/output")
-    args = parser.parse_args()
-    return args
+    save_data(df_train, df_val, df_test, args)
 
 
 if __name__ == "__main__":
-    args = parse_arguments()
+    logging.info("Starting preprocessing...")
+    args, _ = parse_args()
     main(args)
+    logging.info("Preprocessing completed.")

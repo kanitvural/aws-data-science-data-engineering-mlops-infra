@@ -1,0 +1,56 @@
+{
+    "version": "1.0",
+    "pre_training_bias_metrics": {
+        "label": "dep_delay",
+        "facets": {
+            "carrier": [
+                {
+                    "value_or_threshold": "AS,UA,DL",
+                    "metrics": [
+                        {
+                            "name": "CDDL",
+                            "description": "Conditional Demographic Disparity in Labels (CDDL)",
+                            "value": 0.0
+                        },
+                        {
+                            "name": "CI",
+                            "description": "Class Imbalance (CI)",
+                            "value": -0.15832486007241076
+                        },
+                        {
+                            "name": "DPL",
+                            "description": "Difference in Positive Proportions in Labels (DPL)",
+                            "value": -0.03320134876335146
+                        },
+                        {
+                            "name": "JS",
+                            "description": "Jensen-Shannon Divergence (JS)",
+                            "value": 0.0005979459153574625
+                        },
+                        {
+                            "name": "KL",
+                            "description": "Kullback-Liebler Divergence (KL)",
+                            "value": 0.002376364561551325
+                        },
+                        {
+                            "name": "KS",
+                            "description": "Kolmogorov-Smirnov Distance (KS)",
+                            "value": 0.03320134876335146
+                        },
+                        {
+                            "name": "LP",
+                            "description": "L-p Norm (LP)",
+                            "value": 0.04695379771021082
+                        },
+                        {
+                            "name": "TVD",
+                            "description": "Total Variation Distance (TVD)",
+                            "value": 0.03320134876335146
+                        }
+                    ]
+                }
+            ]
+        },
+        "label_value_or_threshold": "(0.0, 939.0]"
+    }
+}
