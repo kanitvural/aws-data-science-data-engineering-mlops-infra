@@ -20,7 +20,7 @@ class SagemakerDevStack(Stack):
         data_science_bucket_name = Fn.import_value("DataScienceBucketName")
 
         # SageMaker execution role
-        sagemaker_execution_role = iam.Role(
+        self.sagemaker_execution_role = iam.Role(
             self,
             "SageMakerExecutionRole",
             role_name=f"SageMakerExecutionRole-{project_name}-{self.account}",
@@ -32,7 +32,7 @@ class SagemakerDevStack(Stack):
         )
 
         # S3 permissions for the specific bucket
-        sagemaker_execution_role.add_to_policy(
+        self.sagemaker_execution_role.add_to_policy(
             iam.PolicyStatement(
                 effect=iam.Effect.ALLOW,
                 actions=[
@@ -47,7 +47,7 @@ class SagemakerDevStack(Stack):
         )
 
         # ECR permissions
-        sagemaker_execution_role.add_to_policy(
+        self.sagemaker_execution_role.add_to_policy(
             iam.PolicyStatement(
                 effect=iam.Effect.ALLOW,
                 actions=[
@@ -63,7 +63,7 @@ class SagemakerDevStack(Stack):
         )
 
         # SNS permissions
-        sagemaker_execution_role.add_to_policy(
+        self.sagemaker_execution_role.add_to_policy(
             iam.PolicyStatement(
                 effect=iam.Effect.ALLOW,
                 actions=[
@@ -75,7 +75,7 @@ class SagemakerDevStack(Stack):
         )
 
         # CloudWatch Logs permissions
-        sagemaker_execution_role.add_to_policy(
+        self.sagemaker_execution_role.add_to_policy(
             iam.PolicyStatement(
                 effect=iam.Effect.ALLOW,
                 actions=[
@@ -92,7 +92,7 @@ class SagemakerDevStack(Stack):
         # Model Definition
         model = sagemaker.CfnModel(
             self, "DevModel",
-            execution_role_arn=sagemaker_execution_role.role_arn,
+            execution_role_arn=self.sagemaker_execution_role.role_arn,
             primary_container=sagemaker.CfnModel.ContainerDefinitionProperty(
                 image=ecr_repository_arn, 
                 model_data_url=f"{data_science_bucket_name}/sagemaker-final-training-output/model/pipelines-7877okymrfhn-FlightsFinalTraining-6KIqJxP2g4/output/model.tar.gz"
