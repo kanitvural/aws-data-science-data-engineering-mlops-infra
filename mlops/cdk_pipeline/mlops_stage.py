@@ -3,8 +3,9 @@ from constructs import Construct
 from mlops.stacks.ecr_stack import ECRStack
 from mlops.stacks.s3_stack import S3Stack
 from mlops.stacks.sns_stack import SNSStack
+from mlops.stacks.sm_dev_endpoint_stack import SagemakerDevStack
 
-      
+
 class MLOpsStage(Stage):
     def __init__(self, scope: Construct, id: str, project_name: str, notification_email: str, **kwargs):
         super().__init__(scope, id, **kwargs)
@@ -28,7 +29,14 @@ class MLOpsStage(Stage):
             notification_email=notification_email,
         )
 
+        sagemaker_stack = SagemakerDevStack( 
+            self,
+            project_name=project_name,
+            id="SagemakerDevEndpoint",
+        )
+
         ecr_stack.add_dependency(s3_stack)
         sns_stack.add_dependency(s3_stack)
-        
+        sagemaker_stack.add_dependency(ecr_stack)
+
         
