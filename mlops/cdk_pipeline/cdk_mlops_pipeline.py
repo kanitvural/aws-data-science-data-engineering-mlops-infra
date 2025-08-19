@@ -7,6 +7,7 @@ from aws_cdk import (
 )
 from constructs import Construct
 from .mlops_stage import MLOpsStage
+from .sm_dev_stage import SageMakerDevStage
 
 
 class CDKMLOpsPipelineStack(Stack):
@@ -93,3 +94,5 @@ class CDKMLOpsPipelineStack(Stack):
 
         deploy_stage = pipeline.add_stage(mlops_stage)
         deploy_stage.add_post(build_and_push_image)
+        
+        

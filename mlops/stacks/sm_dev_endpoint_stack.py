@@ -95,7 +95,7 @@ class SagemakerDevStack(Stack):
             execution_role_arn=self.sagemaker_execution_role.role_arn,
             primary_container=sagemaker.CfnModel.ContainerDefinitionProperty(
                 image=ecr_repository_arn, 
-                model_data_url=f"{data_science_bucket_name}/sagemaker-final-training-output/model/pipelines-7877okymrfhn-FlightsFinalTraining-6KIqJxP2g4/output/model.tar.gz"
+                model_data_url= "s3://data-science-bucket-058264126563/sagemaker-final-training-output/model/pipelines-7877okymrfhn-FlightsFinalTraining-6KIqJxP2g4/output/model.tar.gz"
             ),
             model_name="dev-model"
         )
