@@ -13,11 +13,10 @@ class SagemakerDevStack(Stack):
     def __init__(self, scope: Construct, id: str, project_name: str, **kwargs) -> None:
         super().__init__(scope, id, **kwargs)
         
-        ecr_repository_arn = (
-            f"{self.account}.dkr.ecr.{self.region}.amazonaws.com/{project_name}-repository-{self.account}:latest"
-        )
+        ecr_repository_arn = f"{self.account}.dkr.ecr.{self.region}.amazonaws.com/{project_name}-repository-{self.account}:latest"
+   
         
-        data_science_bucket_name = Fn.import_value("DataScienceBucketName")
+        # data_science_bucket_name = Fn.import_value("DataScienceBucketName")
 
         # SageMaker execution role
         self.sagemaker_execution_role = iam.Role(

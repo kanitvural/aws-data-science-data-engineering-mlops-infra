@@ -29,14 +29,8 @@ class MLOpsStage(Stage):
             notification_email=notification_email,
         )
 
-        sagemaker_stack = SagemakerDevStack( 
-            self,
-            project_name=project_name,
-            id="SagemakerDevEndpoint",
-        )
-
         ecr_stack.add_dependency(s3_stack)
         sns_stack.add_dependency(s3_stack)
-        sagemaker_stack.add_dependency(ecr_stack)
+
 
         

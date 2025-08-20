@@ -91,8 +91,20 @@ class CDKMLOpsPipelineStack(Stack):
                 )
             ],
         )
+        
+        sagemaker_dev_stage = SageMakerDevStage(
+            self,
+            id="SageMakerDevStage",
+            project_name=project_name,
+        )
 
         deploy_stage = pipeline.add_stage(mlops_stage)
         deploy_stage.add_post(build_and_push_image)
+        
+        sagemaker_deploy = pipeline.add_stage(sagemaker_dev_stage)
+        
+        # İleride buraya test step'leri vs ekleyebilirsin
+        # sagemaker_deploy.add_post(system_test_step)
+        # prod_deploy = pipeline.add_stage(sagemaker_prod_stage)
         
         
