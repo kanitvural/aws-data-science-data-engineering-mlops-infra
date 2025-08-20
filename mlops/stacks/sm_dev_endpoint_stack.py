@@ -8,7 +8,7 @@ from aws_cdk import (
 from constructs import Construct
 
 
-class SagemakerDevStack(Stack):
+class SMDevEndpointStack(Stack):
 
     def __init__(self, scope: Construct, id: str, project_name: str, **kwargs) -> None:
         super().__init__(scope, id, **kwargs)
@@ -105,7 +105,7 @@ class SagemakerDevStack(Stack):
             production_variants=[
                 sagemaker.CfnEndpointConfig.ProductionVariantProperty(
                     initial_instance_count=1,
-                    instance_type="ml.t3.large",
+                    instance_type="ml.t2.medium",
                     model_name=model.attr_model_name,
                     variant_name="AllTraffic"
                 )
