@@ -148,7 +148,7 @@ class StepFunctionStack(Stack):
         dev_endpoint_evaluate_lambda = lambda_.Function(
             self,
             id="DevEndpointEvaluateLambda",
-            runtime=lambda_.Runtime.PYTHON_3_9,
+            runtime=lambda_.Runtime.PYTHON_3_11,
             handler="index.lambda_handler",
             code=lambda_.Code.from_asset("mlops/lambda_funcs/evaluate_dev_endpoint"),
             layers=[ml_layer],
