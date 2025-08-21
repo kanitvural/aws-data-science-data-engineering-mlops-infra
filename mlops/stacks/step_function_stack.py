@@ -20,7 +20,7 @@ class StepFunctionStack(Stack):
         # ----------------------------------------------------------------------
         # Environment Variables
         # ----------------------------------------------------------------------
-     
+
         # Evaluation Lambda environment variables
         data_science_bucket_name = Fn.import_value("DataScienceBucketName")
         test_csv_key = "sagemaker-preprocess-output/test/test.csv"
@@ -29,11 +29,12 @@ class StepFunctionStack(Stack):
         rmse_threshold = 20.0
         endpoint_name = "dev-endpoint"
 
-    
         # Register Lambda environment variables
         model_package_group_name = "flight-delay-model-package-group"
         model_s3_uri = "s3://data-science-bucket-058264126563/sagemaker-final-training-output/model/pipelines-7877okymrfhn-FlightsFinalTraining-6KIqJxP2g4/output/model.tar.gz"
-        inference_image_uri = f"{self.account}.dkr.ecr.{self.region}.amazonaws.com/{project_name}-repository-{self.account}:latest"
+        inference_image_uri = (
+            f"{self.account}.dkr.ecr.{self.region}.amazonaws.com/{project_name}-repository-{self.account}:latest"
+        )
         model_description = "XGBoost model for flight delay prediction"
         evaluation_result_s3_bucket = mlops_bucket_name
         evaluation_result_key = "dev-endpoint-evaluation-result/evaluation.json"
@@ -77,7 +78,9 @@ class StepFunctionStack(Stack):
             self,
             "EvaluateLambdaRole",
             assumed_by=iam.ServicePrincipal("lambda.amazonaws.com"),
-            managed_policies=[iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AWSLambdaBasicExecutionRole")],
+            managed_policies=[
+                iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AWSLambdaBasicExecutionRole")
+            ],
         )
         evaluate_lambda_role.add_to_policy(
             iam.PolicyStatement(
@@ -90,7 +93,9 @@ class StepFunctionStack(Stack):
             self,
             "RegisterLambdaRole",
             assumed_by=iam.ServicePrincipal("lambda.amazonaws.com"),
-            managed_policies=[iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AWSLambdaBasicExecutionRole")],
+            managed_policies=[
+                iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AWSLambdaBasicExecutionRole")
+            ],
         )
         register_lambda_role.add_to_policy(
             iam.PolicyStatement(
@@ -110,7 +115,9 @@ class StepFunctionStack(Stack):
             self,
             "BaselineLambdaRole",
             assumed_by=iam.ServicePrincipal("lambda.amazonaws.com"),
-            managed_policies=[iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AWSLambdaBasicExecutionRole")],
+            managed_policies=[
+                iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AWSLambdaBasicExecutionRole")
+            ],
         )
         baseline_lambda_role.add_to_policy(
             iam.PolicyStatement(
@@ -129,12 +136,22 @@ class StepFunctionStack(Stack):
         # ----------------------------------------------------------------------
         # Lambda Functions
         # ----------------------------------------------------------------------
+
+        ml_layer = lambda_.LayerVersion(
+            self,
+            "MLDependenciesLayer",
+            code=lambda_.Code.from_asset("mlops/lambda_funcs/evaluate_dev_endpoint/lambda_layer/lambda_layer.zip"),
+            compatible_runtimes=[lambda_.Runtime.PYTHON_3_9],
+            description="Lambda layer with numpy, pandas",
+        )
+
         dev_endpoint_evaluate_lambda = lambda_.Function(
             self,
             id="DevEndpointEvaluateLambda",
             runtime=lambda_.Runtime.PYTHON_3_9,
             handler="index.lambda_handler",
             code=lambda_.Code.from_asset("mlops/lambda_funcs/evaluate_dev_endpoint"),
+            layers=[ml_layer],
             environment={
                 "ENDPOINT_NAME": endpoint_name,
                 "TEST_DATA_S3_BUCKET": data_science_bucket_name,

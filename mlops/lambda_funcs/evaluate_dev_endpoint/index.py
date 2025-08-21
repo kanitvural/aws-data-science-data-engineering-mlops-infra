@@ -3,7 +3,6 @@ import boto3
 import pandas as pd
 import numpy as np
 import io
-from sklearn.metrics import mean_squared_error
 import logging
 import os
 
@@ -18,7 +17,7 @@ def lambda_handler(event, context):
     - EVALUATION_RESULT_S3_BUCKET
     - TEST_CSV_KEY
     - TARGET_COLUMN (optional, default: 'target')
-    - RMSE_THRESHOLD (optional, default: 5.0)
+    - RMSE_THRESHOLD (optional, default: 20.0)
     """
     
     try:
@@ -60,16 +59,17 @@ def lambda_handler(event, context):
         predictions_df = pd.read_csv(io.StringIO(result), header=None)
         predictions = predictions_df.iloc[:, 0].values
         
-        # Calculate RMSE
-        rmse = float(np.sqrt(mean_squared_error(y_true, predictions)))
+        # Calculate RMSE manually (without sklearn)
+        mse = np.mean((y_true - predictions) ** 2)
+        rmse = float(np.sqrt(mse))
         logger.info(f"RMSE calculated: {rmse:.4f}")
         
         # Evaluation result
         evaluation = {
-            'rmse': float(rmse),
-            'threshold': float(rmse_threshold),
-            'evaluation_passed': bool(rmse < rmse_threshold),
-            'total_predictions': int(len(predictions))
+            'rmse': rmse,
+            'threshold': rmse_threshold,
+            'evaluation_passed': rmse < rmse_threshold,
+            'total_predictions': len(predictions)
         }
         
         # Save to S3
@@ -82,7 +82,6 @@ def lambda_handler(event, context):
         logger.info(f"RMSE: {rmse:.4f}")
         logger.info(f"Threshold: {rmse_threshold}")
         logger.info(f"Test {'PASSED' if rmse < rmse_threshold else 'FAILED'}")
-        logger.info("evaluation.json saved to S3")
         
         # Response for direct invocation
         return {

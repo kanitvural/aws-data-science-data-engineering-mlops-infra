@@ -119,8 +119,6 @@ class CDKMLOpsPipelineStack(Stack):
         
         sm_dev_endpoint_step_function_system_test_deploy = pipeline.add_stage(step_function_dev_endpoint_system_test_stage)
         
-        # İleride buraya test step'leri vs ekleyebilirsin
-        # sagemaker_deploy.add_post(system_test_step)
-        # prod_deploy = pipeline.add_stage(sagemaker_prod_stage)
+
         
         
