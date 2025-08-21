@@ -18,6 +18,7 @@ TEST_CSV_KEY = "sagemaker-preprocess-output/test/test.csv"
 TARGET_COLUMN = "dep_delay"
 RMSE_THRESHOLD = 20.0
 
+# local test
 
 def main():
     # Read test data from S3
