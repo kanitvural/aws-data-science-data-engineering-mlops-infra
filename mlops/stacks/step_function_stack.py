@@ -20,6 +20,8 @@ class StepFunctionStack(Stack):
         # ----------------------------------------------------------------------
         # Environment Variables
         # ----------------------------------------------------------------------
+     
+        # Evaluation Lambda environment variables
         data_science_bucket_name = Fn.import_value("DataScienceBucketName")
         test_csv_key = "sagemaker-preprocess-output/test/test.csv"
         target_column = "dep_delay"
@@ -27,23 +29,19 @@ class StepFunctionStack(Stack):
         rmse_threshold = 20.0
         endpoint_name = "dev-endpoint"
 
+    
+        # Register Lambda environment variables
         model_package_group_name = "flight-delay-model-package-group"
         model_s3_uri = "s3://data-science-bucket-058264126563/sagemaker-final-training-output/model/pipelines-7877okymrfhn-FlightsFinalTraining-6KIqJxP2g4/output/model.tar.gz"
-        inference_image_uri = (
-            f"{self.account}.dkr.ecr.{self.region}.amazonaws.com/{project_name}-repository-{self.account}:latest"
-        )
+        inference_image_uri = f"{self.account}.dkr.ecr.{self.region}.amazonaws.com/{project_name}-repository-{self.account}:latest"
         model_description = "XGBoost model for flight delay prediction"
         evaluation_result_s3_bucket = mlops_bucket_name
         evaluation_result_key = "dev-endpoint-evaluation-result/evaluation.json"
 
+        # Sagemaker Baseline Processing Job variables
         sagemaker_role_arn = f"arn:aws:iam::{self.account}:role/SageMakerExecutionRole-{project_name}-{self.account}"
         baseline_input_key = "sagemaker-preprocess-output/baseline/baseline.csv"
         baseline_output_prefix = "baseline_report"
-
-        # ----------------------------------------------------------------------
-        # Fail state (önce tanımla!)
-        # ----------------------------------------------------------------------
-        workflow_failed = sfn.Fail(self, "WorkflowFailed")
 
         # ----------------------------------------------------------------------
         # IAM Role for Step Functions
@@ -79,18 +77,11 @@ class StepFunctionStack(Stack):
             self,
             "EvaluateLambdaRole",
             assumed_by=iam.ServicePrincipal("lambda.amazonaws.com"),
-            managed_policies=[
-                iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AWSLambdaBasicExecutionRole")
-            ],
+            managed_policies=[iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AWSLambdaBasicExecutionRole")],
         )
         evaluate_lambda_role.add_to_policy(
             iam.PolicyStatement(
-                actions=[
-                    "sagemaker:InvokeEndpoint",
-                    "s3:GetObject",
-                    "s3:PutObject",
-                    "s3:ListBucket",
-                ],
+                actions=["sagemaker:InvokeEndpoint", "s3:GetObject", "s3:PutObject", "s3:ListBucket"],
                 resources=["*"],
             )
         )
@@ -99,9 +90,7 @@ class StepFunctionStack(Stack):
             self,
             "RegisterLambdaRole",
             assumed_by=iam.ServicePrincipal("lambda.amazonaws.com"),
-            managed_policies=[
-                iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AWSLambdaBasicExecutionRole")
-            ],
+            managed_policies=[iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AWSLambdaBasicExecutionRole")],
         )
         register_lambda_role.add_to_policy(
             iam.PolicyStatement(
@@ -121,9 +110,7 @@ class StepFunctionStack(Stack):
             self,
             "BaselineLambdaRole",
             assumed_by=iam.ServicePrincipal("lambda.amazonaws.com"),
-            managed_policies=[
-                iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AWSLambdaBasicExecutionRole")
-            ],
+            managed_policies=[iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AWSLambdaBasicExecutionRole")],
         )
         baseline_lambda_role.add_to_policy(
             iam.PolicyStatement(
@@ -198,7 +185,12 @@ class StepFunctionStack(Stack):
         )
 
         # ----------------------------------------------------------------------
-        # Step Functions
+        # Fail states
+        # ----------------------------------------------------------------------
+        workflow_failed = sfn.Fail(self, "WorkflowFailed")
+
+        # ----------------------------------------------------------------------
+        # Step 1: Evaluate
         # ----------------------------------------------------------------------
         evaluate_step = tasks.LambdaInvoke(
             self,
@@ -208,30 +200,39 @@ class StepFunctionStack(Stack):
         )
         evaluate_step.add_catch(workflow_failed)
 
+        # ----------------------------------------------------------------------
+        # Step 2: Threshold check
+        # ----------------------------------------------------------------------
         check_threshold = sfn.Choice(self, "Check Model Quality")
         pass_state = sfn.Pass(self, "ModelBelowThreshold")
         fail_state = sfn.Fail(self, "ModelAboveThreshold")
 
-        baseline_step = tasks.LambdaInvoke(
+        # ----------------------------------------------------------------------
+        # Step 3: Parallel branches
+        # ----------------------------------------------------------------------
+        baseline_step_parallel = tasks.LambdaInvoke(
             self,
-            "BaselineProcessingStep",
+            "BaselineProcessingStepParallel",
             lambda_function=baseline_lambda,
             output_path="$.Payload",
         )
-        baseline_step.add_catch(workflow_failed)
+        baseline_step_parallel.add_catch(sfn.Fail(self, "WorkflowFailedBaselineParallel"))
 
-        register_model_step = tasks.LambdaInvoke(
+        register_model_step_parallel = tasks.LambdaInvoke(
             self,
-            "RegisterModel",
+            "RegisterModelStepParallel",
             lambda_function=register_model_lambda,
             output_path="$.Payload",
         )
-        register_model_step.add_catch(workflow_failed)
+        register_model_step_parallel.add_catch(sfn.Fail(self, "WorkflowFailedRegisterParallel"))
 
         parallel_step = sfn.Parallel(self, "FinalizeModel")
-        parallel_step.branch(baseline_step)
-        parallel_step.branch(register_model_step)
+        parallel_step.branch(baseline_step_parallel)
+        parallel_step.branch(register_model_step_parallel)
 
+        # ----------------------------------------------------------------------
+        # State machine definition
+        # ----------------------------------------------------------------------
         definition = evaluate_step.next(
             check_threshold.when(
                 sfn.Condition.number_less_than("$.rmse", rmse_threshold),
@@ -239,6 +240,9 @@ class StepFunctionStack(Stack):
             ).otherwise(fail_state)
         )
 
+        # ----------------------------------------------------------------------
+        # State Machine
+        # ----------------------------------------------------------------------
         sm = sfn.StateMachine(
             self,
             "ModelWorkflow",
@@ -247,6 +251,9 @@ class StepFunctionStack(Stack):
             role=sfn_role,
         )
 
+        # ----------------------------------------------------------------------
+        # Output
+        # ----------------------------------------------------------------------
         CfnOutput(
             self,
             "StateMachineArn",
