@@ -121,6 +121,29 @@ class StepFunctionStack(Stack):
             )
         )
 
+        baseline_lambda_role = iam.Role(
+            self,
+            "BaselineLambdaRole",
+            assumed_by=iam.ServicePrincipal("lambda.amazonaws.com"),
+            managed_policies=[
+                iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AWSLambdaBasicExecutionRole")
+            ],
+        )
+
+        baseline_lambda_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "sagemaker:CreateProcessingJob",
+                    "sagemaker:DescribeProcessingJob",
+                    "sagemaker:StopProcessingJob",
+                    "s3:GetObject",
+                    "s3:PutObject",
+                    "s3:ListBucket",
+                ],
+                resources=["*"],
+            )
+        )
+
         # ----------------------------------------------------------------------
         # Lambda Functions
         # ----------------------------------------------------------------------
@@ -139,7 +162,7 @@ class StepFunctionStack(Stack):
                 "RMSE_THRESHOLD": str(rmse_threshold),
             },
             role=evaluate_lambda_role,
-            timeout=Duration.seconds(30),
+            timeout=Duration.minutes(1),
         )
 
         register_model_lambda = lambda_.Function(
@@ -157,7 +180,26 @@ class StepFunctionStack(Stack):
                 "EVALUATION_RESULT_KEY": evaluation_result_key,
             },
             role=register_lambda_role,
-            timeout=Duration.seconds(30),
+            timeout=Duration.minutes(1),
+        )
+
+        baseline_lambda = lambda_.Function(
+            self,
+            id="BaselineLambda",
+            runtime=lambda_.Runtime.PYTHON_3_9,
+            handler="index.lambda_handler",
+            code=lambda_.Code.from_asset("mlops/lambda_funcs/baseline_processing"),
+            environment={
+                "DATA_SCIENCE_BUCKET": data_science_bucket_name,
+                "BASELINE_INPUT_KEY": baseline_input_key,
+                "MLOPS_BUCKET": mlops_bucket_name,
+                "BASELINE_OUTPUT_PREFIX": baseline_output_prefix,
+                "REGION": self.region,
+                "PROJECT_NAME": project_name,
+                "SAGEMAKER_ROLE_ARN": sagemaker_role_arn,
+            },
+            role=baseline_lambda_role,
+            timeout=Duration.minutes(5),
         )
 
         # ----------------------------------------------------------------------
@@ -169,6 +211,7 @@ class StepFunctionStack(Stack):
             lambda_function=dev_endpoint_evaluate_lambda,
             output_path="$.Payload",
         )
+        evaluate_step.add_catch(workflow_failed)
 
         # ----------------------------------------------------------------------
         # Step 2: Threshold check
@@ -180,61 +223,15 @@ class StepFunctionStack(Stack):
         # ----------------------------------------------------------------------
         # Step 3: Baseline (Processing Job)
         # ----------------------------------------------------------------------
-        baseline_step = tasks.SageMakerCreateProcessingJob(
+
+        baseline_step = tasks.LambdaInvoke(
             self,
-            "BaselineProcessingTask",
-            processing_job_name=sfn.JsonPath.format(
-                f"{project_name}-baseline-{{}}", sfn.JsonPath.string_at("$$.Execution.Name")
-            ),
-            app_specification=tasks.ProcessingJobAppSpecification(
-                image_uri=self._get_baseline_container_uri(),
-                container_arguments=[],
-                container_entrypoint=[],
-            ),
-            environment={
-                "DATASET_FORMAT": baseline_dataset_format,
-                "DATASET_SOURCE": baseline_dataset_source,
-                "OUTPUT_PATH": baseline_output_path,
-                "PUBLISH_CLOUDWATCH_METRICS": baseline_publish_metrics,
-                "BASELINE_BUCKET": data_science_bucket_name,
-                "BASELINE_KEY": baseline_input_key,
-                "REPORT_BUCKET": mlops_bucket_name,
-                "REPORT_PREFIX": baseline_output_prefix,
-            },
-            processing_inputs=[
-                tasks.ProcessingInput(
-                    input_name="baseline_dataset_input",
-                    s3_input=tasks.ProcessingS3Input(
-                        s3_uri=sfn.JsonPath.format("s3://{}/{}", data_science_bucket_name, baseline_input_key),
-                        local_path=baseline_dataset_source,
-                        s3_data_type=tasks.ProcessingS3DataType.S3_PREFIX,
-                        s3_input_mode=tasks.ProcessingS3InputMode.READ_ONLY,
-                        s3_compression_type=tasks.ProcessingS3CompressionType.NONE,
-                    ),
-                ),
-            ],
-            processing_outputs=[
-                tasks.ProcessingOutput(
-                    output_name="monitoring_output",
-                    s3_output=tasks.ProcessingS3Output(
-                        s3_uri=sfn.JsonPath.format("s3://{}/{}", mlops_bucket_name, baseline_output_prefix),
-                        local_path=baseline_output_path,
-                        s3_upload_mode=tasks.ProcessingS3UploadMode.END_OF_JOB,
-                    ),
-                ),
-            ],
-            cluster_config=tasks.ProcessingJobClusterConfig(
-                instance_count=1,
-                instance_type=tasks.ProcessorInstanceType("ml.m5.xlarge"),
-                volume_size_in_gb=30,
-            ),
-            role=iam.Role.from_role_arn(
-                self,
-                "ImportedSageMakerRole",
-                sagemaker_role_arn,
-            ),
-            timeout=Duration.minutes(30),
+            "BaselineProcessingStep",
+            lambda_function=baseline_lambda,
+            output_path="$.Payload",
         )
+
+        baseline_step.add_catch(workflow_failed)
 
         # ----------------------------------------------------------------------
         # Step 4: Register Model Lambda
@@ -245,6 +242,8 @@ class StepFunctionStack(Stack):
             lambda_function=register_model_lambda,
             output_path="$.Payload",
         )
+
+        register_model_step.add_catch(workflow_failed)
 
         # ----------------------------------------------------------------------
         # Step 5: Parallel branch (Baseline + Register)
@@ -265,7 +264,7 @@ class StepFunctionStack(Stack):
             check_threshold.when(
                 sfn.Condition.number_less_than("$.rmse", rmse_threshold), pass_state.next(parallel_step)
             ).otherwise(fail_state)
-        ).add_catch(workflow_failed)
+        )
 
         # ----------------------------------------------------------------------
         # State Machine
@@ -287,30 +286,3 @@ class StepFunctionStack(Stack):
             value=sm.state_machine_arn,
             export_name="StepFunctionStateMachineArn",
         )
-        
-    def _get_baseline_container_uri(self) -> str:
-        """Returns AWS Model Monitor Analyzer container URI based on the region"""
-        region_to_account = {
-            "eu-north-1": "895015795356",
-            "me-south-1": "607024016150",
-            "ap-south-1": "126357580389",
-            "eu-west-3": "680080141114",
-            "us-east-2": "777275614652",
-            "eu-west-1": "468650794304",
-            "eu-central-1": "048819808253",
-            "sa-east-1": "539772159869",
-            "ap-east-1": "001633400207",
-            "us-east-1": "156813124566",
-            "ap-northeast-2": "709848358524",
-            "eu-west-2": "749857470468",
-            "ap-northeast-1": "574779866223",
-            "us-west-2": "159807026194",
-            "us-west-1": "890145073186",
-            "ap-southeast-1": "245545462676",
-            "ap-southeast-2": "563025443158",
-            "ca-central-1": "536280801234"
-        }
-        account = region_to_account.get(self.region)
-        if not account:
-            raise ValueError(f"No baseline container account defined for region {self.region}")
-        return f"{account}.dkr.ecr.{self.region}.amazonaws.com/sagemaker-model-monitor-analyzer"
