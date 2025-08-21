@@ -11,14 +11,12 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 # Parameters
-ENDPOINT_URL = "https://your-endpoint-url/invocations" 
+ENDPOINT_NAME = "dev-endpoint"  # SageMaker endpoint name (not full URL)
 TEST_DATA_S3_BUCKET = "data-science-bucket-058264126563"
 EVALUATION_RESULT_S3_BUCKET = "mlops-bucket-058264126563"
 TEST_CSV_KEY = "sagemaker-preprocess-output/test/test.csv"
 TARGET_COLUMN = "dep_delay"
 RMSE_THRESHOLD = 20.0
-
-# local test
 
 def main():
     # Read test data from S3
@@ -37,17 +35,19 @@ def main():
     X_test.to_csv(csv_buffer, header=False, index=False)
     csv_data = csv_buffer.getvalue()
     
-    # Send to endpoint
+    # Send to SageMaker endpoint using boto3
     logger.info("Making predictions...")
-    headers = {'Content-Type': 'text/csv'}
-    response = requests.post(ENDPOINT_URL, data=csv_data, headers=headers)
+    sagemaker_runtime = boto3.client('sagemaker-runtime')
     
-    if response.status_code != 200:
-        logger.error(f"Error: {response.status_code} - {response.text}")
-        return
+    response = sagemaker_runtime.invoke_endpoint(
+        EndpointName=ENDPOINT_NAME,
+        ContentType='text/csv',
+        Body=csv_data
+    )
     
     # Parse results
-    predictions_df = pd.read_csv(io.StringIO(response.text), header=None)
+    result = response['Body'].read().decode('utf-8')
+    predictions_df = pd.read_csv(io.StringIO(result), header=None)
     predictions = predictions_df.iloc[:, 0].values
     
     # Calculate RMSE
@@ -56,9 +56,9 @@ def main():
     # Prepare results
     evaluation = {
         'rmse': float(rmse),
-        'threshold': RMSE_THRESHOLD,
-        'evaluation_passed': rmse < RMSE_THRESHOLD,
-        'total_predictions': len(predictions)
+        'threshold': float(RMSE_THRESHOLD),
+        'evaluation_passed': bool(rmse < RMSE_THRESHOLD),
+        'total_predictions': int(len(predictions))
     }
     
     # Save to S3

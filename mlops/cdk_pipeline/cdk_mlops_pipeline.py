@@ -8,6 +8,7 @@ from aws_cdk import (
 from constructs import Construct
 from .mlops_infra_stage import MLOpsInfraStage
 from .sm_dev_endpoint_stage import SMDevEndpointStage
+from .step_function_stage import StepFunctionStage
 
 
 class CDKMLOpsPipelineStack(Stack):
@@ -92,16 +93,31 @@ class CDKMLOpsPipelineStack(Stack):
             ],
         )
         
+        # MLOps Infra Stage
+        
+        mlops_infra_deploy = pipeline.add_stage(mlops_infra_stage)
+        mlops_infra_deploy.add_post(build_and_push_image)
+        
+        # SageMaker Dev Endpoint Deploy Stage
+        
         sm_dev_endpoint_stage = SMDevEndpointStage(
             self,
             id="SMDevEndpointStage",
             project_name=project_name,
         )
 
-        deploy_stage = pipeline.add_stage(mlops_infra_stage)
-        deploy_stage.add_post(build_and_push_image)
+        sm_dev_endpoint_deploy = pipeline.add_stage(sm_dev_endpoint_stage)
         
-        sagemaker_deploy = pipeline.add_stage(sm_dev_endpoint_stage)
+        
+        # Create the Step Function Stage
+        
+        step_function_dev_endpoint_system_test_stage = StepFunctionStage(
+            self,
+            id="StepFunctionDevEndpointSystemTestStage",
+            project_name=project_name,
+        )
+        
+        sm_dev_endpoint_step_function_system_test_deploy = pipeline.add_stage(step_function_dev_endpoint_system_test_stage)
         
         # İleride buraya test step'leri vs ekleyebilirsin
         # sagemaker_deploy.add_post(system_test_step)
