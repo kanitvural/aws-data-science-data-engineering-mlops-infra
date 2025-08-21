@@ -43,10 +43,6 @@ class StepFunctionStack(Stack):
         sagemaker_role_arn = f"arn:aws:iam::{self.account}:role/SageMakerExecutionRole-{project_name}-{self.account}"
         baseline_input_key = "sagemaker-preprocess-output/baseline/baseline.csv"
         baseline_output_prefix = "baseline_report"
-        baseline_dataset_format = json.dumps({"csv": {"header": True, "output_columns_position": "START"}})
-        baseline_dataset_source = "/opt/ml/processing/input/baseline_dataset_input"
-        baseline_output_path = "/opt/ml/processing/output"
-        baseline_publish_metrics = "Disabled"
 
         # ----------------------------------------------------------------------
         # IAM Role for Step Functions
@@ -188,7 +184,7 @@ class StepFunctionStack(Stack):
             id="BaselineLambda",
             runtime=lambda_.Runtime.PYTHON_3_9,
             handler="index.lambda_handler",
-            code=lambda_.Code.from_asset("mlops/lambda_funcs/baseline_processing"),
+            code=lambda_.Code.from_asset("mlops/lambda_funcs/sm_baseline_processing"),
             environment={
                 "DATA_SCIENCE_BUCKET": data_science_bucket_name,
                 "BASELINE_INPUT_KEY": baseline_input_key,
