@@ -3,8 +3,6 @@ import os
 import json
 import datetime
 import logging
-from sagemaker.processing import ScriptProcessor, ProcessingInput, ProcessingOutput
-from sagemaker import Session
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -46,39 +44,83 @@ def lambda_handler(event, context):
     data_science_bucket = os.environ["DATA_SCIENCE_BUCKET"]
     mlops_bucket = os.environ["MLOPS_BUCKET"]
     baseline_output_prefix = os.environ["BASELINE_OUTPUT_PREFIX"]
-    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    
+    timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     job_name = f"{project_name}-baseline-{timestamp}"
 
     logger.info(f"Starting baseline processing job: {job_name}")
 
-    session = Session()
-    processor = ScriptProcessor(
-        role=sagemaker_role_arn,
-        image_uri=_get_baseline_container_uri(region),
-        command=["python3"],
-        instance_count=1,
-        instance_type="ml.m5.xlarge",
-        volume_size_in_gb=30,
-        max_runtime_in_seconds=1800,
-        sagemaker_session=session,
-    )
+    # SageMaker client
+    sagemaker_client = boto3.client('sagemaker')
 
-    processor.run(
-        inputs=[
-            ProcessingInput(
-                source=f"s3://{data_science_bucket}/{baseline_input_key}",
-                destination="/opt/ml/processing/input/baseline_dataset_input",
-            )
-        ],
-        outputs=[
-            ProcessingOutput(
-                source="/opt/ml/processing/output",
-                destination=f"s3://{mlops_bucket}/{baseline_output_prefix}",
-            )
-        ],
-        wait=True,
-    )
+    try:
+        # Processing job parameters
+        processing_job_request = {
+            'ProcessingJobName': job_name,
+            'ProcessingResources': {
+                'ClusterConfig': {
+                    'InstanceCount': 1,
+                    'InstanceType': 'ml.m5.xlarge',
+                    'VolumeSizeInGB': 30
+                }
+            },
+            'StoppingCondition': {
+                'MaxRuntimeInSeconds': 1800
+            },
+            'AppSpecification': {
+                'ImageUri': _get_baseline_container_uri(region),
+                'ContainerEntrypoint': ['python3']
+            },
+            'ProcessingInputs': [
+                {
+                    'InputName': 'baseline_dataset_input',
+                    'AppManaged': False,
+                    'S3Input': {
+                        'S3Uri': f"s3://{data_science_bucket}/{baseline_input_key}",
+                        'LocalPath': '/opt/ml/processing/input/baseline_dataset_input',
+                        'S3DataType': 'S3Prefix',
+                        'S3InputMode': 'File'
+                    }
+                }
+            ],
+            'ProcessingOutputConfig': {
+                'Outputs': [
+                    {
+                        'OutputName': 'baseline_output',
+                        'AppManaged': False,
+                        'S3Output': {
+                            'S3Uri': f"s3://{mlops_bucket}/{baseline_output_prefix}",
+                            'LocalPath': '/opt/ml/processing/output',
+                            'S3UploadMode': 'EndOfJob'
+                        }
+                    }
+                ]
+            },
+            'RoleArn': sagemaker_role_arn
+        }
 
-    logger.info(f"Baseline processing job completed: {job_name}")
+        # Processing job başlat
+        response = sagemaker_client.create_processing_job(**processing_job_request)
+        
+        logger.info(f"Processing job started successfully: {job_name}")
+        logger.info(f"Processing job ARN: {response.get('ProcessingJobArn', 'N/A')}")
 
-    return {"statusCode": 200, "body": json.dumps({"processingJobName": job_name})}
+
+        return {
+            "statusCode": 200, 
+            "body": json.dumps({
+                "processingJobName": job_name,
+                "processingJobArn": response.get('ProcessingJobArn'),
+                "message": "Baseline processing job started successfully"
+            })
+        }
+
+    except Exception as e:
+        logger.error(f"Error creating baseline processing job: {str(e)}")
+        return {
+            "statusCode": 500,
+            "body": json.dumps({
+                "error": str(e),
+                "message": "Failed to create baseline processing job"
+            })
+        }

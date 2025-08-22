@@ -32,9 +32,8 @@ class StepFunctionStack(Stack):
         # Register Lambda environment variables
         model_package_group_name = "flight-delay-model-package-group"
         model_s3_uri = "s3://data-science-bucket-058264126563/sagemaker-final-training-output/model/pipelines-7877okymrfhn-FlightsFinalTraining-6KIqJxP2g4/output/model.tar.gz"
-        inference_image_uri = (
-            f"{self.account}.dkr.ecr.{self.region}.amazonaws.com/{project_name}-repository-{self.account}:latest"
-        )
+        inference_image_uri = f"{self.account}.dkr.ecr.{self.region}.amazonaws.com/{project_name}-repository-{self.account}:latest"
+       
         model_description = "XGBoost model for flight delay prediction"
         evaluation_result_s3_bucket = mlops_bucket_name
         evaluation_result_key = "dev-endpoint-evaluation-result/evaluation.json"
@@ -177,6 +176,7 @@ class StepFunctionStack(Stack):
                 "MODEL_DESCRIPTION": model_description,
                 "EVALUATION_RESULT_S3_BUCKET": evaluation_result_s3_bucket,
                 "EVALUATION_RESULT_KEY": evaluation_result_key,
+                "SAGEMAKER_ROLE_ARN": sagemaker_role_arn, 
             },
             role=register_lambda_role,
             timeout=Duration.minutes(1),

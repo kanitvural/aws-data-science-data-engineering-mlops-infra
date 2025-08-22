@@ -1,4 +1,5 @@
 cd lambda_layer
+deactivate
 pyenv install 3.9.18
 pyenv local 3.9.18 
 python --version

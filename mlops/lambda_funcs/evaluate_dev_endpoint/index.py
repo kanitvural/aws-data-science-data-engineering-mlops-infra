@@ -24,9 +24,9 @@ def lambda_handler(event, context):
         # Get parameters from environment variables
         endpoint_name = os.environ['ENDPOINT_NAME']
         test_data_s3_bucket = os.environ['TEST_DATA_S3_BUCKET']
-        evaluation_result_s3_bucket = os.environ['EVALUATION_RESULT_S3_BUCKET']
         test_csv_key = os.environ['TEST_CSV_KEY']
-        target_column = os.environ.get('TARGET_COLUMN', 'target')
+        evaluation_result_s3_bucket = os.environ['EVALUATION_RESULT_S3_BUCKET']
+        target_column = os.environ.get('TARGET_COLUMN', 'dep_delay')
         rmse_threshold = float(os.environ.get('RMSE_THRESHOLD', '20.0'))
         
         # Read test data from S3
