@@ -51,7 +51,7 @@ def lambda_handler(event, context):
     logger.info(f"Starting baseline processing job: {job_name}")
 
     # SageMaker client
-    sagemaker_client = boto3.client('sagemaker', region_name=region )
+    sagemaker_client = boto3.client('sagemaker', region_name=region)
 
     try:
         # Processing job parameters
@@ -68,8 +68,13 @@ def lambda_handler(event, context):
                 'MaxRuntimeInSeconds': 1800
             },
             'AppSpecification': {
-                'ImageUri': _get_baseline_container_uri(region),
-                'ContainerEntrypoint': ['python3']
+                'ImageUri': _get_baseline_container_uri(region)
+            },
+            'Environment': {
+                "dataset_format": '{"csv": {"header": true, "output_columns_position": "START"}}',
+                "dataset_source": "/opt/ml/processing/input/baseline_dataset_input",
+                "output_path": "/opt/ml/processing/output",
+                "publish_cloudwatch_metrics": "Disabled"
             },
             'ProcessingInputs': [
                 {
@@ -99,15 +104,14 @@ def lambda_handler(event, context):
             'RoleArn': sagemaker_role_arn
         }
 
-        # Processing job başlat
+        # Start Processing job
         response = sagemaker_client.create_processing_job(**processing_job_request)
         
         logger.info(f"Processing job started successfully: {job_name}")
         logger.info(f"Processing job ARN: {response.get('ProcessingJobArn', 'N/A')}")
 
-
         return {
-            "statusCode": 200, 
+            "statusCode": 200,
             "body": json.dumps({
                 "processingJobName": job_name,
                 "processingJobArn": response.get('ProcessingJobArn'),
