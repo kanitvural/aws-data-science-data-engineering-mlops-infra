@@ -28,9 +28,10 @@ def lambda_handler(event, context):
         evaluation_result_s3_bucket = os.environ['EVALUATION_RESULT_S3_BUCKET']
         target_column = os.environ.get('TARGET_COLUMN', 'dep_delay')
         rmse_threshold = float(os.environ.get('RMSE_THRESHOLD', '20.0'))
+        region = os.environ.get('REGION', 'eu-central-1')
         
         # Read test data from S3
-        s3 = boto3.client('s3')
+        s3 = boto3.client('s3', region_name=region)
         obj = s3.get_object(Bucket=test_data_s3_bucket, Key=test_csv_key)
         test_df = pd.read_csv(io.BytesIO(obj['Body'].read()))
         logger.info(f"Test data loaded: {len(test_df)} rows")

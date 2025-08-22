@@ -15,13 +15,24 @@ def lambda_handler(event, context):
     model_package_group_name = os.environ['MODEL_PACKAGE_GROUP_NAME']
     evaluation_result_bucket = os.environ['EVALUATION_RESULT_S3_BUCKET']
     evaluation_result_key = os.environ.get('EVALUATION_RESULT_KEY', 'dev-endpoint-evaluation-result/evaluation.json')
-    role = os.environ['SAGEMAKER_ROLE_ARN']
+    region = os.environ.get('REGION', 'eu-central-1')
 
     # AWS clients
-    s3_client = boto3.client('s3')
-    sagemaker_client = boto3.client('sagemaker')
+    s3_client = boto3.client('s3', region_name=region)
+    sagemaker_client = boto3.client('sagemaker', region_name=region)
 
     try:
+        # Model Package Group'un varlığını kontrol et
+        try:
+            sagemaker_client.describe_model_package_group(ModelPackageGroupName=model_package_group_name)
+            logger.info(f"Model package group already exists: {model_package_group_name}")
+        except sagemaker_client.exceptions.ResourceNotFound:
+            logger.info(f"Creating model package group: {model_package_group_name}")
+            sagemaker_client.create_model_package_group(
+                ModelPackageGroupName=model_package_group_name,
+                ModelPackageGroupDescription="MLOps model registry for flight delay prediction"
+            )
+        
         # Evaluation dosyasını oku
         logger.info(f"Reading evaluation results from s3://{evaluation_result_bucket}/{evaluation_result_key}")
         eval_obj = s3_client.get_object(Bucket=evaluation_result_bucket, Key=evaluation_result_key)
@@ -44,7 +55,7 @@ def lambda_handler(event, context):
 
         # Model package create request
         create_model_package_request = {
-            'ModelPackageGroupName': model_package_group_name,
+            'ModelPackageGroupName': model_package_group_name,  # Sadece group name
             'ModelPackageDescription': f"Auto-registered model on {timestamp}",
             'ModelApprovalStatus': 'Approved',
             'InferenceSpecification': {

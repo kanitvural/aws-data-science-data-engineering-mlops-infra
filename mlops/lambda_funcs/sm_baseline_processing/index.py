@@ -51,7 +51,7 @@ def lambda_handler(event, context):
     logger.info(f"Starting baseline processing job: {job_name}")
 
     # SageMaker client
-    sagemaker_client = boto3.client('sagemaker')
+    sagemaker_client = boto3.client('sagemaker', region_name=region )
 
     try:
         # Processing job parameters
