@@ -127,6 +127,7 @@ class StepFunctionStack(Stack):
                     "s3:GetObject",
                     "s3:PutObject",
                     "s3:ListBucket",
+                    "iam:PassRole",
                 ],
                 resources=["*"],
             )
