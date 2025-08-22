@@ -52,7 +52,7 @@ class CDKMLOpsPipelineStack(Stack):
             project_name=project_name,
             notification_email=notification_email,
         )
-        
+
         build_and_push_image = pipelines_.CodeBuildStep(
             "BuildAndPushImageToECR",
             input=source,
@@ -92,14 +92,14 @@ class CDKMLOpsPipelineStack(Stack):
                 )
             ],
         )
-        
+
         # MLOps Infra Stage
-        
+
         mlops_infra_deploy = pipeline.add_stage(mlops_infra_stage)
         mlops_infra_deploy.add_post(build_and_push_image)
-        
+
         # SageMaker Dev Endpoint Deploy Stage
-        
+
         sm_dev_endpoint_stage = SMDevEndpointStage(
             self,
             id="SMDevEndpointStage",
@@ -107,18 +107,49 @@ class CDKMLOpsPipelineStack(Stack):
         )
 
         sm_dev_endpoint_deploy = pipeline.add_stage(sm_dev_endpoint_stage)
-        
-        
+
         # Create the Step Function Stage
-        
+
         step_function_dev_endpoint_system_test_stage = StepFunctionStage(
             self,
             id="StepFunctionDevEndpointSystemTestStage",
             project_name=project_name,
         )
-        
-        sm_dev_endpoint_step_function_system_test_deploy = pipeline.add_stage(step_function_dev_endpoint_system_test_stage)
-        
 
-        
-        
+        sm_dev_endpoint_step_function_system_test_deploy = pipeline.add_stage(
+            step_function_dev_endpoint_system_test_stage
+        )
+
+        start_step_function = pipelines_.CodeBuildStep(
+            "StartDevEndpointSystemTest",
+            input=source,
+            build_environment=codebuild.BuildEnvironment(
+                compute_type=codebuild.ComputeType.SMALL,
+                build_image=codebuild.LinuxBuildImage.STANDARD_7_0,
+            ),
+            commands=[
+                "echo '🔧 Setting up Step Function executor...'",
+                "pip install --upgrade pip",
+                "pip install boto3",
+                "python mlops/scripts/execute_state_machine.py",
+            ],
+            env={
+                "REGION": self.region,
+                "STEP_FUNCTION_NAME_SUBSTRING": "DevEndpointEvaluationWorkflow",
+                "PROJECT_NAME": project_name,
+            },
+            role_policy_statements=[
+                iam.PolicyStatement(
+                    actions=[
+                        "stepfunctions:ListStateMachines",
+                        "stepfunctions:StartExecution",
+                        "stepfunctions:ListExecutions",
+                        "stepfunctions:DescribeExecution",
+                        "stepfunctions:DescribeStateMachine",
+                    ],
+                    resources=["*"],
+                )
+            ],
+        )
+
+        sm_dev_endpoint_step_function_system_test_deploy.add_post(start_step_function)

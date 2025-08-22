@@ -271,7 +271,7 @@ class StepFunctionStack(Stack):
         # ----------------------------------------------------------------------
         sm = sfn.StateMachine(
             self,
-            "ModelWorkflow",
+            "DevEndpointEvaluationWorkflow",
             definition=definition,
             timeout=Duration.minutes(30),
             role=sfn_role,
