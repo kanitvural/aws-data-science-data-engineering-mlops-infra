@@ -141,11 +141,11 @@ class CDKMLOpsPipelineStack(Stack):
             role_policy_statements=[
                 iam.PolicyStatement(
                     actions=[
-                        "stepfunctions:ListStateMachines",
-                        "stepfunctions:StartExecution",
-                        "stepfunctions:ListExecutions",
-                        "stepfunctions:DescribeExecution",
-                        "stepfunctions:DescribeStateMachine",
+                        "states:ListStateMachines",
+                        "states:StartExecution",
+                        "states:ListExecutions",
+                        "states:DescribeExecution",
+                        "states:DescribeStateMachine",
                     ],
                     resources=["*"],
                 )
