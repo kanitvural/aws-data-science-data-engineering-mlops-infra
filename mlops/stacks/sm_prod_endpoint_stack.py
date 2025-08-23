@@ -24,13 +24,11 @@ class SMProdEndpointStack(Stack):
             role_arn=Fn.import_value(f"{project_name}-sagemaker-execution-role-arn"),
             mutable=False,
         )
-        
+
         # Import ssm model arn parameter
         parameter_name = f"/{project_name}/latest-approved-model-arn"
         latest_model_package_arn = ssm.StringParameter.from_string_parameter_attributes(
-            self,
-            "LatestModelPackageArn",
-            parameter_name=parameter_name
+            self, "LatestModelPackageArn", parameter_name=parameter_name
         ).string_value
 
         # Production Model - Model Registry ARN will be placed here
@@ -38,11 +36,7 @@ class SMProdEndpointStack(Stack):
             self,
             "ProdModel",
             execution_role_arn=self.sagemaker_execution_role.role_arn,
-            containers=[
-                sagemaker.CfnModel.ContainerDefinitionProperty(
-                    model_package_name= latest_model_package_arn
-                )
-            ],
+            containers=[sagemaker.CfnModel.ContainerDefinitionProperty(model_package_name=latest_model_package_arn)],
             model_name=f"{project_name}-prod-model",
         )
 
@@ -92,6 +86,7 @@ class SMProdEndpointStack(Stack):
                 period=Duration.minutes(1),
             ),
             scaling_steps=[
+                autoscaling.ScalingInterval(upper=30, change=-1),  # CPU <30% scale down
                 autoscaling.ScalingInterval(lower=70, change=+1),  # CPU >70% scale up
             ],
             adjustment_type=autoscaling.AdjustmentType.CHANGE_IN_CAPACITY,
@@ -99,22 +94,19 @@ class SMProdEndpointStack(Stack):
         )
 
         # Outputs
-        
+
         CfnOutput(
             self,
             "ProdEndpointName",
             value=endpoint.endpoint_name,
             description="Production Endpoint name",
         )
-        
+
+        CfnOutput(self, "ProdModelName", value=model.model_name, description="SageMaker Prod Model name")
+
         CfnOutput(
-            self, "ProdModelName",
-            value=model.model_name,
-            description="SageMaker Prod Model name"
-        )
-        
-        CfnOutput(
-            self, "ProdEndpointConfigName",
+            self,
+            "ProdEndpointConfigName",
             value=endpoint_config.endpoint_config_name,
-            description="SageMaker Prod Endpoint Config name"
+            description="SageMaker Prod Endpoint Config name",
         )
