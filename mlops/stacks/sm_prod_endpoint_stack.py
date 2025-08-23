@@ -26,7 +26,7 @@ class SMProdEndpointStack(Stack):
         )
         
         # Import ssm model arn parameter
-        parameter_name = f"{project_name}/latest-approved-model-arn"
+        parameter_name = f"/{project_name}/latest-approved-model-arn"
         latest_model_package_arn = ssm.StringParameter.from_string_parameter_attributes(
             self,
             "LatestModelPackageArn",

@@ -87,7 +87,7 @@ def lambda_handler(event, context):
         logger.info(f"Model successfully registered: {model_package_arn}")
 
         # Store the Model Package ARN in SSM Parameter Store
-        parameter_name = f"{project_name}/latest-approved-model-arn"
+        parameter_name = f"/{project_name}/latest-approved-model-arn"
 
         ssm_client.put_parameter(
             Name=parameter_name,
