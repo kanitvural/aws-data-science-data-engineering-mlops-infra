@@ -27,21 +27,20 @@ class StepFunctionStack(Stack):
         target_column = "dep_delay"
         mlops_bucket_name = f"{project_name}-bucket-{self.account}"
         rmse_threshold = 20.0
-        endpoint_name = "dev-endpoint"
+        endpoint_name = f"{project_name}-dev-endpoint"
 
         # Register Lambda environment variables
         model_package_group_name = "flight-delay-model-package-group"
         model_s3_uri = "s3://data-science-bucket-058264126563/sagemaker-final-training-output/model/pipelines-7877okymrfhn-FlightsFinalTraining-6KIqJxP2g4/output/model.tar.gz"
-        inference_image_uri = (
-            f"{self.account}.dkr.ecr.{self.region}.amazonaws.com/{project_name}-repository-{self.account}:latest"
-        )
+        inference_image_uri = f"{self.account}.dkr.ecr.{self.region}.amazonaws.com/{project_name}-repository-{self.account}:latest"
+   
 
         model_description = "XGBoost model for flight delay prediction"
         evaluation_result_s3_bucket = mlops_bucket_name
         evaluation_result_key = "dev-endpoint-evaluation-result/evaluation.json"
 
         # Sagemaker Baseline Processing Job variables
-        sagemaker_role_arn = f"arn:aws:iam::{self.account}:role/SageMakerExecutionRole-{project_name}-{self.account}"
+        sagemaker_role_arn = Fn.import_value(f"{project_name}-sagemaker-execution-role-arn")
         baseline_input_key = "sagemaker-preprocess-output/baseline/baseline.csv"
         baseline_output_prefix = "baseline_report"
 
@@ -85,7 +84,12 @@ class StepFunctionStack(Stack):
         )
         evaluate_lambda_role.add_to_policy(
             iam.PolicyStatement(
-                actions=["sagemaker:InvokeEndpoint", "s3:GetObject", "s3:PutObject", "s3:ListBucket"],
+                actions=[
+                    "sagemaker:InvokeEndpoint",
+                    "s3:GetObject",
+                    "s3:PutObject",
+                    "s3:ListBucket",
+                ],
                 resources=["*"],
             )
         )

@@ -110,7 +110,6 @@ class CDKMLOpsPipelineStack(Stack):
         sm_dev_endpoint_deploy = pipeline.add_stage(sm_dev_endpoint_stage)
 
         # Create the Step Function Stage
-
         step_function_dev_endpoint_system_test_stage = StepFunctionStage(
             self,
             id="StepFunctionDevEndpointSystemTestStage",
@@ -153,8 +152,8 @@ class CDKMLOpsPipelineStack(Stack):
             ],
         )
 
-        check_model_registry = pipelines_.CodeBuildStep(
-            "CheckModelRegistry",
+        check_approved_model_ssm_parameter = pipelines_.CodeBuildStep(
+            "CheckApprovedModelSSMParameter",
             input=source,
             build_environment=codebuild.BuildEnvironment(
                 compute_type=codebuild.ComputeType.SMALL,
@@ -173,9 +172,8 @@ class CDKMLOpsPipelineStack(Stack):
             role_policy_statements=[
                 iam.PolicyStatement(
                     actions=[
-                        "sagemaker:ListModelPackages",
-                        "sagemaker:DescribeModelPackage",
-                        "sagemaker:DescribeModelPackageGroup",
+                        "ssm:GetParameter",
+                        "ssm:GetParameters",
                     ],
                     resources=["*"],
                 )
@@ -183,9 +181,8 @@ class CDKMLOpsPipelineStack(Stack):
         )
 
         sm_dev_endpoint_step_function_system_test_deploy.add_post(start_step_function)
-        check_model_registry.add_step_dependency(start_step_function)
-        sm_dev_endpoint_step_function_system_test_deploy.add_post(check_model_registry)
-
+        check_approved_model_ssm_parameter.add_step_dependency(start_step_function)
+        sm_dev_endpoint_step_function_system_test_deploy.add_post(check_approved_model_ssm_parameter)
 
         # SageMaker Prod Endpoint Deploy Stage
 

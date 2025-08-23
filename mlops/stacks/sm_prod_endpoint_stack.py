@@ -31,7 +31,7 @@ class SMProdEndpointStack(Stack):
             self, "LatestModelPackageArn", parameter_name=parameter_name
         ).string_value
 
-        # Production Model - Model Registry ARN will be placed here
+        # Production Model
         model = sagemaker.CfnModel(
             self,
             "ProdModel",
@@ -40,30 +40,31 @@ class SMProdEndpointStack(Stack):
             model_name=f"{project_name}-prod-model",
         )
 
-        # Endpoint Config - Autoscaling
+        # Endpoint Config
         endpoint_config = sagemaker.CfnEndpointConfig(
             self,
             "ProdEndpointConfig",
             production_variants=[
                 sagemaker.CfnEndpointConfig.ProductionVariantProperty(
                     initial_instance_count=1,
-                    instance_type="ml.t2.large",
+                    instance_type="ml.t2.large",  
                     model_name=model.attr_model_name,
                     variant_name="AllTraffic",
                 )
             ],
             endpoint_config_name=f"prod-endpoint-config-{project_name}",
         )
+        endpoint_config.add_dependency(model)  
 
-        # Endpoint
+       
         endpoint = sagemaker.CfnEndpoint(
             self,
             "ProdEndpoint",
             endpoint_config_name=endpoint_config.attr_endpoint_config_name,
             endpoint_name=f"{project_name}-prod-endpoint",
         )
-
-        # Auto Scaling
+        endpoint.add_dependency(endpoint_config)  
+        
         scaling_target = autoscaling.ScalableTarget(
             self,
             "EndpointScalingTarget",
@@ -73,10 +74,11 @@ class SMProdEndpointStack(Stack):
             min_capacity=1,
             max_capacity=5,
         )
+        
+        scaling_target.node.add_dependency(endpoint)
 
-        # CPU scaling
-
-        scaling_target.scale_on_metric(
+        # CPU scaling - Auto Scaling hazır olmadan scale policy oluşturma
+        cpu_scaling = scaling_target.scale_on_metric(
             "CPUScaling",
             metric=cloudwatch.Metric(
                 metric_name="CPUUtilization",
@@ -86,15 +88,15 @@ class SMProdEndpointStack(Stack):
                 period=Duration.minutes(1),
             ),
             scaling_steps=[
-                autoscaling.ScalingInterval(upper=30, change=-1),  # CPU <30% scale down
-                autoscaling.ScalingInterval(lower=70, change=+1),  # CPU >70% scale up
+                autoscaling.ScalingInterval(upper=30, change=-1),
+                autoscaling.ScalingInterval(lower=70, change=+1),
             ],
             adjustment_type=autoscaling.AdjustmentType.CHANGE_IN_CAPACITY,
             cooldown=Duration.minutes(5),
         )
+        cpu_scaling.node.add_dependency(scaling_target)
 
         # Outputs
-
         CfnOutput(
             self,
             "ProdEndpointName",
