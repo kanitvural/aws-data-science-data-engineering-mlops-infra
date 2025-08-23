@@ -6,7 +6,11 @@ from aws_cdk import (
     Fn,
 )
 from constructs import Construct
-from .mlops_stage import MLOpsStage
+from .mlops_infra_stage import MLOpsInfraStage
+from .sm_dev_endpoint_stage import SMDevEndpointStage
+from .step_function_stage import StepFunctionStage
+from .sm_prod_endpoint_stage import SMProdEndpointStage
+from .sm_prod_autoscaling_stage import SMProdAutoScalingStage
 
 
 class CDKMLOpsPipelineStack(Stack):
@@ -44,13 +48,13 @@ class CDKMLOpsPipelineStack(Stack):
             synth=synth_step,
         )
 
-        mlops_stage = MLOpsStage(
+        mlops_infra_stage = MLOpsInfraStage(
             self,
-            id="MLOpsStage",
+            id="MLOpsInfraStage",
             project_name=project_name,
             notification_email=notification_email,
         )
-        
+
         build_and_push_image = pipelines_.CodeBuildStep(
             "BuildAndPushImageToECR",
             input=source,
@@ -91,5 +95,139 @@ class CDKMLOpsPipelineStack(Stack):
             ],
         )
 
-        deploy_stage = pipeline.add_stage(mlops_stage)
-        deploy_stage.add_post(build_and_push_image)
+        # MLOps Infra Stage
+
+        mlops_infra_deploy = pipeline.add_stage(mlops_infra_stage)
+        mlops_infra_deploy.add_post(build_and_push_image)
+
+        # SageMaker Dev Endpoint Deploy Stage
+
+        sm_dev_endpoint_stage = SMDevEndpointStage(
+            self,
+            id="SMDevEndpointStage",
+            project_name=project_name,
+        )
+
+        sm_dev_endpoint_deploy = pipeline.add_stage(sm_dev_endpoint_stage)
+
+        # Create the Step Function Stage
+        step_function_dev_endpoint_system_test_stage = StepFunctionStage(
+            self,
+            id="StepFunctionDevEndpointSystemTestStage",
+            project_name=project_name,
+        )
+
+        sm_dev_endpoint_step_function_system_test_deploy = pipeline.add_stage(
+            step_function_dev_endpoint_system_test_stage
+        )
+
+        start_step_function = pipelines_.CodeBuildStep(
+            "StartDevEndpointSystemTest",
+            input=source,
+            build_environment=codebuild.BuildEnvironment(
+                compute_type=codebuild.ComputeType.SMALL,
+                build_image=codebuild.LinuxBuildImage.STANDARD_7_0,
+            ),
+            commands=[
+                "echo '🔧 Setting up Step Function executor...'",
+                "pip install --upgrade pip",
+                "pip install boto3",
+                "python mlops/scripts/execute_state_machine.py",
+            ],
+            env={
+                "REGION": self.region,
+                "STEP_FUNCTION_NAME_SUBSTRING": "DevEndpointEvaluationWorkflow",
+                "PROJECT_NAME": project_name,
+            },
+            role_policy_statements=[
+                iam.PolicyStatement(
+                    actions=[
+                        "states:ListStateMachines",
+                        "states:StartExecution",
+                        "states:ListExecutions",
+                        "states:DescribeExecution",
+                        "states:DescribeStateMachine",
+                    ],
+                    resources=["*"],
+                )
+            ],
+        )
+
+        check_approved_model_ssm_parameter = pipelines_.CodeBuildStep(
+            "CheckApprovedModelSSMParameter",
+            input=source,
+            build_environment=codebuild.BuildEnvironment(
+                compute_type=codebuild.ComputeType.SMALL,
+                build_image=codebuild.LinuxBuildImage.STANDARD_7_0,
+            ),
+            commands=[
+                "echo 'Checking Model Registry for approved model...'",
+                "pip install --upgrade pip",
+                "pip install boto3",
+                "python mlops/scripts/check_model_registry.py",
+            ],
+            env={
+                "REGION": self.region,
+                "PROJECT_NAME": project_name,
+            },
+            role_policy_statements=[
+                iam.PolicyStatement(
+                    actions=[
+                        "ssm:GetParameter",
+                        "ssm:GetParameters",
+                    ],
+                    resources=["*"],
+                )
+            ],
+        )
+
+        sm_dev_endpoint_step_function_system_test_deploy.add_post(start_step_function)
+        check_approved_model_ssm_parameter.add_step_dependency(start_step_function)
+        sm_dev_endpoint_step_function_system_test_deploy.add_post(check_approved_model_ssm_parameter)
+
+        # SageMaker Prod Endpoint Deploy Stage
+
+        sm_prod_endpoint_stage = SMProdEndpointStage(
+            self,
+            id="SMProdEndpointStage",
+            project_name=project_name,
+        )
+
+        # SageMaker Prod Auto-Scaling Deploy Stage
+        
+        sm_prod_endpoint_deploy = pipeline.add_stage(sm_prod_endpoint_stage)
+        
+        wait_for_prod_endpoint = pipelines_.CodeBuildStep(
+            "WaitForProdEndpoint",
+            input=source,
+            build_environment=codebuild.BuildEnvironment(
+                compute_type=codebuild.ComputeType.SMALL,
+                build_image=codebuild.LinuxBuildImage.STANDARD_7_0,
+            ),
+            commands=[
+                "echo 'Waiting for Prod Endpoint to be InService...'",
+                "pip install --upgrade pip",
+                "pip install boto3",
+                "python mlops/scripts/wait_for_endpoint.py",
+            ],
+            env={
+                "REGION": self.region,
+                "ENDPOINT_NAME": f"{project_name}-prod-endpoint",
+            },
+            role_policy_statements=[
+                iam.PolicyStatement(
+                    actions=["sagemaker:DescribeEndpoint"],
+                    resources=["*"],
+                )
+            ],
+        )
+
+        sm_prod_endpoint_deploy.add_post(wait_for_prod_endpoint)
+        
+        sm_prod_autoscaling_stage = SMProdAutoScalingStage(
+            self,
+            id="SMProdAutoScalingStage",
+            project_name=project_name,
+        )
+
+        sm_prod_autoscaling_deploy = pipeline.add_stage(sm_prod_autoscaling_stage)
