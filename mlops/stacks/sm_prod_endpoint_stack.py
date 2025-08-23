@@ -2,11 +2,8 @@ from aws_cdk import (
     Stack,
     aws_sagemaker as sagemaker,
     aws_iam as iam,
-    aws_applicationautoscaling as autoscaling,
-    aws_cloudwatch as cloudwatch,
     aws_ssm as ssm,
     CfnOutput,
-    Duration,
     Fn,
 )
 from constructs import Construct
@@ -47,68 +44,44 @@ class SMProdEndpointStack(Stack):
             production_variants=[
                 sagemaker.CfnEndpointConfig.ProductionVariantProperty(
                     initial_instance_count=1,
-                    instance_type="ml.t2.large",  
+                    instance_type="ml.t2.large",
                     model_name=model.attr_model_name,
                     variant_name="AllTraffic",
                 )
             ],
             endpoint_config_name=f"prod-endpoint-config-{project_name}",
         )
-        endpoint_config.add_dependency(model)  
+        endpoint_config.add_dependency(model)
 
-       
+        # Endpoint
         endpoint = sagemaker.CfnEndpoint(
             self,
             "ProdEndpoint",
             endpoint_config_name=endpoint_config.attr_endpoint_config_name,
             endpoint_name=f"{project_name}-prod-endpoint",
         )
-        endpoint.add_dependency(endpoint_config)  
-        
-        scaling_target = autoscaling.ScalableTarget(
-            self,
-            "EndpointScalingTarget",
-            service_namespace=autoscaling.ServiceNamespace.SAGEMAKER,
-            scalable_dimension="sagemaker:variant:DesiredInstanceCount",
-            resource_id=f"endpoint/{endpoint.endpoint_name}/variant/AllTraffic",
-            min_capacity=1,
-            max_capacity=5,
-        )
-        
-        scaling_target.node.add_dependency(endpoint)
+        endpoint.add_dependency(endpoint_config)
 
-        # CPU scaling - Auto Scaling hazır olmadan scale policy oluşturma
-        cpu_scaling = scaling_target.scale_on_metric(
-            "CPUScaling",
-            metric=cloudwatch.Metric(
-                metric_name="CPUUtilization",
-                namespace="AWS/SageMaker",
-                dimensions_map={"EndpointName": endpoint.endpoint_name, "VariantName": "AllTraffic"},
-                statistic="Average",
-                period=Duration.minutes(1),
-            ),
-            scaling_steps=[
-                autoscaling.ScalingInterval(upper=30, change=-1),
-                autoscaling.ScalingInterval(lower=70, change=+1),
-            ],
-            adjustment_type=autoscaling.AdjustmentType.CHANGE_IN_CAPACITY,
-            cooldown=Duration.minutes(5),
-        )
-        cpu_scaling.node.add_dependency(scaling_target)
-
-        # Outputs
         CfnOutput(
             self,
             "ProdEndpointName",
             value=endpoint.endpoint_name,
             description="Production Endpoint name",
+            export_name=f"{project_name}-prod-endpoint-name",
         )
 
-        CfnOutput(self, "ProdModelName", value=model.model_name, description="SageMaker Prod Model name")
+        CfnOutput(
+            self,
+            "ProdModelName",
+            value=model.model_name,
+            description="SageMaker Prod Model name",
+            export_name=f"{project_name}-prod-model-name",
+        )
 
         CfnOutput(
             self,
             "ProdEndpointConfigName",
             value=endpoint_config.endpoint_config_name,
             description="SageMaker Prod Endpoint Config name",
+            export_name=f"{project_name}-prod-endpoint-config-name",
         )

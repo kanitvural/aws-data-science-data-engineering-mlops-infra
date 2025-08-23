@@ -10,6 +10,7 @@ from .mlops_infra_stage import MLOpsInfraStage
 from .sm_dev_endpoint_stage import SMDevEndpointStage
 from .step_function_stage import StepFunctionStage
 from .sm_prod_endpoint_stage import SMProdEndpointStage
+from .sm_prod_autoscaling_stage import SMProdAutoScalingStage
 
 
 class CDKMLOpsPipelineStack(Stack):
@@ -167,7 +168,7 @@ class CDKMLOpsPipelineStack(Stack):
             ],
             env={
                 "REGION": self.region,
-                "MODEL_PACKAGE_GROUP_NAME": "flight-delay-model-package-group",
+                "PROJECT_NAME": project_name,
             },
             role_policy_statements=[
                 iam.PolicyStatement(
@@ -192,4 +193,14 @@ class CDKMLOpsPipelineStack(Stack):
             project_name=project_name,
         )
 
+        # SageMaker Prod Auto-Scaling Deploy Stage
+        
         sm_prod_endpoint_deploy = pipeline.add_stage(sm_prod_endpoint_stage)
+        
+        sm_prod_autoscaling_stage = SMProdAutoScalingStage(
+            self,
+            id="SMProdAutoScalingStage",
+            project_name=project_name,
+        )
+
+        sm_prod_autoscaling_deploy = pipeline.add_stage(sm_prod_autoscaling_stage)
