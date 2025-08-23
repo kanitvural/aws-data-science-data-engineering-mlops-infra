@@ -197,6 +197,33 @@ class CDKMLOpsPipelineStack(Stack):
         
         sm_prod_endpoint_deploy = pipeline.add_stage(sm_prod_endpoint_stage)
         
+        wait_for_prod_endpoint = pipelines_.CodeBuildStep(
+            "WaitForProdEndpoint",
+            input=source,
+            build_environment=codebuild.BuildEnvironment(
+                compute_type=codebuild.ComputeType.SMALL,
+                build_image=codebuild.LinuxBuildImage.STANDARD_7_0,
+            ),
+            commands=[
+                "echo 'Waiting for Prod Endpoint to be InService...'",
+                "pip install --upgrade pip",
+                "pip install boto3",
+                "python mlops/scripts/wait_for_endpoint.py",
+            ],
+            env={
+                "REGION": self.region,
+                "ENDPOINT_NAME": f"{project_name}-prod-endpoint",
+            },
+            role_policy_statements=[
+                iam.PolicyStatement(
+                    actions=["sagemaker:DescribeEndpoint"],
+                    resources=["*"],
+                )
+            ],
+        )
+
+        sm_prod_endpoint_deploy.add_post(wait_for_prod_endpoint)
+        
         sm_prod_autoscaling_stage = SMProdAutoScalingStage(
             self,
             id="SMProdAutoScalingStage",

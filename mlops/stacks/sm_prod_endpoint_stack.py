@@ -44,7 +44,7 @@ class SMProdEndpointStack(Stack):
             production_variants=[
                 sagemaker.CfnEndpointConfig.ProductionVariantProperty(
                     initial_instance_count=1,
-                    instance_type="ml.t2.large",
+                    instance_type="ml.c5.large",
                     model_name=model.attr_model_name,
                     variant_name="AllTraffic",
                 )
