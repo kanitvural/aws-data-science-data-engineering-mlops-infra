@@ -28,7 +28,7 @@ class SMProdAutoScalingStack(Stack):
         )
 
         # Invocation-based Scaling Policy
-        autoscaling.CfnScalingPolicy(
+        scaling_policy = autoscaling.CfnScalingPolicy(
             self,
             "EndpointInvocationScalingPolicy",
             policy_name="SageMakerVariantInvocationsPerInstance",
@@ -37,15 +37,17 @@ class SMProdAutoScalingStack(Stack):
             scalable_dimension="sagemaker:variant:DesiredInstanceCount",
             service_namespace="sagemaker",
             target_tracking_scaling_policy_configuration={
-                "TargetValue": 750.0,  # Buraya invocation target değeri
+                "TargetValue": 750.0,
                 "PredefinedMetricSpecification": {
                     "PredefinedMetricType": "SageMakerVariantInvocationsPerInstance"
                 },
                 "ScaleInCooldown": 60,
                 "ScaleOutCooldown": 60
             },
-            depends_on=[scaling_target]  # <- burada scaling_target ile bağlantı sağlandı
         )
+
+        # Cfn dependency ekle
+        scaling_policy.add_dependency(scaling_target)
 
 # Alternative CPU-based Scaling Policy     
         
