@@ -1,13 +1,11 @@
 from aws_cdk import (
     Stack,
     aws_applicationautoscaling as autoscaling,
-    aws_cloudwatch as cloudwatch,
     Fn,
 )
 from constructs import Construct
 
 # Invocation-based Scaling Policy for testing auto-scaling behavior
-
 class SMProdAutoScalingStack(Stack):
 
     def __init__(self, scope: Construct, id: str, project_name: str, **kwargs) -> None:
@@ -36,17 +34,17 @@ class SMProdAutoScalingStack(Stack):
             resource_id=f"endpoint/{endpoint_name}/variant/AllTraffic",
             scalable_dimension="sagemaker:variant:DesiredInstanceCount",
             service_namespace="sagemaker",
-            target_tracking_scaling_policy_configuration={
-                "TargetValue": 750.0,
-                "PredefinedMetricSpecification": {
-                    "PredefinedMetricType": "SageMakerVariantInvocationsPerInstance"
-                },
-                "ScaleInCooldown": 60,
-                "ScaleOutCooldown": 60
-            },
+            target_tracking_scaling_policy_configuration=autoscaling.CfnScalingPolicy.TargetTrackingScalingPolicyConfigurationProperty(
+                target_value=750.0,
+                predefined_metric_specification=autoscaling.CfnScalingPolicy.PredefinedMetricSpecificationProperty(
+                    predefined_metric_type="SageMakerVariantInvocationsPerInstance"
+                ),
+                scale_in_cooldown=60,
+                scale_out_cooldown=60
+            ),
         )
 
-        # Cfn dependency ekle
+        # Ensure scaling policy is created after the scalable target
         scaling_policy.add_dependency(scaling_target)
 
 # Alternative CPU-based Scaling Policy     
