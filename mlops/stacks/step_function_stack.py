@@ -112,6 +112,8 @@ class StepFunctionStack(Stack):
                     "ecr:DescribeImages",
                     "ecr:BatchGetImage",
                     "ecr:GetDownloadUrlForLayer",
+                    "ssm:PutParameter",
+                    "ssm:GetParameter",
                 ],
                 resources=["*"],
             )
@@ -179,6 +181,7 @@ class StepFunctionStack(Stack):
             handler="index.lambda_handler",
             code=lambda_.Code.from_asset("mlops/lambda_funcs/register_model"),
             environment={
+                "PROJECT_NAME": project_name,
                 "MODEL_PACKAGE_GROUP_NAME": model_package_group_name,
                 "MODEL_S3_URI": model_s3_uri,
                 "INFERENCE_IMAGE_URI": inference_image_uri,

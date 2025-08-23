@@ -3,6 +3,7 @@ from constructs import Construct
 from mlops.stacks.ecr_stack import ECRStack
 from mlops.stacks.s3_stack import S3Stack
 from mlops.stacks.sns_stack import SNSStack
+from mlops.stacks.sagemaker_role_stack import SageMakerRoleStack
 
 
 class MLOpsInfraStage(Stage):
@@ -28,8 +29,12 @@ class MLOpsInfraStage(Stage):
             notification_email=notification_email,
         )
 
+        sagemaker_role_stack = SageMakerRoleStack(
+            self,
+            id="SageMakerRoleStack",
+            project_name=project_name,
+        )
+
         ecr_stack.add_dependency(s3_stack)
         sns_stack.add_dependency(s3_stack)
-
-
-        
+        sagemaker_role_stack.add_dependency(s3_stack)

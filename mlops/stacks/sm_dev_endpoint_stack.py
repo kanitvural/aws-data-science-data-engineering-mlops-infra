@@ -15,78 +15,15 @@ class SMDevEndpointStack(Stack):
         
         ecr_repository_arn = f"{self.account}.dkr.ecr.{self.region}.amazonaws.com/{project_name}-repository-{self.account}:latest"
    
-        
-        # data_science_bucket_name = Fn.import_value("DataScienceBucketName")
 
-        # SageMaker execution role
-        self.sagemaker_execution_role = iam.Role(
+        # Import SageMaker execution role
+        self.sagemaker_execution_role = iam.Role.from_role_arn(
             self,
-            "SageMakerExecutionRole",
-            role_name=f"SageMakerExecutionRole-{project_name}-{self.account}",
-            assumed_by=iam.ServicePrincipal("sagemaker.amazonaws.com"),
-            managed_policies=[
-                iam.ManagedPolicy.from_aws_managed_policy_name("AmazonSageMakerFullAccess"),
-                iam.ManagedPolicy.from_aws_managed_policy_name("AmazonS3ReadOnlyAccess"),
-            ],
+            "ImportedSageMakerExecutionRole",
+            role_arn=Fn.import_value(f"{project_name}-sagemaker-execution-role-arn"),
+            mutable=False
         )
-
-        # S3 permissions for the specific bucket
-        self.sagemaker_execution_role.add_to_policy(
-            iam.PolicyStatement(
-                effect=iam.Effect.ALLOW,
-                actions=[
-                    "s3:GetObject",
-                    "s3:PutObject",
-                    "s3:DeleteObject",
-                    "s3:ListBucket",
-                    "s3:GetBucketLocation",
-                ],
-                resources=["*"],
-            )
-        )
-
-        # ECR permissions
-        self.sagemaker_execution_role.add_to_policy(
-            iam.PolicyStatement(
-                effect=iam.Effect.ALLOW,
-                actions=[
-                    "ecr:GetAuthorizationToken",
-                    "ecr:BatchCheckLayerAvailability",
-                    "ecr:GetDownloadUrlForLayer",
-                    "ecr:BatchGetImage",
-                    "ecr:DescribeRepositories",
-                    "ecr:DescribeImages",
-                ],
-                resources=["*"],
-            )
-        )
-
-        # SNS permissions
-        self.sagemaker_execution_role.add_to_policy(
-            iam.PolicyStatement(
-                effect=iam.Effect.ALLOW,
-                actions=[
-                    "sns:Publish",
-                    "sns:GetTopicAttributes",
-                ],
-                resources=["*"],
-            )
-        )
-
-        # CloudWatch Logs permissions
-        self.sagemaker_execution_role.add_to_policy(
-            iam.PolicyStatement(
-                effect=iam.Effect.ALLOW,
-                actions=[
-                    "logs:CreateLogGroup",
-                    "logs:CreateLogStream",
-                    "logs:PutLogEvents",
-                    "logs:DescribeLogGroups",
-                    "logs:DescribeLogStreams",
-                ],
-                resources=["*"],
-            )
-        )
+        
 
         # Model Definition
         model = sagemaker.CfnModel(
@@ -96,7 +33,7 @@ class SMDevEndpointStack(Stack):
                 image=ecr_repository_arn, 
                 model_data_url= "s3://data-science-bucket-058264126563/sagemaker-final-training-output/model/pipelines-7877okymrfhn-FlightsFinalTraining-6KIqJxP2g4/output/model.tar.gz"
             ),
-            model_name="dev-model"
+            model_name=f"{project_name}-dev-model"
         )
 
         # Endpoint Config
@@ -117,7 +54,7 @@ class SMDevEndpointStack(Stack):
         endpoint = sagemaker.CfnEndpoint(
             self, "DevEndpoint",
             endpoint_config_name=endpoint_config.attr_endpoint_config_name,
-            endpoint_name="dev-endpoint"
+            endpoint_name=f"{project_name}-dev-endpoint"
         )
 
         # Useful Outputs
@@ -137,10 +74,3 @@ class SMDevEndpointStack(Stack):
             description="SageMaker Dev Endpoint Config name"
         )
         
-        CfnOutput(
-            self,
-            "SageMakerExecutionRoleArn",
-            value=self.sagemaker_execution_role.role_arn,
-            description="SageMaker Execution Role ARN",
-            export_name=f"{project_name}-sagemaker-execution-role-arn",
-        )

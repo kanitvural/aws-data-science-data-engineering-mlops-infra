@@ -9,6 +9,7 @@ from constructs import Construct
 from .mlops_infra_stage import MLOpsInfraStage
 from .sm_dev_endpoint_stage import SMDevEndpointStage
 from .step_function_stage import StepFunctionStage
+from .sm_prod_endpoint_stage import SMProdEndpointStage
 
 
 class CDKMLOpsPipelineStack(Stack):
@@ -152,4 +153,46 @@ class CDKMLOpsPipelineStack(Stack):
             ],
         )
 
+        check_model_registry = pipelines_.CodeBuildStep(
+            "CheckModelRegistry",
+            input=source,
+            build_environment=codebuild.BuildEnvironment(
+                compute_type=codebuild.ComputeType.SMALL,
+                build_image=codebuild.LinuxBuildImage.STANDARD_7_0,
+            ),
+            commands=[
+                "echo 'Checking Model Registry for approved model...'",
+                "pip install --upgrade pip",
+                "pip install boto3",
+                "python mlops/scripts/check_model_registry.py",
+            ],
+            env={
+                "REGION": self.region,
+                "MODEL_PACKAGE_GROUP_NAME": "flight-delay-model-package-group",
+            },
+            role_policy_statements=[
+                iam.PolicyStatement(
+                    actions=[
+                        "sagemaker:ListModelPackages",
+                        "sagemaker:DescribeModelPackage",
+                        "sagemaker:DescribeModelPackageGroup",
+                    ],
+                    resources=["*"],
+                )
+            ],
+        )
+
         sm_dev_endpoint_step_function_system_test_deploy.add_post(start_step_function)
+        check_model_registry.add_step_dependency(start_step_function)
+        sm_dev_endpoint_step_function_system_test_deploy.add_post(check_model_registry)
+
+
+        # SageMaker Prod Endpoint Deploy Stage
+
+        sm_prod_endpoint_stage = SMProdEndpointStage(
+            self,
+            id="SMProdEndpointStage",
+            project_name=project_name,
+        )
+
+        sm_prod_endpoint_deploy = pipeline.add_stage(sm_prod_endpoint_stage)
