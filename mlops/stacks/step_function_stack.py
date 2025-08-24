@@ -54,8 +54,7 @@ class StepFunctionStack(Stack):
         baseline_output_prefix = "baseline_report"
 
         # SNS Topic ARN for notifications
-
-        sns_topic_arn = Fn.import_value(f"{project_name}-sns-topic-arn")  #
+        sns_topic_arn = Fn.import_value(f"{project_name}-sns-topic-arn")
         sns_topic = sns.Topic.from_topic_arn(self, "NotificationTopic", sns_topic_arn)
 
         # ----------------------------------------------------------------------
@@ -239,7 +238,7 @@ class StepFunctionStack(Stack):
         )
 
         # ----------------------------------------------------------------------
-        # SNS Notification Tasks
+        # SNS Notification Tasks - HER BİR FAILURE İÇİN AYRI TASK
         # ----------------------------------------------------------------------
         success_notification_task = tasks.SnsPublish(
             self,
@@ -260,9 +259,24 @@ class StepFunctionStack(Stack):
             subject="Step Function Execution Successful - Model Evaluation Passed"
         )
 
-        failure_notification_task = tasks.SnsPublish(
+        # Evaluate failure için ayrı notification
+        evaluate_failure_notification = tasks.SnsPublish(
             self,
-            "FailureNotification",
+            "EvaluateFailureNotification",
+            topic=sns_topic,
+            message=sfn.TaskInput.from_text(
+                "Evaluate step failed! Workflow execution terminated.\n\n"
+                "❌ Step: Model Evaluation\n"
+                "📝 Status: Lambda function execution failed\n\n"
+                "Please check the Lambda function logs for details."
+            ),
+            subject="Step Function Failed - Model Evaluation Error"
+        )
+
+        # Threshold failure için ayrı notification
+        threshold_failure_notification = tasks.SnsPublish(
+            self,
+            "ThresholdFailureNotification",
             topic=sns_topic,
             message=sfn.TaskInput.from_text(
                 sfn.JsonPath.format(
@@ -276,14 +290,41 @@ class StepFunctionStack(Stack):
                     str(rmse_threshold)
                 )
             ),
-            subject="Step Function Execution Failed - Model Evaluation Failed"
+            subject="Step Function Failed - Model Quality Threshold Not Met"
         )
 
+        # Baseline failure için ayrı notification
+        baseline_failure_notification = tasks.SnsPublish(
+            self,
+            "BaselineFailureNotification",
+            topic=sns_topic,
+            message=sfn.TaskInput.from_text(
+                "Baseline processing step failed! Workflow execution terminated.\n\n"
+                "❌ Step: Baseline Processing\n"
+                "📝 Status: Lambda function execution failed\n\n"
+                "Please check the Lambda function logs for details."
+            ),
+            subject="Step Function Failed - Baseline Processing Error"
+        )
+
+        # Register model failure için ayrı notification
+        register_failure_notification = tasks.SnsPublish(
+            self,
+            "RegisterFailureNotification",
+            topic=sns_topic,
+            message=sfn.TaskInput.from_text(
+                "Register model step failed! Workflow execution terminated.\n\n"
+                "❌ Step: Model Registration\n"
+                "📝 Status: Lambda function execution failed\n\n"
+                "Please check the Lambda function logs for details."
+            ),
+            subject="Step Function Failed - Model Registration Error"
+        )
 
         # ----------------------------------------------------------------------
-        # Fail states 
+        # Fail states
         # ----------------------------------------------------------------------
-        workflow_failed = sfn.Fail(self, "WorkflowFailed") 
+        workflow_failed = sfn.Fail(self, "WorkflowFailed")
 
         # ----------------------------------------------------------------------
         # Step 1: Evaluate
@@ -294,7 +335,7 @@ class StepFunctionStack(Stack):
             lambda_function=dev_endpoint_evaluate_lambda,
             output_path="$.Payload",
         )
-        evaluate_step.add_catch(failure_notification_task.next(workflow_failed))
+        evaluate_step.add_catch(evaluate_failure_notification.next(workflow_failed))
 
         # ----------------------------------------------------------------------
         # Step 2: Threshold check
@@ -302,10 +343,9 @@ class StepFunctionStack(Stack):
         check_threshold = sfn.Choice(self, "Check Model Quality")
         pass_state = sfn.Pass(self, "ModelBelowThreshold")
         
-        threshold_fail_chain = failure_notification_task.next(
+        threshold_fail_chain = threshold_failure_notification.next(
             sfn.Fail(self, "ModelAboveThreshold")
         )
-
 
         # ----------------------------------------------------------------------
         # Step 3: Parallel branches
@@ -316,7 +356,7 @@ class StepFunctionStack(Stack):
             lambda_function=baseline_lambda,
             output_path="$.Payload",
         )
-        baseline_step_parallel.add_catch(sfn.Fail(self, "WorkflowFailedBaselineParallel"))
+        baseline_step_parallel.add_catch(baseline_failure_notification.next(workflow_failed))
 
         register_model_step_parallel = tasks.LambdaInvoke(
             self,
@@ -324,7 +364,7 @@ class StepFunctionStack(Stack):
             lambda_function=register_model_lambda,
             output_path="$.Payload",
         )
-        register_model_step_parallel.add_catch(sfn.Fail(self, "WorkflowFailedRegisterParallel"))
+        register_model_step_parallel.add_catch(register_failure_notification.next(workflow_failed))
 
         parallel_step = sfn.Parallel(self, "FinalizeModel")
         parallel_step.branch(baseline_step_parallel)
