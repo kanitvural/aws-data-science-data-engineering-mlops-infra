@@ -195,6 +195,11 @@ processor_args = sklearn_processor.run(
             source="/opt/ml/processing/output/baseline",
             destination=f"s3://{data_science_bucket}/{preprocess_output_prefix}/baseline",
         ),
+        ProcessingOutput(
+            output_name="drift",
+            source="/opt/ml/processing/output/drift",
+            destination=f"s3://{data_science_bucket}/{preprocess_output_prefix}/drift",
+        ),
     ],
     code="preprocess.py",
 )
@@ -355,6 +360,7 @@ success_model_copy_processor = ScriptProcessor(
         "SNS_TOPIC_ARN": sns_topic_arn,
         "OUTPUT_MODEL_S3_DIR": final_evaluated_model_output,
         "RMSE_THRESHOLD": rmse_threshold.to_string(),
+        "PROJECT_NAME": PROJECT_NAME,
     },
 )
 

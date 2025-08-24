@@ -16,6 +16,7 @@ AWS_REGION = os.environ.get("AWS_REGION", "eu-central-1")
 SNS_TOPIC_ARN = os.environ.get("SNS_TOPIC_ARN", "")
 OUTPUT_MODEL_S3_DIR = os.environ.get("OUTPUT_MODEL_S3_DIR", "")
 RMSE_THRESHOLD = float(os.environ.get("RMSE_THRESHOLD", "9"))
+PROJECT_NAME = os.environ.get("PROJECT_NAME", "data-science")
 
 logging.basicConfig(
     level=logging.INFO, format="[%(asctime)s] %(levelname)s: %(message)s", handlers=[logging.StreamHandler(sys.stdout)]
@@ -54,6 +55,7 @@ def parse_args():
     parser.add_argument("--region", type=str, default=AWS_REGION)
     parser.add_argument("--output-model-s3-dir", type=str, default=OUTPUT_MODEL_S3_DIR)
     parser.add_argument("--rmse-threshold", type=float, default=RMSE_THRESHOLD)
+    parser.add_argument("--project-name", type=str, default=PROJECT_NAME)
     return parser.parse_known_args()
 
 
@@ -97,6 +99,27 @@ def send_mail(args, evaluated_rmse):
         logging.error(f"❌ Failed to send SNS notification: {str(e)}")
         logging.error(f"   Topic ARN used: {args.sns_topic_arn}")
 
+def store_evaluated_final_model_s3_arn_to_ssm(args):
+    
+    if not args.output_model_s3_dir:
+        logging.warning("OUTPUT_MODEL_S3_DIR is not provided. Skipping SSM parameter storage.")
+        return
+
+    ssm_client = boto3.client("ssm", region_name=args.region)
+    parameter_name = f"/{args.project_name}/final_evaluated_model_s3_dir"
+    
+    try:
+        ssm_client.put_parameter(
+            Name=parameter_name,
+            Value=args.output_model_s3_dir,
+            Type="String",
+            Overwrite=True,
+        )
+        logging.info(f"✅ Stored final evaluated model S3 path to SSM Parameter Store: {parameter_name}")
+    except Exception as e:
+        logging.error(f"❌ Failed to store parameter in SSM: {str(e)}")
+        raise
+
 
 def main(args):
     try:
@@ -104,6 +127,7 @@ def main(args):
         evaluated_rmse = load_evaluation_results()
         copy_model(args)
         send_mail(args, evaluated_rmse)
+        store_evaluated_final_model_s3_arn_to_ssm(args)
         logging.info("✅ Model evaluation success process completed!")
     except Exception as e:
         logging.error(f"❌ Model evaluation success process failed: {str(e)}")

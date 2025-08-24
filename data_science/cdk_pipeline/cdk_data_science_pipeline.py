@@ -44,9 +44,9 @@ class CDKDataSciencePipelineStack(Stack):
         training_instance_type = "ml.t3.large"
         clarify_instance_count = 1
         clarify_instance_type = "ml.t3.large"
-        rmse_threshold = 5.0
-        max_jobs = 1
-        max_parallel_jobs = 1
+        rmse_threshold = 9.0
+        max_jobs = 10
+        max_parallel_jobs = 2
 
         source = pipelines_.CodePipelineSource.connection(
             repo_string=github_repo,
