@@ -239,55 +239,51 @@ class StepFunctionStack(Stack):
         )
 
         # ----------------------------------------------------------------------
-        # Custom message formatting
-        # ----------------------------------------------------------------------
-        success_message = sfn.JsonPath.format(
-            "Model evaluation completed successfully!\n\n"
-            "✅ Model Performance: PASSED\n"
-            "📊 RMSE Score: {}\n"
-            "🎯 Threshold: {}\n"
-            "📝 Status: Model has been registered and baseline processing initiated\n\n"
-            "The model is now ready for production deployment.",
-            sfn.JsonPath.string_at("$.rmse"),
-            str(rmse_threshold),
-        )
-
-        failure_message = sfn.JsonPath.format(
-            "Model evaluation failed to meet quality threshold!\n\n"
-            "❌ Model Performance: FAILED\n"
-            "📊 RMSE Score: {}\n"
-            "🎯 Threshold: {}\n"
-            "📝 Status: Model rejected - does not meet quality standards\n\n"
-            "Please review the model training process and retrain with improved parameters.",
-            sfn.JsonPath.string_at("$.rmse"),
-            str(rmse_threshold),
-        )
-
-        # ----------------------------------------------------------------------
         # SNS Notification Tasks
         # ----------------------------------------------------------------------
         success_notification_task = tasks.SnsPublish(
             self,
             "SuccessNotification",
             topic=sns_topic,
-            message=sfn.TaskInput.from_json_path_at(f"States.Format('{success_message}')"),
-            subject="Step Function Execution Successful - Model Evaluation Passed",
+            message=sfn.TaskInput.from_text(
+                sfn.JsonPath.format(
+                    "Model evaluation completed successfully!\n\n"
+                    "✅ Model Performance: PASSED\n"
+                    "📊 RMSE Score: {}\n"
+                    "🎯 Threshold: {}\n"
+                    "📝 Status: Model has been registered and baseline processing initiated\n\n"
+                    "The model is now ready for production deployment.",
+                    sfn.JsonPath.string_at("$.rmse"),
+                    str(rmse_threshold)
+                )
+            ),
+            subject="Step Function Execution Successful - Model Evaluation Passed"
         )
 
         failure_notification_task = tasks.SnsPublish(
             self,
             "FailureNotification",
             topic=sns_topic,
-            message=sfn.TaskInput.from_json_path_at(f"States.Format('{failure_message}')"),
-            subject="Step Function Execution Failed - Model Evaluation Failed",
+            message=sfn.TaskInput.from_text(
+                sfn.JsonPath.format(
+                    "Model evaluation failed to meet quality threshold!\n\n"
+                    "❌ Model Performance: FAILED\n"
+                    "📊 RMSE Score: {}\n"
+                    "🎯 Threshold: {}\n"
+                    "📝 Status: Model rejected - does not meet quality standards\n\n"
+                    "Please review the model training process and retrain with improved parameters.",
+                    sfn.JsonPath.string_at("$.rmse"),
+                    str(rmse_threshold)
+                )
+            ),
+            subject="Step Function Execution Failed - Model Evaluation Failed"
         )
 
+
         # ----------------------------------------------------------------------
-        # Fail states with notification
+        # Fail states 
         # ----------------------------------------------------------------------
-        workflow_failed = sfn.Fail(
-            self, "WorkflowFailed", cause="Workflow execution failed", error="WorkflowExecutionFailed"
-        ).next(failure_notification_task)  
+        workflow_failed = sfn.Fail(self, "WorkflowFailed") 
 
         # ----------------------------------------------------------------------
         # Step 1: Evaluate
@@ -298,19 +294,18 @@ class StepFunctionStack(Stack):
             lambda_function=dev_endpoint_evaluate_lambda,
             output_path="$.Payload",
         )
-        evaluate_step.add_catch(workflow_failed)
+        evaluate_step.add_catch(failure_notification_task.next(workflow_failed))
 
         # ----------------------------------------------------------------------
         # Step 2: Threshold check
         # ----------------------------------------------------------------------
         check_threshold = sfn.Choice(self, "Check Model Quality")
         pass_state = sfn.Pass(self, "ModelBelowThreshold")
-        fail_state = sfn.Fail(
-            self,
-            "ModelAboveThreshold",
-            cause="Model RMSE exceeds threshold",
-            error="ModelQualityCheckFailed",
-        ).next(failure_notification_task)
+        
+        threshold_fail_chain = failure_notification_task.next(
+            sfn.Fail(self, "ModelAboveThreshold")
+        )
+
 
         # ----------------------------------------------------------------------
         # Step 3: Parallel branches
@@ -334,7 +329,7 @@ class StepFunctionStack(Stack):
         parallel_step = sfn.Parallel(self, "FinalizeModel")
         parallel_step.branch(baseline_step_parallel)
         parallel_step.branch(register_model_step_parallel)
-        parallel_step.next(success_notification_task)
+        parallel_step_with_success = parallel_step.next(success_notification_task)
 
         # ----------------------------------------------------------------------
         # State machine definition
@@ -342,8 +337,8 @@ class StepFunctionStack(Stack):
         definition = evaluate_step.next(
             check_threshold.when(
                 sfn.Condition.number_less_than("$.rmse", rmse_threshold),
-                pass_state.next(parallel_step),
-            ).otherwise(fail_state)
+                pass_state.next(parallel_step_with_success),
+            ).otherwise(threshold_fail_chain)
         )
 
         # ----------------------------------------------------------------------
