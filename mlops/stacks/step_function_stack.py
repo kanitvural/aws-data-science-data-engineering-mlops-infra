@@ -40,9 +40,7 @@ class StepFunctionStack(Stack):
         ).string_value
 
         model_package_group_name = "flight-delay-model-package-group"
-        inference_image_uri = (
-            f"{self.account}.dkr.ecr.{self.region}.amazonaws.com/{project_name}-repository-{self.account}:latest"
-        )
+        inference_image_uri = f"{self.account}.dkr.ecr.{self.region}.amazonaws.com/{project_name}-repository-{self.account}:latest"
         model_description = "XGBoost model for flight delay prediction"
         evaluation_result_s3_bucket = mlops_bucket_name
         evaluation_result_key = "dev-endpoint-evaluation-result/evaluation.json"
@@ -87,12 +85,7 @@ class StepFunctionStack(Stack):
             iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AWSLambdaBasicExecutionRole")
         )
 
-        sfn_role.add_to_policy(
-            iam.PolicyStatement(
-                actions=["sns:Publish"],
-                resources=["*"],
-            )
-        )
+        sfn_role.add_to_policy(iam.PolicyStatement(actions=["sns:Publish"], resources=["*"]))
 
         # ----------------------------------------------------------------------
         # Lambda Roles
@@ -247,38 +240,36 @@ class StepFunctionStack(Stack):
             self,
             "ModelPassedNotification",
             topic=sns.Topic.from_topic_arn(self, "ImportedSnsTopicSuccess", sns_topic_arn),
-            subject=f"🎉 {project_name} Model Evaluation - PASSED",
-            message=sfn.JsonPath.format(
-                "Model evaluation completed successfully!\n\n"
-                "✅ Model Performance: PASSED\n"
-                "📊 RMSE Score: {}\n"
-                "🎯 Threshold: {}\n"
-                "📝 Status: Model successfully registered in the SageMaker Model Registry. Baseline processing has started. ✅\n"
-                "⏰ Evaluation Time: {}\n\n"
-                "The model is now ready for production deployment.",
-                sfn.JsonPath.string_at("$.rmse"),
-                str(rmse_threshold),
-                sfn.JsonPath.string_at("$$.State.EnteredTime"),
+            subject=sfn.TaskInput.from_text(f"🎉 {project_name} Model Evaluation - PASSED"),
+            message=sfn.TaskInput.from_text(
+                sfn.JsonPath.format(
+                    "Model evaluation completed successfully!\n\n"
+                    "✅ Model Performance: PASSED\n"
+                    "📊 RMSE Score: {}\n"
+                    "🎯 Threshold: " + str(rmse_threshold) + "\n"
+                    "📝 Status: Model has been registered and baseline processing initiated\n\n"
+                    "The model is now ready for production deployment.",
+                    sfn.JsonPath.string_at("$.rmse")
+                )
             ),
         )
 
         model_failed_notification = tasks.SnsPublish(
             self,
-            "ModelFailedNotification",
+            "ModelFailedNotification", 
             topic=sns.Topic.from_topic_arn(self, "ImportedSnsTopicFailed", sns_topic_arn),
-            subject=f"❌ {project_name} Model Evaluation - FAILED",
-            message=sfn.JsonPath.format(
-                "Model evaluation failed to meet quality threshold!\n\n"
-                "❌ Model Performance: FAILED\n"
-                "📊 RMSE Score: {}\n"
-                "🎯 Threshold: {}\n"
-                "📝 Status: Model rejected - does not meet quality standards\n"
-                "⏰ Evaluation Time: {}\n\n"
-                "Please review the model training process and retrain with improved parameters.",
-                sfn.JsonPath.string_at("$.rmse"),
-                str(rmse_threshold),
-                sfn.JsonPath.string_at("$$.State.EnteredTime"),
-            ),
+            subject=sfn.TaskInput.from_text(f"❌ {project_name} Model Evaluation - FAILED"),
+            message=sfn.TaskInput.from_text(
+                sfn.JsonPath.format(
+                    "Model evaluation failed to meet quality threshold!\n\n"
+                    "❌ Model Performance: FAILED\n"
+                    "📊 RMSE Score: {}\n"
+                    "🎯 Threshold: " + str(rmse_threshold) + "\n"
+                    "📝 Status: Model rejected - does not meet quality standards\n\n"
+                    "Please review the model training process and retrain with improved parameters.",
+                    sfn.JsonPath.string_at("$.rmse")
+                )
+            )
         )
 
         # ----------------------------------------------------------------------
@@ -333,9 +324,10 @@ class StepFunctionStack(Stack):
         # State machine definition
         # ----------------------------------------------------------------------
         definition = evaluate_step.next(
-            check_threshold.when(sfn.Condition.number_less_than("$.rmse", rmse_threshold), success_flow).otherwise(
-                model_quality_failed
-            )
+            check_threshold.when(
+                sfn.Condition.number_less_than("$.rmse", rmse_threshold),
+                success_flow
+            ).otherwise(model_quality_failed)
         )
 
         # ----------------------------------------------------------------------
