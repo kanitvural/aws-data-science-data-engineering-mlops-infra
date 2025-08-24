@@ -75,6 +75,7 @@ def send_mail(args, evaluated_rmse):
 
     try:
         sns_client = boto3.client("sns", region_name=args.region)
+        final_model_s3_path = os.path.join(args.output_model_s3_dir, "model.tar.gz")
 
         message = (
             f"✅ Model evaluation completed successfully!\n\n"
@@ -83,7 +84,7 @@ def send_mail(args, evaluated_rmse):
             f"• RMSE Threshold: {args.rmse_threshold}\n"
             f"• Status: PASSED ✅\n\n"
             f"The model performance is under the threshold of {args.rmse_threshold}, meeting the expected criteria.\n\n"
-            f"📁 Model saved to S3 path: {args.output_model_s3_dir}\n\n"
+            f"📁 Model saved to S3 path: {final_model_s3_path}\n\n"
             f"🚀 Please proceed with the next phase of the MLOps workflow as planned."
         )
         subject = "✅ SageMaker Model Evaluation - PASSED"
@@ -107,11 +108,12 @@ def store_evaluated_final_model_s3_arn_to_ssm(args):
 
     ssm_client = boto3.client("ssm", region_name=args.region)
     parameter_name = f"/{args.project_name}/final_evaluated_model_s3_dir"
+    final_model_s3_path = os.path.join(args.output_model_s3_dir, "model.tar.gz")
     
     try:
         ssm_client.put_parameter(
             Name=parameter_name,
-            Value=args.output_model_s3_dir,
+            Value=final_model_s3_path,
             Type="String",
             Overwrite=True,
         )
