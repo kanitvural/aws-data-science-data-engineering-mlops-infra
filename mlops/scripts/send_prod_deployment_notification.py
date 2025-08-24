@@ -8,12 +8,20 @@ import os
 from datetime import datetime
 import sys
 
+def get_sns_topic_arn():
+    region = os.environ["AWS_DEFAULT_REGION"]
+    cf = boto3.client('cloudformation', region_name = region)
+    response = cf.describe_stacks(StackName="MLOpsInfraStage-MLOpsNotificationStack")
+    for output in response['Stacks'][0]['Outputs']:
+        if output['OutputKey'] == 'SNSNotificationTopicArn':
+            return output['OutputValue']
+
 def main():
     # Get environment variables
     region = os.environ.get('REGION')
     project_name = os.environ.get('PROJECT_NAME')
     endpoint_name = os.environ.get('ENDPOINT_NAME')
-    sns_topic_arn = os.environ.get('SNS_TOPIC_ARN')
+    sns_topic_arn = get_sns_topic_arn()
     
     if not all([region, project_name, endpoint_name, sns_topic_arn]):
         print("❌ Missing environment variables")

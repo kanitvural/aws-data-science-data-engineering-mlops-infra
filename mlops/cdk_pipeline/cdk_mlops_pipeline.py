@@ -19,8 +19,7 @@ class CDKMLOpsPipelineStack(Stack):
 
         project_name = self.node.try_get_context("project_name") or "mlops"
         notification_email = self.node.try_get_context("notification_email")
-        sns_topic_arn = Fn.import_value(f"{project_name}-sns-topic-arn")
-
+        
         # GitHub connections information
         github_repo = "kanitvural/aws-data-science-data-engineering-mlops-infra"
         github_branch = "mlops"
@@ -251,7 +250,6 @@ class CDKMLOpsPipelineStack(Stack):
                 "REGION": self.region,
                 "PROJECT_NAME": project_name,
                 "ENDPOINT_NAME": f"{project_name}-prod-endpoint",
-                "SNS_TOPIC_ARN": sns_topic_arn,
             },
             role_policy_statements=[
                 iam.PolicyStatement(
