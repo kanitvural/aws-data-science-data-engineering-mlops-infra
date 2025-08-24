@@ -240,7 +240,7 @@ class StepFunctionStack(Stack):
             self,
             "ModelPassedNotification",
             topic=sns.Topic.from_topic_arn(self, "ImportedSnsTopicSuccess", sns_topic_arn),
-            subject=sfn.TaskInput.from_text(f"🎉 {project_name} Model Evaluation - PASSED"),
+            subject=f"🎉 {project_name} Model Evaluation - PASSED",   # <-- direkt string
             message=sfn.TaskInput.from_text(
                 sfn.JsonPath.format(
                     "Model evaluation completed successfully!\n\n"
@@ -256,9 +256,9 @@ class StepFunctionStack(Stack):
 
         model_failed_notification = tasks.SnsPublish(
             self,
-            "ModelFailedNotification", 
+            "ModelFailedNotification",
             topic=sns.Topic.from_topic_arn(self, "ImportedSnsTopicFailed", sns_topic_arn),
-            subject=sfn.TaskInput.from_text(f"❌ {project_name} Model Evaluation - FAILED"),
+            subject=f"❌ {project_name} Model Evaluation - FAILED",   # <-- direkt string
             message=sfn.TaskInput.from_text(
                 sfn.JsonPath.format(
                     "Model evaluation failed to meet quality threshold!\n\n"
@@ -269,7 +269,7 @@ class StepFunctionStack(Stack):
                     "Please review the model training process and retrain with improved parameters.",
                     sfn.JsonPath.string_at("$.rmse")
                 )
-            )
+            ),
         )
 
         # ----------------------------------------------------------------------
