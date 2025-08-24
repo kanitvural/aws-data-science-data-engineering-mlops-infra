@@ -70,6 +70,18 @@ class SageMakerRoleStack(Stack):
                 resources=["*"],
             )
         )
+        
+        # SSM Parameter Store permissions
+        self.sagemaker_execution_role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "ssm:GetParameter",
+                    "ssm:PutParameter",
+                ],
+                resources=["*"],
+            )
+        )
 
         # CloudWatch Logs permissions
         self.sagemaker_execution_role.add_to_policy(
