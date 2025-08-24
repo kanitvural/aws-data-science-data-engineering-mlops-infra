@@ -238,7 +238,7 @@ class StepFunctionStack(Stack):
         )
 
         # ----------------------------------------------------------------------
-        # SNS Notification Tasks - HER BİR FAILURE İÇİN AYRI TASK
+        # SNS Notification Tasks
         # ----------------------------------------------------------------------
         success_notification_task = tasks.SnsPublish(
             self,
@@ -259,21 +259,6 @@ class StepFunctionStack(Stack):
             subject="Step Function Execution Successful - Model Evaluation Passed"
         )
 
-        # Evaluate failure için ayrı notification
-        evaluate_failure_notification = tasks.SnsPublish(
-            self,
-            "EvaluateFailureNotification",
-            topic=sns_topic,
-            message=sfn.TaskInput.from_text(
-                "Evaluate step failed! Workflow execution terminated.\n\n"
-                "❌ Step: Model Evaluation\n"
-                "📝 Status: Lambda function execution failed\n\n"
-                "Please check the Lambda function logs for details."
-            ),
-            subject="Step Function Failed - Model Evaluation Error"
-        )
-
-        # Threshold failure için ayrı notification
         threshold_failure_notification = tasks.SnsPublish(
             self,
             "ThresholdFailureNotification",
@@ -293,34 +278,6 @@ class StepFunctionStack(Stack):
             subject="Step Function Failed - Model Quality Threshold Not Met"
         )
 
-        # Baseline failure için ayrı notification
-        baseline_failure_notification = tasks.SnsPublish(
-            self,
-            "BaselineFailureNotification",
-            topic=sns_topic,
-            message=sfn.TaskInput.from_text(
-                "Baseline processing step failed! Workflow execution terminated.\n\n"
-                "❌ Step: Baseline Processing\n"
-                "📝 Status: Lambda function execution failed\n\n"
-                "Please check the Lambda function logs for details."
-            ),
-            subject="Step Function Failed - Baseline Processing Error"
-        )
-
-        # Register model failure için ayrı notification
-        register_failure_notification = tasks.SnsPublish(
-            self,
-            "RegisterFailureNotification",
-            topic=sns_topic,
-            message=sfn.TaskInput.from_text(
-                "Register model step failed! Workflow execution terminated.\n\n"
-                "❌ Step: Model Registration\n"
-                "📝 Status: Lambda function execution failed\n\n"
-                "Please check the Lambda function logs for details."
-            ),
-            subject="Step Function Failed - Model Registration Error"
-        )
-
         # ----------------------------------------------------------------------
         # Fail states
         # ----------------------------------------------------------------------
@@ -335,7 +292,7 @@ class StepFunctionStack(Stack):
             lambda_function=dev_endpoint_evaluate_lambda,
             output_path="$.Payload",
         )
-        evaluate_step.add_catch(evaluate_failure_notification.next(workflow_failed))
+        evaluate_step.add_catch(workflow_failed)
 
         # ----------------------------------------------------------------------
         # Step 2: Threshold check
@@ -348,7 +305,7 @@ class StepFunctionStack(Stack):
         )
 
         # ----------------------------------------------------------------------
-        # Step 3: Parallel branches
+        # Step 3: Parallel branches - BASİT HATA YÖNETİMİ
         # ----------------------------------------------------------------------
         baseline_step_parallel = tasks.LambdaInvoke(
             self,
@@ -356,7 +313,7 @@ class StepFunctionStack(Stack):
             lambda_function=baseline_lambda,
             output_path="$.Payload",
         )
-        baseline_step_parallel.add_catch(baseline_failure_notification.next(workflow_failed))
+        baseline_step_parallel.add_catch(workflow_failed)
 
         register_model_step_parallel = tasks.LambdaInvoke(
             self,
@@ -364,21 +321,23 @@ class StepFunctionStack(Stack):
             lambda_function=register_model_lambda,
             output_path="$.Payload",
         )
-        register_model_step_parallel.add_catch(register_failure_notification.next(workflow_failed))
+        register_model_step_parallel.add_catch(workflow_failed)
 
         parallel_step = sfn.Parallel(self, "FinalizeModel")
         parallel_step.branch(baseline_step_parallel)
         parallel_step.branch(register_model_step_parallel)
-        parallel_step_with_success = parallel_step.next(success_notification_task)
 
         # ----------------------------------------------------------------------
-        # State machine definition
+        # State machine definition 
         # ----------------------------------------------------------------------
-        definition = evaluate_step.next(
-            check_threshold.when(
-                sfn.Condition.number_less_than("$.rmse", rmse_threshold),
-                pass_state.next(parallel_step_with_success),
-            ).otherwise(threshold_fail_chain)
+        definition = (
+            evaluate_step
+            .next(
+                check_threshold.when(
+                    sfn.Condition.number_less_than("$.rmse", rmse_threshold),
+                    pass_state.next(parallel_step.next(success_notification_task)),
+                ).otherwise(threshold_fail_chain)
+            )
         )
 
         # ----------------------------------------------------------------------
