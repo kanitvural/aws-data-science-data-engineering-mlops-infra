@@ -32,7 +32,6 @@ class SMDevEndpointStack(Stack):
             mutable=False
         )
         
-
         # Model Definition
         model = sagemaker.CfnModel(
             self, "DevModel",
