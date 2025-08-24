@@ -305,38 +305,39 @@ class StepFunctionStack(Stack):
         )
 
         # ----------------------------------------------------------------------
-        # Step 3: Parallel branches - BASİT HATA YÖNETİMİ
+        # Step 3: Parallel branches - SADE VE BASİT
         # ----------------------------------------------------------------------
-        baseline_step_parallel = tasks.LambdaInvoke(
+        baseline_step = tasks.LambdaInvoke(
             self,
-            "BaselineProcessingStepParallel",
+            "BaselineProcessingStep",
             lambda_function=baseline_lambda,
             output_path="$.Payload",
         )
-        baseline_step_parallel.add_catch(workflow_failed)
+        baseline_step.add_catch(workflow_failed)
 
-        register_model_step_parallel = tasks.LambdaInvoke(
+        register_model_step = tasks.LambdaInvoke(
             self,
-            "RegisterModelStepParallel",
+            "RegisterModelStep",
             lambda_function=register_model_lambda,
             output_path="$.Payload",
         )
-        register_model_step_parallel.add_catch(workflow_failed)
+        register_model_step.add_catch(workflow_failed)
 
+        # Parallel step oluştur
         parallel_step = sfn.Parallel(self, "FinalizeModel")
-        parallel_step.branch(baseline_step_parallel)
-        parallel_step.branch(register_model_step_parallel)
+        parallel_step.branch(baseline_step)
+        parallel_step.branch(register_model_step)
 
         # ----------------------------------------------------------------------
-        # State machine definition 
+        # State machine definition - ÇOK BASİT
         # ----------------------------------------------------------------------
         definition = (
             evaluate_step
-            .next(
-                check_threshold.when(
-                    sfn.Condition.number_less_than("$.rmse", rmse_threshold),
-                    pass_state.next(parallel_step.next(success_notification_task)),
-                ).otherwise(threshold_fail_chain)
+            .next(check_threshold
+                .when(sfn.Condition.number_less_than("$.rmse", rmse_threshold),
+                    pass_state.next(parallel_step).next(success_notification_task)
+                )
+                .otherwise(threshold_fail_chain)
             )
         )
 
