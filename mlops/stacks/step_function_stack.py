@@ -240,7 +240,7 @@ class StepFunctionStack(Stack):
             self,
             "ModelPassedNotification",
             topic=sns.Topic.from_topic_arn(self, "ImportedSnsTopicSuccess", sns_topic_arn),
-            subject=f"🎉 {project_name} Model Evaluation - PASSED",   # <-- direkt string
+            subject=f"🎉 {project_name} Model Evaluation - PASSED",
             message=sfn.TaskInput.from_text(
                 sfn.JsonPath.format(
                     "Model evaluation completed successfully!\n\n"
@@ -258,7 +258,7 @@ class StepFunctionStack(Stack):
             self,
             "ModelFailedNotification",
             topic=sns.Topic.from_topic_arn(self, "ImportedSnsTopicFailed", sns_topic_arn),
-            subject=f"❌ {project_name} Model Evaluation - FAILED",   # <-- direkt string
+            subject=f"❌ {project_name} Model Evaluation - FAILED",
             message=sfn.TaskInput.from_text(
                 sfn.JsonPath.format(
                     "Model evaluation failed to meet quality threshold!\n\n"
