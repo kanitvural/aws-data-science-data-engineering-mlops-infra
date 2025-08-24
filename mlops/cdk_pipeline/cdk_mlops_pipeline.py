@@ -19,6 +19,7 @@ class CDKMLOpsPipelineStack(Stack):
 
         project_name = self.node.try_get_context("project_name") or "mlops"
         notification_email = self.node.try_get_context("notification_email")
+        sns_topic_arn = Fn.import_value(f"{project_name}-sns-topic-arn")
 
         # GitHub connections information
         github_repo = "kanitvural/aws-data-science-data-engineering-mlops-infra"
@@ -231,3 +232,40 @@ class CDKMLOpsPipelineStack(Stack):
         )
 
         sm_prod_autoscaling_deploy = pipeline.add_stage(sm_prod_autoscaling_stage)
+
+        # Production Deployment Success Notification
+        prod_deployment_notification = pipelines_.CodeBuildStep(
+            "ProdDeploymentNotification",
+            input=source,
+            build_environment=codebuild.BuildEnvironment(
+                compute_type=codebuild.ComputeType.SMALL,
+                build_image=codebuild.LinuxBuildImage.STANDARD_7_0,
+            ),
+            commands=[
+                "echo '📧 Sending Production Deployment Notification...'",
+                "pip install --upgrade pip",
+                "pip install boto3",
+                "python mlops/scripts/send_prod_deployment_notification.py",
+            ],
+            env={
+                "REGION": self.region,
+                "PROJECT_NAME": project_name,
+                "ENDPOINT_NAME": f"{project_name}-prod-endpoint",
+                "SNS_TOPIC_ARN": sns_topic_arn,
+            },
+            role_policy_statements=[
+                iam.PolicyStatement(
+                    actions=[
+                        "sns:Publish",
+                        "sagemaker:DescribeEndpoint",
+                        "application-autoscaling:DescribeScalableTargets",
+                        "application-autoscaling:DescribeScalingPolicies",
+                        "ssm:GetParameter",
+                    ],
+                    resources=["*"],
+                )
+            ],
+        )
+
+        # Add notification after autoscaling deployment
+        sm_prod_autoscaling_deploy.add_post(prod_deployment_notification)        

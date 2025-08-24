@@ -7,6 +7,8 @@ from aws_cdk import (
     aws_stepfunctions_tasks as tasks,
     aws_lambda as lambda_,
     aws_iam as iam,
+    aws_ssm as ssm,
+    aws_sns as sns,
     Fn,
 )
 from constructs import Construct
@@ -26,15 +28,21 @@ class StepFunctionStack(Stack):
         test_csv_key = "sagemaker-preprocess-output/test/test.csv"
         target_column = "dep_delay"
         mlops_bucket_name = f"{project_name}-bucket-{self.account}"
-        rmse_threshold = 20.0
+        rmse_threshold = 10.0
         endpoint_name = f"{project_name}-dev-endpoint"
 
         # Register Lambda environment variables
-        model_package_group_name = "flight-delay-model-package-group"
-        model_s3_uri = "s3://data-science-bucket-058264126563/sagemaker-final-training-output/model/pipelines-7877okymrfhn-FlightsFinalTraining-6KIqJxP2g4/output/model.tar.gz"
-        inference_image_uri = f"{self.account}.dkr.ecr.{self.region}.amazonaws.com/{project_name}-repository-{self.account}:latest"
-   
+        parameter_name = "/data-science/final_evaluated_model_s3_dir"
+        model_s3_uri = ssm.StringParameter.from_string_parameter_attributes(
+            self,
+            id="LatestModelPackageArn",
+            parameter_name=parameter_name,
+        ).string_value
 
+        model_package_group_name = "flight-delay-model-package-group"
+        inference_image_uri = (
+            f"{self.account}.dkr.ecr.{self.region}.amazonaws.com/{project_name}-repository-{self.account}:latest"
+        )
         model_description = "XGBoost model for flight delay prediction"
         evaluation_result_s3_bucket = mlops_bucket_name
         evaluation_result_key = "dev-endpoint-evaluation-result/evaluation.json"
@@ -44,6 +52,9 @@ class StepFunctionStack(Stack):
         baseline_input_key = "sagemaker-preprocess-output/baseline/baseline.csv"
         baseline_output_prefix = "baseline_report"
 
+        # SNS Topic ARN
+        sns_topic_arn = Fn.import_value(f"{project_name}-sns-topic-arn")
+
         # ----------------------------------------------------------------------
         # IAM Role for Step Functions
         # ----------------------------------------------------------------------
@@ -52,7 +63,12 @@ class StepFunctionStack(Stack):
             id="StepFunctionExecutionRole",
             assumed_by=iam.ServicePrincipal("states.amazonaws.com"),
         )
-        sfn_role.add_to_policy(iam.PolicyStatement(actions=["lambda:InvokeFunction"], resources=["*"]))
+        sfn_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=["lambda:InvokeFunction"],
+                resources=["*"],
+            )
+        )
         sfn_role.add_to_policy(
             iam.PolicyStatement(
                 actions=[
@@ -69,6 +85,13 @@ class StepFunctionStack(Stack):
         )
         sfn_role.add_managed_policy(
             iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AWSLambdaBasicExecutionRole")
+        )
+
+        sfn_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=["sns:Publish"],
+                resources=["*"],
+            )
         )
 
         # ----------------------------------------------------------------------
@@ -218,9 +241,51 @@ class StepFunctionStack(Stack):
         )
 
         # ----------------------------------------------------------------------
-        # Fail states
+        # SNS Notification Tasks
+        # ----------------------------------------------------------------------
+        model_passed_notification = tasks.SnsPublish(
+            self,
+            "ModelPassedNotification",
+            topic=sns.Topic.from_topic_arn(self, "ImportedSnsTopicSuccess", sns_topic_arn),
+            subject=f"🎉 {project_name} Model Evaluation - PASSED",
+            message=sfn.JsonPath.format(
+                "Model evaluation completed successfully!\n\n"
+                "✅ Model Performance: PASSED\n"
+                "📊 RMSE Score: {}\n"
+                "🎯 Threshold: {}\n"
+                "📝 Status: Model successfully registered in the SageMaker Model Registry. Baseline processing has started. ✅\n"
+                "⏰ Evaluation Time: {}\n\n"
+                "The model is now ready for production deployment.",
+                sfn.JsonPath.string_at("$.rmse"),
+                str(rmse_threshold),
+                sfn.JsonPath.string_at("$$.State.EnteredTime"),
+            ),
+        )
+
+        model_failed_notification = tasks.SnsPublish(
+            self,
+            "ModelFailedNotification",
+            topic=sns.Topic.from_topic_arn(self, "ImportedSnsTopicFailed", sns_topic_arn),
+            subject=f"❌ {project_name} Model Evaluation - FAILED",
+            message=sfn.JsonPath.format(
+                "Model evaluation failed to meet quality threshold!\n\n"
+                "❌ Model Performance: FAILED\n"
+                "📊 RMSE Score: {}\n"
+                "🎯 Threshold: {}\n"
+                "📝 Status: Model rejected - does not meet quality standards\n"
+                "⏰ Evaluation Time: {}\n\n"
+                "Please review the model training process and retrain with improved parameters.",
+                sfn.JsonPath.string_at("$.rmse"),
+                str(rmse_threshold),
+                sfn.JsonPath.string_at("$$.State.EnteredTime"),
+            ),
+        )
+
+        # ----------------------------------------------------------------------
+        # Success and Failure States
         # ----------------------------------------------------------------------
         workflow_failed = sfn.Fail(self, "WorkflowFailed")
+        model_quality_failed = model_failed_notification.next(sfn.Fail(self, "ModelQualityFailed"))
 
         # ----------------------------------------------------------------------
         # Step 1: Evaluate
@@ -237,11 +302,9 @@ class StepFunctionStack(Stack):
         # Step 2: Threshold check
         # ----------------------------------------------------------------------
         check_threshold = sfn.Choice(self, "Check Model Quality")
-        pass_state = sfn.Pass(self, "ModelBelowThreshold")
-        fail_state = sfn.Fail(self, "ModelAboveThreshold")
 
         # ----------------------------------------------------------------------
-        # Step 3: Parallel branches
+        # Step 3: Parallel branches (only executed if model passes)
         # ----------------------------------------------------------------------
         baseline_step_parallel = tasks.LambdaInvoke(
             self,
@@ -263,14 +326,16 @@ class StepFunctionStack(Stack):
         parallel_step.branch(baseline_step_parallel)
         parallel_step.branch(register_model_step_parallel)
 
+        # Success flow: notification -> parallel processing -> success
+        success_flow = model_passed_notification.next(parallel_step).next(sfn.Succeed(self, "WorkflowSucceeded"))
+
         # ----------------------------------------------------------------------
         # State machine definition
         # ----------------------------------------------------------------------
         definition = evaluate_step.next(
-            check_threshold.when(
-                sfn.Condition.number_less_than("$.rmse", rmse_threshold),
-                pass_state.next(parallel_step),
-            ).otherwise(fail_state)
+            check_threshold.when(sfn.Condition.number_less_than("$.rmse", rmse_threshold), success_flow).otherwise(
+                model_quality_failed
+            )
         )
 
         # ----------------------------------------------------------------------
