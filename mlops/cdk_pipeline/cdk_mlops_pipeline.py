@@ -259,6 +259,8 @@ class CDKMLOpsPipelineStack(Stack):
                         "application-autoscaling:DescribeScalableTargets",
                         "application-autoscaling:DescribeScalingPolicies",
                         "ssm:GetParameter",
+                        "cloudformation:DescribeStacks", 
+                        "cloudformation:ListStacks",
                     ],
                     resources=["*"],
                 )
