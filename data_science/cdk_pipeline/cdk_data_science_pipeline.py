@@ -13,7 +13,6 @@ class CDKDataSciencePipelineStack(Stack):
     def __init__(self, scope: Construct, id: str, **kwargs):
         super().__init__(scope, id, **kwargs)
 
-        # Context'ten parametreleri al
         project_name = self.node.try_get_context("project_name") or "data-science"
         notification_email = self.node.try_get_context("notification_email")
 
