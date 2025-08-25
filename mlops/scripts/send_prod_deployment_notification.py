@@ -7,6 +7,7 @@ import boto3
 import os
 from datetime import datetime
 import sys
+import json
 
 def get_sns_topic_arn():
     region = os.environ["AWS_DEFAULT_REGION"]
@@ -38,25 +39,54 @@ def main():
         # Get endpoint info
         endpoint_response = sagemaker_client.describe_endpoint(EndpointName=endpoint_name)
         status = endpoint_response['EndpointStatus']
-        instance_type = endpoint_response['ProductionVariants'][0]['InstanceType']
-        instance_count = endpoint_response['ProductionVariants'][0]['DesiredInstanceCount']
+        
+        # ProductionVariants is an array of ProductionVariantSummary objects
+        # Field names are different in Summary vs regular ProductionVariant
+        if endpoint_response.get('ProductionVariants'):
+            variant = endpoint_response['ProductionVariants'][0]
+            
+            # Debug: Print the entire variant structure to understand fields
+            print(f"🔍 Variant structure: {json.dumps(variant, indent=2, default=str)}")
+            
+            # Try different possible field names
+            instance_type = (
+                variant.get('InstanceType') or 
+                variant.get('CurrentInstanceType') or 
+                variant.get('DesiredInstanceType') or
+                "Unknown"
+            )
+            
+            instance_count = (
+                variant.get('DesiredInstanceCount') or
+                variant.get('CurrentInstanceCount') or
+                variant.get('InitialInstanceCount') or
+                1
+            )
+        else:
+            print("⚠️  No ProductionVariants found in endpoint response")
+            instance_type = "Unknown"
+            instance_count = 1
         
         # Get autoscaling info
         resource_id = f"endpoint/{endpoint_name}/variant/AllTraffic"
-        targets = autoscaling_client.describe_scalable_targets(
-            ServiceNamespace='sagemaker',
-            ResourceIds=[resource_id]
-        )['ScalableTargets']
-        
-        if targets:
-            min_cap = targets[0]['MinCapacity']
-            max_cap = targets[0]['MaxCapacity']
-            scaling_info = f"{min_cap}-{max_cap} instances"
-        else:
-            scaling_info = "Not configured"
+        try:
+            targets = autoscaling_client.describe_scalable_targets(
+                ServiceNamespace='sagemaker',
+                ResourceIds=[resource_id]
+            )['ScalableTargets']
+            
+            if targets:
+                min_cap = targets[0]['MinCapacity']
+                max_cap = targets[0]['MaxCapacity']
+                scaling_info = f"{min_cap}-{max_cap} instances"
+            else:
+                scaling_info = "Not configured"
+        except Exception as e:
+            print(f"⚠️  Could not get autoscaling info: {str(e)}")
+            scaling_info = "Could not retrieve"
         
         # Send notification
-        subject = f"🚀 Production Endpoint Deployed"
+        subject = f"🚀 Production Endpoint Deployed - {project_name}"
         message = f"""Production endpoint is ready!
 
 Project: {project_name}
@@ -66,7 +96,7 @@ Instance: {instance_type} ({instance_count} current)
 AutoScaling: {scaling_info}
 Time: {datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")}
 
-Your ML model is live."""
+Your ML model is live and ready for production traffic."""
 
         sns_client.publish(
             TopicArn=sns_topic_arn,
@@ -78,6 +108,9 @@ Your ML model is live."""
         
     except Exception as e:
         print(f"❌ Error: {str(e)}")
+        # Print full traceback for debugging
+        import traceback
+        traceback.print_exc()
         sys.exit(1)
 
 if __name__ == "__main__":
