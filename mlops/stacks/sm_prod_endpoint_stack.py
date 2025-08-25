@@ -11,7 +11,7 @@ from constructs import Construct
 
 class SMProdEndpointStack(Stack):
 
-    def __init__(self, scope: Construct, id: str, project_name: str, **kwargs) -> None:
+    def __init__(self, scope: Construct, id: str, project_name: str, instance_config: dict, **kwargs) -> None:
         super().__init__(scope, id, **kwargs)
 
         # Import SageMaker execution role
@@ -43,8 +43,8 @@ class SMProdEndpointStack(Stack):
             "ProdEndpointConfig",
             production_variants=[
                 sagemaker.CfnEndpointConfig.ProductionVariantProperty(
-                    initial_instance_count=1,
-                    instance_type="ml.c5.large",
+                    initial_instance_count=instance_config["instance_count"],
+                    instance_type=instance_config["instance_type"],
                     model_name=model.attr_model_name,
                     variant_name="AllTraffic",
                 )

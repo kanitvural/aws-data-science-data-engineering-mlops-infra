@@ -5,10 +5,11 @@ from aws_cdk import (
 )
 from constructs import Construct
 
+
 # Invocation-based Scaling Policy for testing auto-scaling behavior
 class SMProdAutoScalingStack(Stack):
 
-    def __init__(self, scope: Construct, id: str, project_name: str, **kwargs) -> None:
+    def __init__(self, scope: Construct, id: str, project_name: str, autoscaling_config: dict, **kwargs) -> None:
         super().__init__(scope, id, **kwargs)
 
         # Import endpoint name from previous stack
@@ -18,8 +19,8 @@ class SMProdAutoScalingStack(Stack):
         scaling_target = autoscaling.CfnScalableTarget(
             self,
             "EndpointScalingTarget",
-            max_capacity=5,
-            min_capacity=1,
+            max_capacity=autoscaling_config["autoscaling_max"],
+            min_capacity=autoscaling_config["autoscaling_min"],
             resource_id=f"endpoint/{endpoint_name}/variant/AllTraffic",
             scalable_dimension="sagemaker:variant:DesiredInstanceCount",
             service_namespace="sagemaker",
@@ -30,25 +31,26 @@ class SMProdAutoScalingStack(Stack):
             self,
             "EndpointInvocationScalingPolicy",
             policy_name="SageMakerVariantInvocationsPerInstance",
-            policy_type="TargetTrackingScaling",
+            policy_type=autoscaling_config["policy_type"],
             resource_id=f"endpoint/{endpoint_name}/variant/AllTraffic",
             scalable_dimension="sagemaker:variant:DesiredInstanceCount",
             service_namespace="sagemaker",
             target_tracking_scaling_policy_configuration=autoscaling.CfnScalingPolicy.TargetTrackingScalingPolicyConfigurationProperty(
-                target_value=750.0,
+                target_value=autoscaling_config["target_invocations_per_instance"],
                 predefined_metric_specification=autoscaling.CfnScalingPolicy.PredefinedMetricSpecificationProperty(
                     predefined_metric_type="SageMakerVariantInvocationsPerInstance"
                 ),
-                scale_in_cooldown=60,
-                scale_out_cooldown=60
+                scale_in_cooldown=autoscaling_config["scale_in_cooldown"],
+                scale_out_cooldown=autoscaling_config["scale_out_cooldown"],
             ),
         )
 
         # Ensure scaling policy is created after the scalable target
         scaling_policy.add_dependency(scaling_target)
 
-# Alternative CPU-based Scaling Policy     
-        
+
+# Alternative CPU-based Scaling Policy
+
 
 # from aws_cdk import (
 #     Stack,
@@ -99,4 +101,3 @@ class SMProdAutoScalingStack(Stack):
 #             adjustment_type=autoscaling.AdjustmentType.CHANGE_IN_CAPACITY,
 #             cooldown=Duration.minutes(5),
 #         )
-
