@@ -132,6 +132,7 @@ class CDKDataSciencePipelineStack(Stack):
                 "GLUE_TABLE_NAME": glue_table_name,
                 "ATHENA_OUTPUT_BUCKET_NAME": f"s3://{athena_output_bucket_name}/query-results/",
                 "DEST_BUCKET_NAME": f"s3://{data_science_bucket_name}/athena-sample/{input_data}",
+                "REGION": self.region,
             },
             role_policy_statements=[
                 # Athena permissions
