@@ -51,7 +51,7 @@ class StepFunctionStack(Stack):
         baseline_output_prefix = "baseline_report"
 
         # SNS Topic 
-        sns_topic_arn = f"{project_name}-sns-topic-arn"
+        sns_topic_arn = Fn.import_value(f"{project_name}-sns-topic-arn")
         sns_topic = sns.Topic.from_topic_arn(self, "NotificationTopic", sns_topic_arn)
 
         # ----------------------------------------------------------------------
