@@ -32,18 +32,15 @@ class StepFunctionStack(Stack):
         endpoint_name = f"{project_name}-dev-endpoint"
 
         # Register Lambda environment variables
-
         parameter_name = "/data-science/final_evaluated_model_s3_dir"
         model_s3_uri = ssm.StringParameter.from_string_parameter_attributes(
             self,
             id="LatestModelPackageArn",
             parameter_name=parameter_name,
         ).string_value
-
+        
         model_package_group_name = "flight-delay-model-package-group"
-        inference_image_uri = (
-            f"{self.account}.dkr.ecr.{self.region}.amazonaws.com/{project_name}-repository-{self.account}:latest"
-        )
+        inference_image_uri = f"{self.account}.dkr.ecr.{self.region}.amazonaws.com/{project_name}-repository-{self.account}:latest"
         model_description = "XGBoost model for flight delay prediction"
         evaluation_result_s3_bucket = mlops_bucket_name
         evaluation_result_key = "dev-endpoint-evaluation-result/evaluation.json"
@@ -53,8 +50,8 @@ class StepFunctionStack(Stack):
         baseline_input_key = "sagemaker-preprocess-output/baseline/baseline.csv"
         baseline_output_prefix = "baseline_report"
 
-        # SNS Topic ARN for notifications
-        sns_topic_arn = Fn.import_value(f"{project_name}-sns-topic-arn")
+        # SNS Topic (import existing)
+        sns_topic_arn = Fn.import_value(f"{project_name}-sns-topic-arn") 
         sns_topic = sns.Topic.from_topic_arn(self, "NotificationTopic", sns_topic_arn)
 
         # ----------------------------------------------------------------------
@@ -80,15 +77,15 @@ class StepFunctionStack(Stack):
                 resources=["*"],
             )
         )
-        sfn_role.add_managed_policy(
-            iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AWSLambdaBasicExecutionRole")
-        )
-
+        # SNS permissions for Step Functions
         sfn_role.add_to_policy(
             iam.PolicyStatement(
                 actions=["sns:Publish"],
                 resources=[sns_topic_arn],
             )
+        )
+        sfn_role.add_managed_policy(
+            iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AWSLambdaBasicExecutionRole")
         )
 
         # ----------------------------------------------------------------------
@@ -240,48 +237,58 @@ class StepFunctionStack(Stack):
         # ----------------------------------------------------------------------
         # SNS Notification Tasks
         # ----------------------------------------------------------------------
-        success_notification_task = tasks.SnsPublish(
+        success_notification = tasks.SnsPublish(
             self,
-            "SuccessNotification",
+            "SendSuccessNotification",
             topic=sns_topic,
-            message=sfn.TaskInput.from_text(
-                sfn.JsonPath.format(
-                    "Model evaluation completed successfully!\n\n"
-                    "✅ Model Performance: PASSED\n"
-                    "📊 RMSE Score: {}\n"
-                    "🎯 Threshold: {}\n"
-                    "📝 Status: Model has been registered and baseline processing initiated\n\n"
-                    "The model is now ready for production deployment.",
-                    sfn.JsonPath.string_at("$.rmse"),
-                    str(rmse_threshold)
-                )
-            ),
-            subject="Step Function Execution Successful - Model Evaluation Passed"
+            subject="ML Pipeline - Successful Execution",
+            message=sfn.TaskInput.from_object({
+                "status": "SUCCESS",
+                "execution_name": sfn.JsonPath.string_at("$$.Execution.Name"),
+                "state_machine": sfn.JsonPath.string_at("$$.StateMachine.Name"),
+                "timestamp": sfn.JsonPath.string_at("$$.State.EnteredTime"),
+                "rmse": sfn.JsonPath.string_at("$.rmse"),
+                "message": "ML model evaluation and registration completed successfully!"
+            }),
         )
 
-        threshold_failure_notification = tasks.SnsPublish(
+        failure_notification = tasks.SnsPublish(
             self,
-            "ThresholdFailureNotification",
+            "SendFailureNotification", 
             topic=sns_topic,
-            message=sfn.TaskInput.from_text(
-                sfn.JsonPath.format(
-                    "Model evaluation failed to meet quality threshold!\n\n"
-                    "❌ Model Performance: FAILED\n"
-                    "📊 RMSE Score: {}\n"
-                    "🎯 Threshold: {}\n"
-                    "📝 Status: Model rejected - does not meet quality standards\n\n"
-                    "Please review the model training process and retrain with improved parameters.",
-                    sfn.JsonPath.string_at("$.rmse"),
-                    str(rmse_threshold)
-                )
-            ),
-            subject="Step Function Failed - Model Quality Threshold Not Met"
+            subject="ML Pipeline - Failed Execution",
+            message=sfn.TaskInput.from_object({
+                "status": "FAILED",
+                "execution_name": sfn.JsonPath.string_at("$$.Execution.Name"),
+                "state_machine": sfn.JsonPath.string_at("$$.StateMachine.Name"),
+                "timestamp": sfn.JsonPath.string_at("$$.State.EnteredTime"),
+                "error": sfn.JsonPath.string_at("$.Error"),
+                "cause": sfn.JsonPath.string_at("$.Cause"),
+                "message": "ML pipeline execution failed. Please check the logs."
+            }),
+        )
+
+        model_quality_failure_notification = tasks.SnsPublish(
+            self,
+            "SendModelQualityFailureNotification",
+            topic=sns_topic,
+            subject="ML Pipeline - Model Quality Issue",
+            message=sfn.TaskInput.from_object({
+                "status": "MODEL_QUALITY_FAILED",
+                "execution_name": sfn.JsonPath.string_at("$$.Execution.Name"),
+                "state_machine": sfn.JsonPath.string_at("$$.StateMachine.Name"),
+                "timestamp": sfn.JsonPath.string_at("$$.State.EnteredTime"),
+                "rmse": sfn.JsonPath.string_at("$.rmse"),
+                "threshold": rmse_threshold,
+                "message": f"Model RMSE exceeded threshold of {rmse_threshold}. Model not registered."
+            }),
         )
 
         # ----------------------------------------------------------------------
-        # Fail states
+        # Fail states with notifications
         # ----------------------------------------------------------------------
-        workflow_failed = sfn.Fail(self, "WorkflowFailed")
+        workflow_failed = failure_notification.next(sfn.Fail(self, "WorkflowFailed"))
+        model_quality_failed = model_quality_failure_notification.next(sfn.Fail(self, "ModelAboveThreshold"))
 
         # ----------------------------------------------------------------------
         # Step 1: Evaluate
@@ -292,53 +299,49 @@ class StepFunctionStack(Stack):
             lambda_function=dev_endpoint_evaluate_lambda,
             output_path="$.Payload",
         )
-        evaluate_step.add_catch(workflow_failed)
+        evaluate_step.add_catch(workflow_failed, errors=["States.ALL"])
 
         # ----------------------------------------------------------------------
         # Step 2: Threshold check
         # ----------------------------------------------------------------------
         check_threshold = sfn.Choice(self, "Check Model Quality")
         pass_state = sfn.Pass(self, "ModelBelowThreshold")
-        
-        threshold_fail_chain = threshold_failure_notification.next(
-            sfn.Fail(self, "ModelAboveThreshold")
-        )
 
         # ----------------------------------------------------------------------
-        # Step 3: Parallel branches - SADE VE BASİT
+        # Step 3: Parallel branches
         # ----------------------------------------------------------------------
-        baseline_step = tasks.LambdaInvoke(
+        baseline_step_parallel = tasks.LambdaInvoke(
             self,
-            "BaselineProcessingStep",
+            "BaselineProcessingStepParallel",
             lambda_function=baseline_lambda,
             output_path="$.Payload",
         )
-        baseline_step.add_catch(workflow_failed)
+        baseline_step_parallel.add_catch(workflow_failed, errors=["States.ALL"])
 
-        register_model_step = tasks.LambdaInvoke(
+        register_model_step_parallel = tasks.LambdaInvoke(
             self,
-            "RegisterModelStep",
+            "RegisterModelStepParallel",
             lambda_function=register_model_lambda,
             output_path="$.Payload",
         )
-        register_model_step.add_catch(workflow_failed)
+        register_model_step_parallel.add_catch(workflow_failed, errors=["States.ALL"])
 
-        # Parallel step oluştur
         parallel_step = sfn.Parallel(self, "FinalizeModel")
-        parallel_step.branch(baseline_step)
-        parallel_step.branch(register_model_step)
+        parallel_step.branch(baseline_step_parallel)
+        parallel_step.branch(register_model_step_parallel)
+        parallel_step.add_catch(workflow_failed, errors=["States.ALL"])
+
+        # Success notification after parallel completion
+        final_success = parallel_step.next(success_notification)
 
         # ----------------------------------------------------------------------
-        # State machine definition - ÇOK BASİT
+        # State machine definition
         # ----------------------------------------------------------------------
-        definition = (
-            evaluate_step
-            .next(check_threshold
-                .when(sfn.Condition.number_less_than("$.rmse", rmse_threshold),
-                    pass_state.next(parallel_step).next(success_notification_task)
-                )
-                .otherwise(threshold_fail_chain)
-            )
+        definition = evaluate_step.next(
+            check_threshold.when(
+                sfn.Condition.number_less_than("$.rmse", rmse_threshold),
+                pass_state.next(final_success),
+            ).otherwise(model_quality_failed)
         )
 
         # ----------------------------------------------------------------------
