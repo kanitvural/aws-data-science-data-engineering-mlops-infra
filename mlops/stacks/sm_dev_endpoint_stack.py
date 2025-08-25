@@ -16,12 +16,12 @@ class SMDevEndpointStack(Stack):
         
         ecr_repository_arn = f"{self.account}.dkr.ecr.{self.region}.amazonaws.com/{project_name}-repository-{self.account}:latest"
         
-        parameter_name = "/data-science/final_evaluated_model_s3_dir"
-        model_s3_uri = ssm.StringParameter.from_string_parameter_attributes(
-            self,
-            id="LatestModelPackageArn",
-            parameter_name=parameter_name,
-        ).string_value
+        # parameter_name = "/data-science/final_evaluated_model_s3_dir"
+        # model_s3_uri = ssm.StringParameter.from_string_parameter_attributes(
+        #     self,
+        #     id="LatestModelPackageArn",
+        #     parameter_name=parameter_name,
+        # ).string_value
    
 
         # Import SageMaker execution role
@@ -38,7 +38,7 @@ class SMDevEndpointStack(Stack):
             execution_role_arn=self.sagemaker_execution_role.role_arn,
             primary_container=sagemaker.CfnModel.ContainerDefinitionProperty(
                 image=ecr_repository_arn, 
-                model_data_url= model_s3_uri
+                model_data_url= "s3://data-science-bucket-058264126563/sagemaker-final-evaluated-approved-model-output/model.tar.gz"
             ),
             model_name=f"{project_name}-dev-model"
         )

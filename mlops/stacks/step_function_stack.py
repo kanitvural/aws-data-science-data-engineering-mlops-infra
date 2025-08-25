@@ -235,7 +235,7 @@ class StepFunctionStack(Stack):
         )
 
         # ----------------------------------------------------------------------
-        # SNS Notification Tasks (Her bir kullanım için ayrı instance)
+        # SNS Notification Tasks 
         # ----------------------------------------------------------------------
         success_notification = tasks.SnsPublish(
             self,
@@ -252,7 +252,7 @@ class StepFunctionStack(Stack):
             }),
         )
 
-        # Her hata durumu için ayrı notification task'ları
+        
         evaluate_failure_notification = tasks.SnsPublish(
             self,
             "SendEvaluateFailureNotification", 
