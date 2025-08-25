@@ -235,7 +235,7 @@ class StepFunctionStack(Stack):
         )
 
         # ----------------------------------------------------------------------
-        # SNS Notification Tasks
+        # SNS Notification Tasks (Her bir kullanım için ayrı instance)
         # ----------------------------------------------------------------------
         success_notification = tasks.SnsPublish(
             self,
@@ -244,27 +244,68 @@ class StepFunctionStack(Stack):
             subject="ML Pipeline - Successful Execution",
             message=sfn.TaskInput.from_object({
                 "status": "SUCCESS",
-                "execution_name": sfn.JsonPath.string_at("$$.Execution.Name"),
-                "state_machine": sfn.JsonPath.string_at("$$.StateMachine.Name"),
-                "timestamp": sfn.JsonPath.string_at("$$.State.EnteredTime"),
+                "execution_name": sfn.JsonPath.string_at("$.Execution.Name"),
+                "state_machine": sfn.JsonPath.string_at("$.StateMachine.Name"),
+                "timestamp": sfn.JsonPath.string_at("$.State.EnteredTime"),
                 "rmse": sfn.JsonPath.string_at("$.rmse"),
                 "message": "ML model evaluation and registration completed successfully!"
             }),
         )
 
-        failure_notification = tasks.SnsPublish(
+        # Her hata durumu için ayrı notification task'ları
+        evaluate_failure_notification = tasks.SnsPublish(
             self,
-            "SendFailureNotification", 
+            "SendEvaluateFailureNotification", 
             topic=sns_topic,
-            subject="ML Pipeline - Failed Execution",
+            subject="ML Pipeline - Evaluation Failed",
             message=sfn.TaskInput.from_object({
-                "status": "FAILED",
-                "execution_name": sfn.JsonPath.string_at("$$.Execution.Name"),
-                "state_machine": sfn.JsonPath.string_at("$$.StateMachine.Name"),
-                "timestamp": sfn.JsonPath.string_at("$$.State.EnteredTime"),
-                "error": sfn.JsonPath.string_at("$.Error"),
-                "cause": sfn.JsonPath.string_at("$.Cause"),
-                "message": "ML pipeline execution failed. Please check the logs."
+                "status": "EVALUATION_FAILED",
+                "execution_name": sfn.JsonPath.string_at("$.Execution.Name"),
+                "state_machine": sfn.JsonPath.string_at("$.StateMachine.Name"),
+                "timestamp": sfn.JsonPath.string_at("$.State.EnteredTime"),
+                "message": "ML model evaluation step failed. Please check the logs."
+            }),
+        )
+
+        baseline_failure_notification = tasks.SnsPublish(
+            self,
+            "SendBaselineFailureNotification", 
+            topic=sns_topic,
+            subject="ML Pipeline - Baseline Processing Failed",
+            message=sfn.TaskInput.from_object({
+                "status": "BASELINE_FAILED",
+                "execution_name": sfn.JsonPath.string_at("$.Execution.Name"),
+                "state_machine": sfn.JsonPath.string_at("$.StateMachine.Name"),
+                "timestamp": sfn.JsonPath.string_at("$.State.EnteredTime"),
+                "message": "Baseline processing step failed. Please check the logs."
+            }),
+        )
+
+        register_failure_notification = tasks.SnsPublish(
+            self,
+            "SendRegisterFailureNotification", 
+            topic=sns_topic,
+            subject="ML Pipeline - Model Registration Failed",
+            message=sfn.TaskInput.from_object({
+                "status": "REGISTRATION_FAILED",
+                "execution_name": sfn.JsonPath.string_at("$.Execution.Name"),
+                "state_machine": sfn.JsonPath.string_at("$.StateMachine.Name"),
+                "timestamp": sfn.JsonPath.string_at("$.State.EnteredTime"),
+                "message": "Model registration step failed. Please check the logs."
+            }),
+        )
+
+        parallel_failure_notification = tasks.SnsPublish(
+            self,
+            "SendParallelFailureNotification", 
+            topic=sns_topic,
+            subject="ML Pipeline - Parallel Processing Failed",
+            message=sfn.TaskInput.from_object({
+                "status": "PARALLEL_FAILED",
+                "execution_name": sfn.JsonPath.string_at("$.Execution.Name"),
+                "state_machine": sfn.JsonPath.string_at("$.StateMachine.Name"),
+                "timestamp": sfn.JsonPath.string_at("$.State.EnteredTime"),
+                "message": "Parallel processing (baseline/registration) failed. Please check the logs."
             }),
         )
 
@@ -275,9 +316,9 @@ class StepFunctionStack(Stack):
             subject="ML Pipeline - Model Quality Issue",
             message=sfn.TaskInput.from_object({
                 "status": "MODEL_QUALITY_FAILED",
-                "execution_name": sfn.JsonPath.string_at("$$.Execution.Name"),
-                "state_machine": sfn.JsonPath.string_at("$$.StateMachine.Name"),
-                "timestamp": sfn.JsonPath.string_at("$$.State.EnteredTime"),
+                "execution_name": sfn.JsonPath.string_at("$.Execution.Name"),
+                "state_machine": sfn.JsonPath.string_at("$.StateMachine.Name"),
+                "timestamp": sfn.JsonPath.string_at("$.State.EnteredTime"),
                 "rmse": sfn.JsonPath.string_at("$.rmse"),
                 "threshold": rmse_threshold,
                 "message": f"Model RMSE exceeded threshold of {rmse_threshold}. Model not registered."
@@ -287,7 +328,10 @@ class StepFunctionStack(Stack):
         # ----------------------------------------------------------------------
         # Fail states with notifications
         # ----------------------------------------------------------------------
-        workflow_failed = failure_notification.next(sfn.Fail(self, "WorkflowFailed"))
+        evaluate_failed = evaluate_failure_notification.next(sfn.Fail(self, "EvaluationFailed"))
+        baseline_failed = baseline_failure_notification.next(sfn.Fail(self, "BaselineFailed"))
+        register_failed = register_failure_notification.next(sfn.Fail(self, "RegistrationFailed"))
+        parallel_failed = parallel_failure_notification.next(sfn.Fail(self, "ParallelProcessingFailed"))
         model_quality_failed = model_quality_failure_notification.next(sfn.Fail(self, "ModelAboveThreshold"))
 
         # ----------------------------------------------------------------------
@@ -299,7 +343,7 @@ class StepFunctionStack(Stack):
             lambda_function=dev_endpoint_evaluate_lambda,
             output_path="$.Payload",
         )
-        evaluate_step.add_catch(workflow_failed, errors=["States.ALL"])
+        evaluate_step.add_catch(evaluate_failed, errors=["States.ALL"])
 
         # ----------------------------------------------------------------------
         # Step 2: Threshold check
@@ -316,7 +360,7 @@ class StepFunctionStack(Stack):
             lambda_function=baseline_lambda,
             output_path="$.Payload",
         )
-        baseline_step_parallel.add_catch(workflow_failed, errors=["States.ALL"])
+        baseline_step_parallel.add_catch(baseline_failed, errors=["States.ALL"])
 
         register_model_step_parallel = tasks.LambdaInvoke(
             self,
@@ -324,12 +368,12 @@ class StepFunctionStack(Stack):
             lambda_function=register_model_lambda,
             output_path="$.Payload",
         )
-        register_model_step_parallel.add_catch(workflow_failed, errors=["States.ALL"])
+        register_model_step_parallel.add_catch(register_failed, errors=["States.ALL"])
 
         parallel_step = sfn.Parallel(self, "FinalizeModel")
         parallel_step.branch(baseline_step_parallel)
         parallel_step.branch(register_model_step_parallel)
-        parallel_step.add_catch(workflow_failed, errors=["States.ALL"])
+        parallel_step.add_catch(parallel_failed, errors=["States.ALL"])
 
         # Success notification after parallel completion
         final_success = parallel_step.next(success_notification)
