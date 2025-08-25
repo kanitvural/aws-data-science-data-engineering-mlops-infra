@@ -3,6 +3,7 @@ from aws_cdk import (
     aws_sagemaker as sagemaker,
     aws_iam as iam,
     CfnOutput,
+    aws_ssm as ssm,
     Fn
 )
 from constructs import Construct
@@ -14,6 +15,13 @@ class SMDevEndpointStack(Stack):
         super().__init__(scope, id, **kwargs)
         
         ecr_repository_arn = f"{self.account}.dkr.ecr.{self.region}.amazonaws.com/{project_name}-repository-{self.account}:latest"
+        
+        parameter_name = "/data-science/final_evaluated_model_s3_dir"
+        model_s3_uri = ssm.StringParameter.from_string_parameter_attributes(
+            self,
+            id="LatestModelPackageArn",
+            parameter_name=parameter_name,
+        ).string_value
    
 
         # Import SageMaker execution role
@@ -24,14 +32,13 @@ class SMDevEndpointStack(Stack):
             mutable=False
         )
         
-
         # Model Definition
         model = sagemaker.CfnModel(
             self, "DevModel",
             execution_role_arn=self.sagemaker_execution_role.role_arn,
             primary_container=sagemaker.CfnModel.ContainerDefinitionProperty(
                 image=ecr_repository_arn, 
-                model_data_url= "s3://data-science-bucket-058264126563/sagemaker-final-training-output/model/pipelines-7877okymrfhn-FlightsFinalTraining-6KIqJxP2g4/output/model.tar.gz"
+                model_data_url= model_s3_uri
             ),
             model_name=f"{project_name}-dev-model"
         )

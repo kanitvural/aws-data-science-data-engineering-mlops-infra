@@ -7,6 +7,7 @@ from aws_cdk import (
     aws_stepfunctions_tasks as tasks,
     aws_lambda as lambda_,
     aws_iam as iam,
+    aws_ssm as ssm,
     Fn,
 )
 from constructs import Construct
@@ -26,15 +27,20 @@ class StepFunctionStack(Stack):
         test_csv_key = "sagemaker-preprocess-output/test/test.csv"
         target_column = "dep_delay"
         mlops_bucket_name = f"{project_name}-bucket-{self.account}"
-        rmse_threshold = 20.0
+        rmse_threshold = 10.0
         endpoint_name = f"{project_name}-dev-endpoint"
 
         # Register Lambda environment variables
+        
+        parameter_name = "/data-science/final_evaluated_model_s3_dir"
+        model_s3_uri = ssm.StringParameter.from_string_parameter_attributes(
+            self,
+            id="LatestModelPackageArn",
+            parameter_name=parameter_name,
+        ).string_value
+        
         model_package_group_name = "flight-delay-model-package-group"
-        model_s3_uri = "s3://data-science-bucket-058264126563/sagemaker-final-training-output/model/pipelines-7877okymrfhn-FlightsFinalTraining-6KIqJxP2g4/output/model.tar.gz"
         inference_image_uri = f"{self.account}.dkr.ecr.{self.region}.amazonaws.com/{project_name}-repository-{self.account}:latest"
-   
-
         model_description = "XGBoost model for flight delay prediction"
         evaluation_result_s3_bucket = mlops_bucket_name
         evaluation_result_key = "dev-endpoint-evaluation-result/evaluation.json"

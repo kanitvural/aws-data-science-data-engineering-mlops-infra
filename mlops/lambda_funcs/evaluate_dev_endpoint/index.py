@@ -60,7 +60,7 @@ def lambda_handler(event, context):
         predictions_df = pd.read_csv(io.StringIO(result), header=None)
         predictions = predictions_df.iloc[:, 0].values
         
-        # Calculate RMSE manually (without sklearn)
+        # Calculate RMSE
         mse = np.mean((y_true - predictions) ** 2)
         rmse = float(np.sqrt(mse))
         logger.info(f"RMSE calculated: {rmse:.4f}")
