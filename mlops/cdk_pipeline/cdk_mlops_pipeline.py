@@ -19,7 +19,30 @@ class CDKMLOpsPipelineStack(Stack):
 
         project_name = self.node.try_get_context("project_name") or "mlops"
         notification_email = self.node.try_get_context("notification_email")
-        
+
+        # Sagemaker Endpoint Instance configurations
+
+        dev_instance_config = {
+            "instance_type": "ml.t2.medium",
+            "instance_count": 1,
+        }
+
+        prod_instance_config = {
+            "instance_type": "ml.c5.large",
+            "instance_count": 1,
+            "autoscaling_min": 1,
+            "autoscaling_max": 5,
+        }
+
+        autoscaling_config = {
+            "autoscaling_min": 1,
+            "autoscaling_max": 5,
+            "policy_type": "TargetTrackingScaling",
+            "target_invocations_per_instance": 750,
+            "scale_in_cooldown": 60,
+            "scale_out_cooldown": 60,
+        }
+
         # GitHub connections information
         github_repo = "kanitvural/aws-data-science-data-engineering-mlops-infra"
         github_branch = "mlops"
@@ -106,6 +129,7 @@ class CDKMLOpsPipelineStack(Stack):
             self,
             id="SMDevEndpointStage",
             project_name=project_name,
+            instance_config=dev_instance_config,
         )
 
         sm_dev_endpoint_deploy = pipeline.add_stage(sm_dev_endpoint_stage)
@@ -191,12 +215,13 @@ class CDKMLOpsPipelineStack(Stack):
             self,
             id="SMProdEndpointStage",
             project_name=project_name,
+            instance_config=prod_instance_config,
         )
 
         # SageMaker Prod Auto-Scaling Deploy Stage
-        
+
         sm_prod_endpoint_deploy = pipeline.add_stage(sm_prod_endpoint_stage)
-        
+
         wait_for_prod_endpoint = pipelines_.CodeBuildStep(
             "WaitForProdEndpoint",
             input=source,
@@ -223,11 +248,12 @@ class CDKMLOpsPipelineStack(Stack):
         )
 
         sm_prod_endpoint_deploy.add_post(wait_for_prod_endpoint)
-        
+
         sm_prod_autoscaling_stage = SMProdAutoScalingStage(
             self,
             id="SMProdAutoScalingStage",
             project_name=project_name,
+            autoscaling_config=autoscaling_config,
         )
 
         sm_prod_autoscaling_deploy = pipeline.add_stage(sm_prod_autoscaling_stage)
@@ -250,6 +276,10 @@ class CDKMLOpsPipelineStack(Stack):
                 "REGION": self.region,
                 "PROJECT_NAME": project_name,
                 "ENDPOINT_NAME": f"{project_name}-prod-endpoint",
+                "INSTANCE_TYPE": prod_instance_config["instance_type"],
+                "INSTANCE_COUNT": str(prod_instance_config["instance_count"]),
+                "AUTOSCALING_MIN": str(autoscaling_config["autoscaling_min"]),
+                "AUTOSCALING_MAX": str(autoscaling_config["autoscaling_max"]),
             },
             role_policy_statements=[
                 iam.PolicyStatement(
@@ -259,6 +289,8 @@ class CDKMLOpsPipelineStack(Stack):
                         "application-autoscaling:DescribeScalableTargets",
                         "application-autoscaling:DescribeScalingPolicies",
                         "ssm:GetParameter",
+                        "cloudformation:DescribeStacks",
+                        "cloudformation:ListStacks",
                     ],
                     resources=["*"],
                 )
@@ -266,4 +298,4 @@ class CDKMLOpsPipelineStack(Stack):
         )
 
         # Add notification after autoscaling deployment
-        sm_prod_autoscaling_deploy.add_post(prod_deployment_notification)        
+        sm_prod_autoscaling_deploy.add_post(prod_deployment_notification)

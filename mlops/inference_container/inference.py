@@ -65,13 +65,15 @@ async def invocations(request: Request):
 
     try:
         
-        cols = ['year','month','day','arr_delay','distance','hour','minute','temp','humid',
-        'wind_dir','wind_speed','precip','pressure','visib','distance_ratio_by_total',
-        'distance_category','airline_daily_performance_kpi','aircraft_count_by_airline',
-        'dep_delay_category','Allegiant Air','American Airlines Inc.','Delta Air Lines Inc.',
-        'Frontier Airlines Inc.','Hawaiian Airlines Inc.','Horizon Air','JetBlue Airways',
-        'SkyWest Airlines Inc.','Southwest Airlines Co.','Spirit Air Lines','United Air Lines Inc.']
-
+        cols = [
+            'year','month','day','arr_delay','distance','hour','minute','temp','humid',
+            'wind_dir','wind_speed','precip','pressure','visib','distance_ratio_by_total',
+            'distance_category','airline_daily_performance_kpi','aircraft_count_by_airline',
+            'dep_delay_category','allegiant_air','american_airlines_inc','delta_air_lines_inc',
+            'frontier_airlines_inc','hawaiian_airlines_inc','horizon_air','jetblue_airways',
+            'skywest_airlines_inc','southwest_airlines_co','spirit_air_lines','united_air_lines_inc'
+        ]
+        
         df = pd.read_csv(io.StringIO(body.decode("utf-8")), header=None)
         df.columns = cols
         dmatrix = xgb.DMatrix(df)
