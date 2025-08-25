@@ -27,8 +27,9 @@ GLUE_DB_NAME = os.environ["GLUE_DB_NAME"]
 GLUE_TABLE_NAME = os.environ["GLUE_TABLE_NAME"]
 ATHENA_OUTPUT_BUCKET_NAME = os.environ["ATHENA_OUTPUT_BUCKET_NAME"]
 DEST_BUCKET_NAME = os.environ["DEST_BUCKET_NAME"]
+REGION = os.environ["REGION"]
 
-# SQL Query for sampling - sadece gerekli kolonları seç, row_num ve group_size dahil etme
+# SQL Query for sampling 
 QUERY = f"""
 WITH numbered_rows AS (
   SELECT *,
@@ -51,8 +52,8 @@ def main():
         logger.info(f"Database: {GLUE_DB_NAME}, Table: {GLUE_TABLE_NAME}")
         
         # Clients
-        athena = boto3.client("athena")
-        s3 = boto3.client("s3")
+        athena = boto3.client("athena", region_name=REGION)
+        s3 = boto3.client("s3", region_name=REGION)
         logger.info("AWS clients initialized successfully")
 
         # 1. Start Athena query execution
