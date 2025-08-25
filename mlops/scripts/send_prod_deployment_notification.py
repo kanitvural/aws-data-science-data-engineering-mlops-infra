@@ -86,17 +86,19 @@ def main():
             scaling_info = "Could not retrieve"
         
         # Send notification
-        subject = f"🚀 Production Endpoint Deployed - {project_name}"
-        message = f"""Production endpoint is ready!
+        subject = f"🚀 Production Endpoint Deployed"
+        message = f"""
+✨ Your ML model is live and ready for production traffic! ✨
 
-Project: {project_name}
-Endpoint: {endpoint_name}
-Status: {status}
-Instance: {instance_type} ({instance_count} current)
-AutoScaling: {scaling_info}
-Time: {datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")}
+📌 Project: {project_name}
+🖥️ Endpoint: {endpoint_name}
+📊 Status: {status}
+⚙️ Instance: {instance_type} x {instance_count}
+📈 AutoScaling: {scaling_info}
+🕒 Deployed at: {datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")}
 
-Your ML model is live and ready for production traffic."""
+✅ Everything looks good. Time to serve predictions!
+"""
 
         sns_client.publish(
             TopicArn=sns_topic_arn,

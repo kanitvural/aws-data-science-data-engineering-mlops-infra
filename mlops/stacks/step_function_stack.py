@@ -379,11 +379,15 @@ class StepFunctionStack(Stack):
             self,
             "RegisterModelStepParallel",
             lambda_function=register_model_lambda,
-            output_path="$.Payload",
+            output_path="$.Payload.evaluation_data",
         )
         register_model_step_parallel.add_catch(register_failed, errors=["States.ALL"])
 
-        parallel_step = sfn.Parallel(self, "FinalizeModel")
+        parallel_step = sfn.Parallel(
+            self,
+            "FinalizeModel",
+            output_path="$[1]",
+        )
         parallel_step.branch(baseline_step_parallel)
         parallel_step.branch(register_model_step_parallel)
         parallel_step.add_catch(parallel_failed, errors=["States.ALL"])
