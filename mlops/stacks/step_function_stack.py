@@ -38,9 +38,11 @@ class StepFunctionStack(Stack):
             id="LatestModelPackageArn",
             parameter_name=parameter_name,
         ).string_value
-        
+
         model_package_group_name = "flight-delay-model-package-group"
-        inference_image_uri = f"{self.account}.dkr.ecr.{self.region}.amazonaws.com/{project_name}-repository-{self.account}:latest"
+        inference_image_uri = (
+            f"{self.account}.dkr.ecr.{self.region}.amazonaws.com/{project_name}-repository-{self.account}:latest"
+        )
         model_description = "XGBoost model for flight delay prediction"
         evaluation_result_s3_bucket = mlops_bucket_name
         evaluation_result_key = "dev-endpoint-evaluation-result/evaluation.json"
@@ -50,7 +52,7 @@ class StepFunctionStack(Stack):
         baseline_input_key = "sagemaker-preprocess-output/baseline/baseline.csv"
         baseline_output_prefix = "baseline_report"
 
-        # SNS Topic 
+        # SNS Topic
         sns_topic_arn = Fn.import_value(f"{project_name}-sns-topic-arn")
         sns_topic = sns.Topic.from_topic_arn(self, "NotificationTopic", sns_topic_arn)
 
@@ -242,71 +244,80 @@ class StepFunctionStack(Stack):
             "SendSuccessNotification",
             topic=sns_topic,
             subject="ML Pipeline - Successful Execution",
-            message=sfn.TaskInput.from_object({
-                "status": "SUCCESS",
-                "execution_name": sfn.JsonPath.string_at("$.Execution.Name"),
-                "state_machine": sfn.JsonPath.string_at("$.StateMachine.Name"),
-                "timestamp": sfn.JsonPath.string_at("$.State.EnteredTime"),
-                "rmse": sfn.JsonPath.string_at("$.rmse"),
-                "message": "ML model evaluation and registration completed successfully!"
-            }),
+            message=sfn.TaskInput.from_object(
+                {
+                    "status": "SUCCESS",
+                    "execution_name": sfn.JsonPath.string_at("$$.Execution.Name"),
+                    "state_machine": sfn.JsonPath.string_at("$$.StateMachine.Name"),
+                    "timestamp": sfn.JsonPath.string_at("$$.State.EnteredTime"),
+                    "rmse": sfn.JsonPath.string_at("$.rmse"),
+                    "message": "ML model evaluation and registration completed successfully!",
+                }
+            ),
         )
 
-        
         evaluate_failure_notification = tasks.SnsPublish(
             self,
-            "SendEvaluateFailureNotification", 
+            "SendEvaluateFailureNotification",
             topic=sns_topic,
             subject="ML Pipeline - Evaluation Failed",
-            message=sfn.TaskInput.from_object({
-                "status": "EVALUATION_FAILED",
-                "execution_name": sfn.JsonPath.string_at("$.Execution.Name"),
-                "state_machine": sfn.JsonPath.string_at("$.StateMachine.Name"),
-                "timestamp": sfn.JsonPath.string_at("$.State.EnteredTime"),
-                "message": "ML model evaluation step failed. Please check the logs."
-            }),
+            message=sfn.TaskInput.from_object(
+                {
+                    "status": "EVALUATION_FAILED",
+                    "execution_name": sfn.JsonPath.string_at("$$.Execution.Name"),
+                    "state_machine": sfn.JsonPath.string_at("$$.StateMachine.Name"),
+                    "timestamp": sfn.JsonPath.string_at("$$.State.EnteredTime"),
+                    "message": "ML model evaluation step failed. Please check the logs.",
+                }
+            ),
         )
 
         baseline_failure_notification = tasks.SnsPublish(
             self,
-            "SendBaselineFailureNotification", 
+            "SendBaselineFailureNotification",
             topic=sns_topic,
             subject="ML Pipeline - Baseline Processing Failed",
-            message=sfn.TaskInput.from_object({
-                "status": "BASELINE_FAILED",
-                "execution_name": sfn.JsonPath.string_at("$.Execution.Name"),
-                "state_machine": sfn.JsonPath.string_at("$.StateMachine.Name"),
-                "timestamp": sfn.JsonPath.string_at("$.State.EnteredTime"),
-                "message": "Baseline processing step failed. Please check the logs."
-            }),
+            message=sfn.TaskInput.from_object(
+                {
+                    "status": "BASELINE_FAILED",
+                    "execution_name": sfn.JsonPath.string_at("$$.Execution.Name"),
+                    "state_machine": sfn.JsonPath.string_at("$$.StateMachine.Name"),
+                    "timestamp": sfn.JsonPath.string_at("$$.State.EnteredTime"),
+                    "message": "Baseline processing step failed. Please check the logs.",
+                }
+            ),
         )
 
         register_failure_notification = tasks.SnsPublish(
             self,
-            "SendRegisterFailureNotification", 
+            "SendRegisterFailureNotification",
             topic=sns_topic,
             subject="ML Pipeline - Model Registration Failed",
-            message=sfn.TaskInput.from_object({
-                "status": "REGISTRATION_FAILED",
-                "execution_name": sfn.JsonPath.string_at("$.Execution.Name"),
-                "state_machine": sfn.JsonPath.string_at("$.StateMachine.Name"),
-                "timestamp": sfn.JsonPath.string_at("$.State.EnteredTime"),
-                "message": "Model registration step failed. Please check the logs."
-            }),
+            message=sfn.TaskInput.from_object(
+                {
+                    "status": "REGISTRATION_FAILED",
+                    "execution_name": sfn.JsonPath.string_at("$$.Execution.Name"),
+                    "state_machine": sfn.JsonPath.string_at("$$.StateMachine.Name"),
+                    "timestamp": sfn.JsonPath.string_at("$$.State.EnteredTime"),
+                    "message": "Model registration step failed. Please check the logs.",
+                }
+            ),
         )
 
         parallel_failure_notification = tasks.SnsPublish(
             self,
-            "SendParallelFailureNotification", 
+            "SendParallelFailureNotification",
             topic=sns_topic,
             subject="ML Pipeline - Parallel Processing Failed",
-            message=sfn.TaskInput.from_object({
-                "status": "PARALLEL_FAILED",
-                "execution_name": sfn.JsonPath.string_at("$.Execution.Name"),
-                "state_machine": sfn.JsonPath.string_at("$.StateMachine.Name"),
-                "timestamp": sfn.JsonPath.string_at("$.State.EnteredTime"),
-                "message": "Parallel processing (baseline/registration) failed. Please check the logs."
-            }),
+            message=sfn.TaskInput.from_object(
+                {
+                    "status": "PARALLEL_FAILED",
+                    "execution_name": sfn.JsonPath.string_at("$$.Execution.Name"),
+                    "state_machine": sfn.JsonPath.string_at("$$.StateMachine.Name"),
+                    "timestamp": sfn.JsonPath.string_at("$$.State.EnteredTime"),
+                    "message": "Parallel processing (baseline/registration) failed. Please check the logs.",
+                }
+            ),
         )
 
         model_quality_failure_notification = tasks.SnsPublish(
@@ -314,15 +325,17 @@ class StepFunctionStack(Stack):
             "SendModelQualityFailureNotification",
             topic=sns_topic,
             subject="ML Pipeline - Model Quality Issue",
-            message=sfn.TaskInput.from_object({
-                "status": "MODEL_QUALITY_FAILED",
-                "execution_name": sfn.JsonPath.string_at("$.Execution.Name"),
-                "state_machine": sfn.JsonPath.string_at("$.StateMachine.Name"),
-                "timestamp": sfn.JsonPath.string_at("$.State.EnteredTime"),
-                "rmse": sfn.JsonPath.string_at("$.rmse"),
-                "threshold": rmse_threshold,
-                "message": f"Model RMSE exceeded threshold of {rmse_threshold}. Model not registered."
-            }),
+            message=sfn.TaskInput.from_object(
+                {
+                    "status": "MODEL_QUALITY_FAILED",
+                    "execution_name": sfn.JsonPath.string_at("$$.Execution.Name"),
+                    "state_machine": sfn.JsonPath.string_at("$$.StateMachine.Name"),
+                    "timestamp": sfn.JsonPath.string_at("$$.State.EnteredTime"),
+                    "rmse": sfn.JsonPath.string_at("$.rmse"),
+                    "threshold": rmse_threshold,
+                    "message": f"Model RMSE exceeded threshold of {rmse_threshold}. Model not registered.",
+                }
+            ),
         )
 
         # ----------------------------------------------------------------------
