@@ -11,7 +11,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 # Parameters
-ENDPOINT_NAME = "dev-endpoint"  # SageMaker endpoint name (not full URL)
+ENDPOINT_NAME = "mlops-dev-endpoint"  # SageMaker endpoint name (not full URL)
 TEST_DATA_S3_BUCKET = "data-science-bucket-058264126563"
 EVALUATION_RESULT_S3_BUCKET = "mlops-bucket-058264126563"
 TEST_CSV_KEY = "sagemaker-preprocess-output/test/test.csv"
@@ -20,7 +20,7 @@ RMSE_THRESHOLD = 20.0
 
 def main():
     # Read test data from S3
-    s3 = boto3.client('s3')
+    s3 = boto3.client('s3', region_name='eu-central-1')
     obj = s3.get_object(Bucket=TEST_DATA_S3_BUCKET, Key=TEST_CSV_KEY)
     test_df = pd.read_csv(io.BytesIO(obj['Body'].read()))
     
@@ -37,7 +37,7 @@ def main():
     
     # Send to SageMaker endpoint using boto3
     logger.info("Making predictions...")
-    sagemaker_runtime = boto3.client('sagemaker-runtime')
+    sagemaker_runtime = boto3.client('sagemaker-runtime', region_name='eu-central-1')
     
     response = sagemaker_runtime.invoke_endpoint(
         EndpointName=ENDPOINT_NAME,
