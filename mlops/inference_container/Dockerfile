@@ -6,7 +6,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     nginx \
  && rm -rf /var/lib/apt/lists/*
 
-# SageMaker'in beklediği klasörleri oluştur
 RUN mkdir -p /opt/ml/input/config \
     && mkdir -p /opt/ml/input/data/test \
     && mkdir -p /opt/ml/output \

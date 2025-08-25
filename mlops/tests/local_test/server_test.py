@@ -18,7 +18,8 @@ def predict(payload, headers):
     logger.info(f"Prediction Response: {response.text.strip()}")
 
 def main():
-    df = pd.read_csv(csv_file, header=None)
+    df = pd.read_csv(csv_file)
+    df.drop("dep_delay", axis=1, inplace=True)
     sample_rows = df.sample(n=20, random_state=42).values.tolist()
 
     for idx, row in enumerate(sample_rows, 1):
