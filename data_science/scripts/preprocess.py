@@ -155,25 +155,8 @@ def feature_engineering(df):
 
     df["daily_flight_count"] = df.groupby(["airline", "date"])["airline"].transform("count")
 
-    airline_delay_group = (
-        df.groupby(["airline", "date"])
-        .agg({"dep_delay": "sum", "arr_delay": "sum", "daily_flight_count": "mean"})
-        .reset_index()
-    )
-
-    airline_delay_group["airline_daily_performance_kpi"] = (
-        airline_delay_group["dep_delay"] + airline_delay_group["arr_delay"]
-    ) / airline_delay_group["daily_flight_count"]
-    airline_delay_group.drop(["dep_delay", "arr_delay", "daily_flight_count"], axis=1, inplace=True)
-    df = df.merge(airline_delay_group, on=["airline", "date"], how="left")
-
     airline_total_aircraft_count = df.groupby("airline")["tailnum"].nunique()
     df["aircraft_count_by_airline"] = df["airline"].map(airline_total_aircraft_count)
-
-    bins = [-np.inf, -10.0, -5.0, 0.0, 5.0, np.inf]
-    labels = ["Level 1", "Level 2", "Level 3", "Level 4", "Level 5"]
-    df["dep_delay_category"] = pd.cut(df["dep_delay"], bins=bins, labels=labels)
-    df["dep_delay_category"] = df["dep_delay_category"].cat.codes
 
     date_string_column = ["date_string"]
     corrs = ["air_time", "flight", "dewp", "wind_gust", "daily_flight_count"]
