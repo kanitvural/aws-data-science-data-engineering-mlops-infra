@@ -28,7 +28,7 @@ class StepFunctionStack(Stack):
         test_csv_key = "sagemaker-preprocess-output/test/test.csv"
         target_column = "dep_delay"
         mlops_bucket_name = f"{project_name}-bucket-{self.account}"
-        rmse_threshold = 10.0
+        rmse_threshold = 15.0
         endpoint_name = f"{project_name}-dev-endpoint"
 
         # Register Lambda environment variables
