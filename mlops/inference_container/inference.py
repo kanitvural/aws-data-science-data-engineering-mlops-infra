@@ -5,7 +5,6 @@ import tarfile
 import pandas as pd
 import xgboost as xgb
 from fastapi import FastAPI, Request, Response
-from fastapi.responses import PlainTextResponse
 
 # Basit logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -43,7 +42,7 @@ async def ping():
     is_ready = current_model is not None
     return Response(status_code=200 if is_ready else 404)
 
-@app.post("/invocations", response_class=PlainTextResponse)
+@app.post("/invocations")
 async def invocations(request: Request):
     """SageMaker inference endpoint"""
     current_model = load_xgb_model()
@@ -73,14 +72,24 @@ async def invocations(request: Request):
             'skywest_airlines_inc','southwest_airlines_co','spirit_air_lines','united_air_lines_inc'
         ]
         
+        
         df = pd.read_csv(io.StringIO(body.decode("utf-8")), header=None)
         df.columns = cols
+        
+        
         dmatrix = xgb.DMatrix(df)
         predictions = current_model.predict(dmatrix)
         formatted_preds = [f"{x:.2f}" for x in predictions]
+        
+        
         csv_buffer = io.StringIO()
         pd.DataFrame({"predictions": formatted_preds}).to_csv(csv_buffer, header=False, index=False)
-        return csv_buffer.getvalue()
+        
+        
+        return Response(
+            content=csv_buffer.getvalue(),
+            media_type="text/csv"
+        )
         
     except Exception as e:
         logger.error(f"Prediction error: {e}")

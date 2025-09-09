@@ -22,6 +22,9 @@ class SMProdEndpointStack(Stack):
             mutable=False,
         )
 
+        # Import S3 bucket name (exported as MLOpsBucketName)
+        bucket_name = Fn.import_value("MLOpsBucketName")
+
         # Import ssm model arn parameter
         parameter_name = f"/{project_name}/latest-approved-model-arn"
         latest_model_package_arn = ssm.StringParameter.from_string_parameter_attributes(
@@ -37,7 +40,7 @@ class SMProdEndpointStack(Stack):
             model_name=f"{project_name}-prod-model",
         )
 
-        # Endpoint Config
+        # Endpoint Config with DataCapture
         endpoint_config = sagemaker.CfnEndpointConfig(
             self,
             "ProdEndpointConfig",
@@ -49,6 +52,18 @@ class SMProdEndpointStack(Stack):
                     variant_name="AllTraffic",
                 )
             ],
+            data_capture_config=sagemaker.CfnEndpointConfig.DataCaptureConfigProperty(
+                enable_capture=True,
+                initial_sampling_percentage=100,
+                destination_s3_uri=f"s3://{bucket_name}/data-capture/",
+                capture_options=[
+                    {"captureMode": "Input"},
+                    {"captureMode": "Output"},
+                ],
+                capture_content_type_header=sagemaker.CfnEndpointConfig.CaptureContentTypeHeaderProperty(
+                    csv_content_types=["text/csv"]
+                ),
+            ),
             endpoint_config_name=f"prod-endpoint-config-{project_name}",
         )
         endpoint_config.add_dependency(model)
@@ -62,6 +77,7 @@ class SMProdEndpointStack(Stack):
         )
         endpoint.add_dependency(endpoint_config)
 
+        # Outputs
         CfnOutput(
             self,
             "ProdEndpointName",
