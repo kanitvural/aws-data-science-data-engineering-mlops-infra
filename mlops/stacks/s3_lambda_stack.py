@@ -9,7 +9,6 @@ from aws_cdk import (
     Fn,
 )
 from constructs import Construct
-
 from aws_cdk.aws_s3_notifications import LambdaDestination
 
 
@@ -17,9 +16,7 @@ class S3LambdaStack(Stack):
     def __init__(self, scope: Construct, id: str, project_name: str, **kwargs):
         super().__init__(scope, id, **kwargs)
 
-
         sns_topic_arn = Fn.import_value(f"{project_name}-sns-topic-arn")
-
 
         # ----------------------------------------------------------------------
         # S3 Bucket
@@ -31,6 +28,7 @@ class S3LambdaStack(Stack):
             versioned=True,
             removal_policy=RemovalPolicy.DESTROY,
             auto_delete_objects=True,
+            block_public_access=s3.BlockPublicAccess.NONE,  # public access engelini kaldır
         )
 
         # Bucket Policy: shap-analysis/report.pdf herkes erişebilsin
@@ -130,14 +128,12 @@ class S3LambdaStack(Stack):
         # ----------------------------------------------------------------------
         # Event Notifications
         # ----------------------------------------------------------------------
-        # shap lambda: shap-analysis/ yolundaki .pdf dosyalarını tetikleyip çalışacak
         bucket.add_event_notification(
             s3.EventType.OBJECT_CREATED,
             LambdaDestination(shap_lambda),
             s3.NotificationKeyFilter(prefix="shap-analysis/", suffix=".pdf")
         )
 
-        # monitoring lambda: monitoring-results/ yolundaki .json dosyalarını tetikleyip çalışacak
         bucket.add_event_notification(
             s3.EventType.OBJECT_CREATED,
             LambdaDestination(monitoring_lambda),
