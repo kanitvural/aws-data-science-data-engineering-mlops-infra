@@ -6,9 +6,12 @@ from aws_cdk import (
     RemovalPolicy,
     CfnOutput,
     Duration,
-    Fn
+    Fn,
 )
 from constructs import Construct
+
+from aws_cdk.aws_s3_notifications import LambdaDestination
+
 
 class S3LambdaStack(Stack):
     def __init__(self, scope: Construct, id: str, project_name: str, **kwargs):
@@ -130,14 +133,14 @@ class S3LambdaStack(Stack):
         # shap lambda: shap-analysis/ yolundaki .pdf dosyalarını tetikleyip çalışacak
         bucket.add_event_notification(
             s3.EventType.OBJECT_CREATED,
-            s3.notifications.LambdaDestination(shap_lambda),
+            LambdaDestination(shap_lambda),
             s3.NotificationKeyFilter(prefix="shap-analysis/", suffix=".pdf")
         )
 
         # monitoring lambda: monitoring-results/ yolundaki .json dosyalarını tetikleyip çalışacak
         bucket.add_event_notification(
             s3.EventType.OBJECT_CREATED,
-            s3.notifications.LambdaDestination(monitoring_lambda),
+            LambdaDestination(monitoring_lambda),
             s3.NotificationKeyFilter(prefix="monitoring-results/", suffix=".json")
         )
 
