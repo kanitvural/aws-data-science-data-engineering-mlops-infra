@@ -392,6 +392,7 @@ class CDKMLOpsPipelineStack(Stack):
                         "s3:GetObject",
                         "s3:ListBucket",
                         "s3:PutObject",
+                        "iam:PassRole",
                     ],
                     resources=["*"],
                 )
@@ -418,7 +419,8 @@ class CDKMLOpsPipelineStack(Stack):
             ),
             commands=[
                 "echo '🔧 Starting SHAP Analysis...'",
-                "pip install --upgrade pip boto3 sagemaker pandas",
+                "pip install --upgrade pip boto3 sagemaker numpy pandas",
+                "pip install shap fsspec s3fs",
                 "python mlops/scripts/start_shap_analysis.py",
             ],
             env={
@@ -446,6 +448,7 @@ class CDKMLOpsPipelineStack(Stack):
                         "s3:GetObject",
                         "s3:ListBucket",
                         "s3:PutObject",
+                        "iam:PassRole",
                     ],
                     resources=["*"],
                 )
