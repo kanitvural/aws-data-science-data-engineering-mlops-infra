@@ -1,0 +1,55 @@
+{
+  "violations" : [ {
+    "feature_name" : "distance",
+    "constraint_check_type" : "data_type_check",
+    "description" : "Data type match requirement is not met. Expected data type: Integral, Expected match: 100.0%. Observed: Only 0.0% of data is Integral."
+  }, {
+    "feature_name" : "dep_delay",
+    "constraint_check_type" : "data_type_check",
+    "description" : "Data type match requirement is not met. Expected data type: Fractional, Expected match: 100.0%. Observed: Only 0.0% of data is Fractional."
+  }, {
+    "feature_name" : "minute",
+    "constraint_check_type" : "data_type_check",
+    "description" : "Data type match requirement is not met. Expected data type: Integral, Expected match: 100.0%. Observed: Only 0.0% of data is Integral."
+  }, {
+    "feature_name" : "distance_category",
+    "constraint_check_type" : "data_type_check",
+    "description" : "Data type match requirement is not met. Expected data type: Integral, Expected match: 100.0%. Observed: Only 0.0% of data is Integral."
+  }, {
+    "feature_name" : "year",
+    "constraint_check_type" : "data_type_check",
+    "description" : "Data type match requirement is not met. Expected data type: Integral, Expected match: 100.0%. Observed: Only 0.0% of data is Integral."
+  }, {
+    "feature_name" : "hour",
+    "constraint_check_type" : "data_type_check",
+    "description" : "Data type match requirement is not met. Expected data type: Integral, Expected match: 100.0%. Observed: Only 0.0% of data is Integral."
+  }, {
+    "feature_name" : "aircraft_count_by_airline",
+    "constraint_check_type" : "data_type_check",
+    "description" : "Data type match requirement is not met. Expected data type: Integral, Expected match: 100.0%. Observed: Only 0.0% of data is Integral."
+  }, {
+    "feature_name" : "humid",
+    "constraint_check_type" : "baseline_drift_check",
+    "description" : "Baseline drift distance: 0.29122828988680644 exceeds threshold: 0.1"
+  }, {
+    "feature_name" : "wind_speed",
+    "constraint_check_type" : "baseline_drift_check",
+    "description" : "Baseline drift distance: 0.27095767462176745 exceeds threshold: 0.1"
+  }, {
+    "feature_name" : "day",
+    "constraint_check_type" : "baseline_drift_check",
+    "description" : "Baseline drift distance: 0.28526732254507525 exceeds threshold: 0.1"
+  }, {
+    "feature_name" : "temp",
+    "constraint_check_type" : "baseline_drift_check",
+    "description" : "Baseline drift distance: 0.19763322959429644 exceeds threshold: 0.1"
+  }, {
+    "feature_name" : "pressure",
+    "constraint_check_type" : "baseline_drift_check",
+    "description" : "Baseline drift distance: 0.13703457427346327 exceeds threshold: 0.1"
+  }, {
+    "feature_name" : "distance_ratio_by_total",
+    "constraint_check_type" : "baseline_drift_check",
+    "description" : "Baseline drift distance: 0.5491569736447766 exceeds threshold: 0.1"
+  } ]
+}

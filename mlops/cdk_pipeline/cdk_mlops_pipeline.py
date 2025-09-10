@@ -1,8 +1,11 @@
+import uuid
+from datetime import datetime
 from aws_cdk import (
     Stack,
     pipelines as pipelines_,
     aws_codebuild as codebuild,
     aws_iam as iam,
+    aws_ssm as ssm,
     Fn,
 )
 from constructs import Construct
@@ -42,6 +45,44 @@ class CDKMLOpsPipelineStack(Stack):
             "scale_in_cooldown": 60,
             "scale_out_cooldown": 60,
         }
+
+        # Monitoring ENV Variables
+
+        model_monitoring_config = {
+            "instance_type": "ml.m5.xlarge",
+            "instance_count": "1",
+            "volume_size": "20",
+        }
+
+        monitor_name = "flight-delay-dataquality-monitor"
+        prod_endpoint_name = f"{project_name}-prod-endpoint"
+        sagemaker_role_arn = Fn.import_value(f"{project_name}-sagemaker-execution-role-arn")
+        mlops_bucket = Fn.import_value("MLOpsBucketName")
+        monitoring_output_path = f"s3://{mlops_bucket}/monitoring-results/"
+        baseline_constraints_uri = f"s3://{mlops_bucket}/baseline_report/constraints.json"
+        baseline_statistics_uri = f"s3://{mlops_bucket}/baseline_report/statistics.json"
+
+        # SHAP ENV Variables
+
+        shap_config = {
+            "instance_type": "ml.m5.xlarge",
+            "instance_count": "1",
+        }
+
+        target_column = "dep_delay"
+    
+        parameter_name = f"/{project_name}/latest-approved-model-arn"
+        latest_model_package_arn = ssm.StringParameter.from_string_parameter_attributes(
+            self, "LatestModelPackageArn", parameter_name=parameter_name
+        ).string_value
+
+        unique_id = str(uuid.uuid4())[:8]
+        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+
+        shap_output_path = f"s3://{mlops_bucket}/shap-analysis"
+        shap_job_name = f"flight-delay-shap-{timestamp}-{unique_id}"
+        processed_data_key = f"processed-data/flight-features-{timestamp}.csv"
+
 
         # GitHub connections information
         github_repo = "kanitvural/aws-data-science-data-engineering-mlops-infra"
@@ -275,7 +316,7 @@ class CDKMLOpsPipelineStack(Stack):
             env={
                 "REGION": self.region,
                 "PROJECT_NAME": project_name,
-                "ENDPOINT_NAME": f"{project_name}-prod-endpoint",
+                "ENDPOINT_NAME": prod_endpoint_name,
                 "INSTANCE_TYPE": prod_instance_config["instance_type"],
                 "INSTANCE_COUNT": str(prod_instance_config["instance_count"]),
                 "AUTOSCALING_MIN": str(autoscaling_config["autoscaling_min"]),
@@ -299,3 +340,109 @@ class CDKMLOpsPipelineStack(Stack):
 
         # Add notification after autoscaling deployment
         sm_prod_autoscaling_deploy.add_post(prod_deployment_notification)
+
+        # ---------------------------
+        # Manual Approval #1
+        # ---------------------------
+
+        manual_approval = pipelines_.ManualApprovalStep(
+            "ManualApprovalBeforeMonitoring", comment="Please approve to start Model Monitoring."
+        )
+
+        manual_approval.add_step_dependency(prod_deployment_notification)
+
+        sm_prod_autoscaling_deploy.add_post(manual_approval)
+
+        start_model_monitoring = pipelines_.CodeBuildStep(
+            "StartModelMonitoring",
+            input=source,
+            build_environment=codebuild.BuildEnvironment(
+                compute_type=codebuild.ComputeType.SMALL,
+                build_image=codebuild.LinuxBuildImage.STANDARD_7_0,
+            ),
+            commands=[
+                "echo '🔧 Starting SageMaker Model Monitoring...'",
+                "pip install --upgrade pip boto3 sagemaker",
+                "python mlops/scripts/start_model_monitoring.py",
+            ],
+            env={
+                "REGION": self.region,
+                "SAGEMAKER_ROLE_ARN": sagemaker_role_arn,
+                "ENDPOINT_NAME": prod_endpoint_name,
+                "MONITOR_NAME": monitor_name,
+                "INSTANCE_TYPE": model_monitoring_config["instance_type"],
+                "INSTANCE_COUNT": str(model_monitoring_config["instance_count"]),
+                "VOLUME_SIZE": str(model_monitoring_config["volume_size"]),
+                "BASELINE_STATISTICS_URI": baseline_statistics_uri,
+                "BASELINE_CONSTRAINTS_URI": baseline_constraints_uri,
+                "MONITORING_OUTPUT_PATH": monitoring_output_path,
+            },
+            role_policy_statements=[
+                iam.PolicyStatement(
+                    actions=[
+                        "sagemaker:CreateMonitoringSchedule",
+                        "sagemaker:DescribeMonitoringSchedule",
+                        "sagemaker:StopMonitoringSchedule",
+                        "sagemaker:ListMonitoringExecutions",
+                        "sagemaker:ListEndpoints",
+                    ],
+                    resources=["*"],
+                )
+            ],
+        )
+
+        start_model_monitoring.add_step_dependency(manual_approval)
+        sm_prod_autoscaling_deploy.add_post(start_model_monitoring)
+
+        # ---------------------------
+        # Manual Approval #2
+        # ---------------------------
+        manual_approval_shap = pipelines_.ManualApprovalStep(
+            "ManualApprovalBeforeSHAP", comment="Please approve to start SHAP Analysis."
+        )
+
+        # SHAP CodeBuild Step
+        start_shap_analysis = pipelines_.CodeBuildStep(
+            "StartSHAPAnalysis",
+            input=source,
+            build_environment=codebuild.BuildEnvironment(
+                compute_type=codebuild.ComputeType.SMALL,
+                build_image=codebuild.LinuxBuildImage.STANDARD_7_0,
+            ),
+            commands=[
+                "echo '🔧 Starting SHAP Analysis...'",
+                "pip install --upgrade pip boto3 sagemaker pandas",
+                "python mlops/scripts/start_shap_analysis.py",
+            ],
+            env={
+                "REGION": self.region,
+                "SAGEMAKER_ROLE_ARN": sagemaker_role_arn,
+                "MODEL_PACKAGE_ARN" : latest_model_package_arn,
+                "ENDPOINT_NAME": prod_endpoint_name,
+                "BUCKET": mlops_bucket,
+                "TARGET_COLUMN": target_column,
+                "SHAP_OUTPUT_PATH": shap_output_path,
+                "SHAP_JOB_NAME": shap_job_name,
+                "PROCESSED_DATA_KEY": processed_data_key,
+                "INSTANCE_TYPE": shap_config["instance_type"],
+                "INSTANCE_COUNT": str(shap_config["instance_count"]), 
+            },
+            role_policy_statements=[
+                iam.PolicyStatement(
+                    actions=[
+                        "sagemaker:DescribeEndpoint",
+                        "sagemaker:InvokeEndpoint",
+                        "sagemaker:CreateProcessingJob",
+                        "sagemaker:DescribeProcessingJob",
+                        "s3:GetObject",
+                        "s3:PutObject",
+                    ],
+                    resources=["*"],
+                )
+            ],
+        )
+
+        manual_approval_shap.add_step_dependency(start_model_monitoring)
+        start_shap_analysis.add_step_dependency(manual_approval_shap)
+        sm_prod_autoscaling_deploy.add_post(manual_approval_shap)
+        sm_prod_autoscaling_deploy.add_post(start_shap_analysis)
