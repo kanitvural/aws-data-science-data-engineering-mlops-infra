@@ -28,7 +28,12 @@ class S3LambdaStack(Stack):
             versioned=True,
             removal_policy=RemovalPolicy.DESTROY,
             auto_delete_objects=True,
-            block_public_access=s3.BlockPublicAccess.NONE,  # public access engelini kaldır
+            block_public_access=s3.BlockPublicAccess(
+                block_public_acls=False,
+                block_public_policy=False,
+                ignore_public_acls=False,
+                restrict_public_buckets=False,
+            ),
         )
 
         # Bucket Policy: shap-analysis/report.pdf herkes erişebilsin
@@ -131,13 +136,13 @@ class S3LambdaStack(Stack):
         bucket.add_event_notification(
             s3.EventType.OBJECT_CREATED,
             LambdaDestination(shap_lambda),
-            s3.NotificationKeyFilter(prefix="shap-analysis/", suffix=".pdf")
+            s3.NotificationKeyFilter(prefix="shap-analysis/", suffix=".pdf"),
         )
 
         bucket.add_event_notification(
             s3.EventType.OBJECT_CREATED,
             LambdaDestination(monitoring_lambda),
-            s3.NotificationKeyFilter(prefix="monitoring-results/", suffix=".json")
+            s3.NotificationKeyFilter(prefix="monitoring-results/", suffix=".json"),
         )
 
         # ----------------------------------------------------------------------
