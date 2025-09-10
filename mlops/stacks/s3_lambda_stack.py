@@ -36,7 +36,6 @@ class S3LambdaStack(Stack):
             ),
         )
 
-        # Bucket Policy: shap-analysis/report.pdf herkes erişebilsin
         bucket.add_to_resource_policy(
             iam.PolicyStatement(
                 effect=iam.Effect.ALLOW,

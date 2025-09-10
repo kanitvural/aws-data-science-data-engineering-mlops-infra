@@ -70,7 +70,7 @@ class CDKMLOpsPipelineStack(Stack):
         }
 
         target_column = "dep_delay"
-    
+
         parameter_name = f"/{project_name}/latest-approved-model-arn"
         latest_model_package_arn = ssm.StringParameter.from_string_parameter_attributes(
             self, "LatestModelPackageArn", parameter_name=parameter_name
@@ -82,7 +82,6 @@ class CDKMLOpsPipelineStack(Stack):
         shap_output_path = f"s3://{mlops_bucket}/shap-analysis"
         shap_job_name = f"flight-delay-shap-{timestamp}-{unique_id}"
         processed_data_key = f"processed-data/flight-features-{timestamp}.csv"
-
 
         # GitHub connections information
         github_repo = "kanitvural/aws-data-science-data-engineering-mlops-infra"
@@ -385,6 +384,9 @@ class CDKMLOpsPipelineStack(Stack):
                         "sagemaker:StopMonitoringSchedule",
                         "sagemaker:ListMonitoringExecutions",
                         "sagemaker:ListEndpoints",
+                        "s3:GetObject",
+                        "s3:ListBucket",
+                        "s3:PutObject",
                     ],
                     resources=["*"],
                 )
@@ -417,7 +419,7 @@ class CDKMLOpsPipelineStack(Stack):
             env={
                 "REGION": self.region,
                 "SAGEMAKER_ROLE_ARN": sagemaker_role_arn,
-                "MODEL_PACKAGE_ARN" : latest_model_package_arn,
+                "MODEL_PACKAGE_ARN": latest_model_package_arn,
                 "ENDPOINT_NAME": prod_endpoint_name,
                 "BUCKET": mlops_bucket,
                 "TARGET_COLUMN": target_column,
@@ -425,7 +427,7 @@ class CDKMLOpsPipelineStack(Stack):
                 "SHAP_JOB_NAME": shap_job_name,
                 "PROCESSED_DATA_KEY": processed_data_key,
                 "INSTANCE_TYPE": shap_config["instance_type"],
-                "INSTANCE_COUNT": str(shap_config["instance_count"]), 
+                "INSTANCE_COUNT": str(shap_config["instance_count"]),
             },
             role_policy_statements=[
                 iam.PolicyStatement(
@@ -435,6 +437,7 @@ class CDKMLOpsPipelineStack(Stack):
                         "sagemaker:CreateProcessingJob",
                         "sagemaker:DescribeProcessingJob",
                         "s3:GetObject",
+                        "s3:ListBucket",
                         "s3:PutObject",
                     ],
                     resources=["*"],
