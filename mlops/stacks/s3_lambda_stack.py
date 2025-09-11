@@ -19,7 +19,7 @@ class S3LambdaStack(Stack):
         sns_topic_arn = Fn.import_value(f"{project_name}-sns-topic-arn")
 
         # ----------------------------------------------------------------------
-        # S3 Bucket
+        # S3 Bucket 
         # ----------------------------------------------------------------------
         bucket = s3.Bucket(
             self,
@@ -28,21 +28,6 @@ class S3LambdaStack(Stack):
             versioned=True,
             removal_policy=RemovalPolicy.DESTROY,
             auto_delete_objects=True,
-            block_public_access=s3.BlockPublicAccess(
-                block_public_acls=False,
-                block_public_policy=False,
-                ignore_public_acls=False,
-                restrict_public_buckets=False,
-            ),
-        )
-
-        bucket.add_to_resource_policy(
-            iam.PolicyStatement(
-                effect=iam.Effect.ALLOW,
-                principals=[iam.AnyPrincipal()],
-                actions=["s3:GetObject"],
-                resources=[f"{bucket.bucket_arn}/shap-analysis/report.pdf"],
-            )
         )
 
         CfnOutput(
@@ -54,7 +39,7 @@ class S3LambdaStack(Stack):
         )
 
         # ----------------------------------------------------------------------
-        # Lambda Roles
+        # Lambda Roles 
         # ----------------------------------------------------------------------
         shap_lambda_role = iam.Role(
             self,
@@ -70,9 +55,19 @@ class S3LambdaStack(Stack):
                     "s3:GetObject",
                     "s3:PutObject",
                     "s3:ListBucket",
-                    "sns:Publish",
+                    "s3:GeneratePresignedUrl",  # Pre-signed URL 
                 ],
-                resources=["*"],
+                resources=[
+                    bucket.bucket_arn,
+                    f"{bucket.bucket_arn}/*"
+                ],
+            )
+        )
+        # SNS policy
+        shap_lambda_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=["sns:Publish"],
+                resources=[sns_topic_arn],
             )
         )
 
@@ -90,9 +85,18 @@ class S3LambdaStack(Stack):
                     "s3:GetObject",
                     "s3:PutObject",
                     "s3:ListBucket",
-                    "sns:Publish",
                 ],
-                resources=["*"],
+                resources=[
+                    bucket.bucket_arn,
+                    f"{bucket.bucket_arn}/*"
+                ],
+            )
+        )
+        # SNS policy
+        monitoring_lambda_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=["sns:Publish"],
+                resources=[sns_topic_arn],
             )
         )
 
