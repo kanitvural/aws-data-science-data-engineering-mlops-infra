@@ -121,7 +121,6 @@ def lambda_handler(event, context):
         error_msg = f"Error processing SHAP report {s3_key if 's3_key' in locals() else 'unknown'}: {str(e)}"
         logger.error(error_msg)
         
-        # Hata bildirimi gönder
         try:
             sns.publish(
                 TopicArn=sns_topic_arn,
