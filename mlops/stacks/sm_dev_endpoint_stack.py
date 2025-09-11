@@ -61,8 +61,18 @@ class SMDevEndpointStack(Stack):
         )
 
         # Useful Outputs
-        CfnOutput(self, "DevEndpointName", value=endpoint.endpoint_name, description="SageMaker Dev Endpoint name")
-        CfnOutput(self, "DevModelName", value=model.model_name, description="SageMaker Dev Model name")
+        CfnOutput(
+            self,
+            "DevEndpointName",
+            value=endpoint.endpoint_name,
+            description="SageMaker Dev Endpoint name",
+        )
+        CfnOutput(
+            self,
+            "DevModelName",
+            value=model.model_name,
+            description="SageMaker Dev Model name",
+        )
         CfnOutput(
             self,
             "DevEndpointConfigName",
