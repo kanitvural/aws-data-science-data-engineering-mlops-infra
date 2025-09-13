@@ -80,7 +80,7 @@ class S3LambdaStack(Stack):
             f"{project_name}-retrain-lambda",
             runtime=lambda_.Runtime.PYTHON_3_9,
             handler="index.lambda_handler",
-            code=lambda_.Code.from_asset("mlops/lambda_funcs/model_retrain"),
+            code=lambda_.Code.from_asset("mlops/lambda_funcs/retrain_model"),
             environment={
                 "REGION": self.region,
                 "PIPELINE_NAME": pipeline_name,
