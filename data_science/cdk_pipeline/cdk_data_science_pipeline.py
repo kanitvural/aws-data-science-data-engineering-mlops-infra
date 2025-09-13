@@ -14,6 +14,7 @@ class CDKDataSciencePipelineStack(Stack):
         super().__init__(scope, id, **kwargs)
 
         project_name = self.node.try_get_context("project_name") or "data-science"
+        pipeline_name = f"{project_name}-pipeline-{self.account}" 
         notification_email = self.node.try_get_context("notification_email")
 
         # GitHub connections information
@@ -46,7 +47,7 @@ class CDKDataSciencePipelineStack(Stack):
         rmse_threshold = 15.0
         max_jobs = 16
         max_parallel_jobs = 2
-        
+
         # Retrain data path that will be sended by MLOps Team
         retrain_data_path = "retrain_data/new_predictions.csv"
 
@@ -70,11 +71,15 @@ class CDKDataSciencePipelineStack(Stack):
         pipeline = pipelines_.CodePipeline(
             self,
             id="CDKDataSciencePipeline",
+            pipeline_name=pipeline_name, 
             synth=synth_step,
         )
 
         data_science_stage = DataScienceStage(
-            self, id="DataScienceStage", project_name=project_name, notification_email=notification_email
+            self,
+            id="DataScienceStage",
+            project_name=project_name,
+            notification_email=notification_email,
         )
 
         build_and_push_image = pipelines_.CodeBuildStep(
