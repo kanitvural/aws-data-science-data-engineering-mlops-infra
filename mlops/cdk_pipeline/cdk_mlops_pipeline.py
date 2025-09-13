@@ -306,7 +306,7 @@ class CDKMLOpsPipelineStack(Stack):
 
         # Production Deployment Success Notification
         prod_deployment_notification = pipelines_.CodeBuildStep(
-            "ProdDeploymentNotification",
+            id="ProdDeploymentNotification",
             input=source,
             build_environment=codebuild.BuildEnvironment(
                 compute_type=codebuild.ComputeType.SMALL,
@@ -351,7 +351,7 @@ class CDKMLOpsPipelineStack(Stack):
         # ---------------------------
 
         manual_approval_monitoring = pipelines_.ManualApprovalStep(
-            "ManualApprovalBeforeMonitoring", comment="Please approve to start Model Monitoring."
+            id="ManualApprovalBeforeMonitoring", comment="Please approve to start Model Monitoring."
         )
 
         manual_approval_monitoring.add_step_dependency(prod_deployment_notification)
@@ -359,7 +359,7 @@ class CDKMLOpsPipelineStack(Stack):
         sm_prod_autoscaling_deploy.add_post(manual_approval_monitoring)
 
         start_model_monitoring = pipelines_.CodeBuildStep(
-            "StartModelMonitoring",
+            id="StartModelMonitoring",
             input=source,
             build_environment=codebuild.BuildEnvironment(
                 compute_type=codebuild.ComputeType.SMALL,
@@ -412,12 +412,12 @@ class CDKMLOpsPipelineStack(Stack):
         # Manual Approval #2
         # ---------------------------
         manual_approval_shap = pipelines_.ManualApprovalStep(
-            "ManualApprovalBeforeSHAP", comment="Please approve to start SHAP Analysis."
+            id="ManualApprovalBeforeSHAP", comment="Please approve to start SHAP Analysis."
         )
 
         # SHAP CodeBuild Step
         start_shap_analysis = pipelines_.CodeBuildStep(
-            "StartSHAPAnalysis",
+            id="StartSHAPAnalysis",
             input=source,
             build_environment=codebuild.BuildEnvironment(
                 compute_type=codebuild.ComputeType.SMALL,
@@ -471,11 +471,11 @@ class CDKMLOpsPipelineStack(Stack):
         # ---------------------------
 
         manual_approval_retrain = pipelines_.ManualApprovalStep(
-            "ManualApprovalBeforeRetraining", comment="Please approve to start Model Retraining."
+            id="ManualApprovalBeforeRetraining", comment="Please approve to start Model Retraining."
         )
         
         start_model_retraining = pipelines_.CodeBuildStep(
-            "StartModelMonitoring",
+            id="StartModelRetraining",
             input=source,
             build_environment=codebuild.BuildEnvironment(
                 compute_type=codebuild.ComputeType.SMALL,
@@ -489,6 +489,7 @@ class CDKMLOpsPipelineStack(Stack):
             env={
                 "REGION": self.region,
                 "BUCKET": mlops_bucket,
+                "MLOPS_PREFIX": mlops_prefix,
                 "DATA_SCIENCE_BUCKET" : data_science_bucket,
                 "DATA_SCIENCE_PREFIX" : data_science_prefix
             },
