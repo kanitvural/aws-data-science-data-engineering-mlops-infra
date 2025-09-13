@@ -13,10 +13,11 @@ from constructs import Construct
 
 
 class S3LambdaStack(Stack):
-    def __init__(self, scope: Construct, id: str, project_name: str, pipeline_name: str, **kwargs):
+    def __init__(self, scope: Construct, id: str, project_name: str, **kwargs):
         super().__init__(scope, id, **kwargs)
         
         sns_topic_arn = Fn.import_value(f"{project_name}-sns-topic-arn")
+        pipeline_name = f"{project_name}-pipeline-{self.account}"
 
         # ------------------------
         # S3 Bucket
@@ -82,7 +83,7 @@ class S3LambdaStack(Stack):
             code=lambda_.Code.from_asset("mlops/lambda_funcs/model_retrain"),
             environment={
                 "REGION": self.region,
-                "PIPELINE_NAME": self.pipeline_name,
+                "PIPELINE_NAME": pipeline_name,
                 "SNS_TOPIC_ARN": sns_topic_arn,
             },
             role=retraining_lambda_role,

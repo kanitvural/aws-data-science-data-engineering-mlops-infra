@@ -7,14 +7,13 @@ from data_science.stacks.sagemaker_role_stack import SageMakerRoleStack
 
       
 class DataScienceStage(Stage):
-    def __init__(self, scope: Construct, id: str, project_name: str, notification_email: str, pipeline_name: str, **kwargs):
+    def __init__(self, scope: Construct, id: str, project_name: str, notification_email: str, **kwargs):
         super().__init__(scope, id, **kwargs)
 
         s3_lambda_stack = S3LambdaStack(
             self,
             id="S3Infrastructure",
             project_name=project_name,
-            pipeline_name=pipeline_name
         )
 
         ecr_stack = ECRStack(

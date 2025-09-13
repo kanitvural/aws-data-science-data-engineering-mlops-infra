@@ -14,6 +14,7 @@ class CDKDataSciencePipelineStack(Stack):
         super().__init__(scope, id, **kwargs)
 
         project_name = self.node.try_get_context("project_name") or "data-science"
+        pipeline_name = f"{project_name}-pipeline-{self.account}" 
         notification_email = self.node.try_get_context("notification_email")
 
         # GitHub connections information
@@ -70,6 +71,7 @@ class CDKDataSciencePipelineStack(Stack):
         pipeline = pipelines_.CodePipeline(
             self,
             id="CDKDataSciencePipeline",
+            pipeline_name=pipeline_name, 
             synth=synth_step,
         )
 
@@ -78,7 +80,6 @@ class CDKDataSciencePipelineStack(Stack):
             id="DataScienceStage",
             project_name=project_name,
             notification_email=notification_email,
-            pipeline_name=pipeline.pipeline.pipeline_name,
         )
 
         build_and_push_image = pipelines_.CodeBuildStep(
