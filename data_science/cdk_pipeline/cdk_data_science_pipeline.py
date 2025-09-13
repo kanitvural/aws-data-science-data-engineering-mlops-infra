@@ -169,6 +169,7 @@ class CDKDataSciencePipelineStack(Stack):
                         "s3:PutObject",
                         "s3:ListBucket",
                         "s3:GetBucketLocation",
+                        "s3:DeleteObject",
                     ],
                     resources=[
                         f"arn:aws:s3:::{athena_output_bucket_name}",
