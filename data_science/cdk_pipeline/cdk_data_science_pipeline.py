@@ -46,6 +46,9 @@ class CDKDataSciencePipelineStack(Stack):
         rmse_threshold = 15.0
         max_jobs = 16
         max_parallel_jobs = 2
+        
+        # Retrain data path that will be sended by MLOps Team
+        retrain_data_path = "retrain_data/new_predictions.csv"
 
         source = pipelines_.CodePipelineSource.connection(
             repo_string=github_repo,
@@ -132,6 +135,7 @@ class CDKDataSciencePipelineStack(Stack):
                 "GLUE_TABLE_NAME": glue_table_name,
                 "ATHENA_OUTPUT_BUCKET_NAME": f"s3://{athena_output_bucket_name}/query-results/",
                 "DEST_BUCKET_NAME": f"s3://{data_science_bucket_name}/athena-sample/{input_data}",
+                "RETRAIN_DATA_PATH": retrain_data_path,
                 "REGION": self.region,
             },
             role_policy_statements=[
