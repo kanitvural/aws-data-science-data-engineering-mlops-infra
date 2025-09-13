@@ -1,13 +1,4 @@
-from aws_cdk import (
-    Stack,
-    aws_s3 as s3,
-    RemovalPolicy,
-    CfnOutput,
-    Duration,
-    aws_iam as iam,
-    aws_lambda as lambda_,
-    Fn
-)
+from aws_cdk import Stack, aws_s3 as s3, RemovalPolicy, CfnOutput, Duration, aws_iam as iam, aws_lambda as lambda_, Fn
 from aws_cdk.aws_s3_notifications import LambdaDestination
 from constructs import Construct
 
@@ -15,7 +6,7 @@ from constructs import Construct
 class S3LambdaStack(Stack):
     def __init__(self, scope: Construct, id: str, project_name: str, **kwargs):
         super().__init__(scope, id, **kwargs)
-        
+
         sns_topic_arn = Fn.import_value(f"{project_name}-sns-topic-arn")
         pipeline_name = f"{project_name}-pipeline-{self.account}"
 
@@ -58,10 +49,7 @@ class S3LambdaStack(Stack):
                     "s3:PutObject",
                     "s3:ListBucket",
                 ],
-                resources=[
-                    self.bucket.bucket_arn,
-                    f"{self.bucket.bucket_arn}/*"
-                ],
+                resources=[self.bucket.bucket_arn, f"{self.bucket.bucket_arn}/*"],
             )
         )
 
@@ -69,6 +57,12 @@ class S3LambdaStack(Stack):
             iam.PolicyStatement(
                 actions=["sns:Publish"],
                 resources=[sns_topic_arn],
+            )
+        )
+        retraining_lambda_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=["codepipeline:StartPipelineExecution"],
+                resources=[f"arn:aws:codepipeline:{self.region}:{self.account}:{pipeline_name}"],
             )
         )
 
