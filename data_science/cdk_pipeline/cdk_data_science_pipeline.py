@@ -46,7 +46,7 @@ class CDKDataSciencePipelineStack(Stack):
         rmse_threshold = 15.0
         max_jobs = 16
         max_parallel_jobs = 2
-        
+
         # Retrain data path that will be sended by MLOps Team
         retrain_data_path = "retrain_data/new_predictions.csv"
 
@@ -74,7 +74,11 @@ class CDKDataSciencePipelineStack(Stack):
         )
 
         data_science_stage = DataScienceStage(
-            self, id="DataScienceStage", project_name=project_name, notification_email=notification_email
+            self,
+            id="DataScienceStage",
+            project_name=project_name,
+            notification_email=notification_email,
+            pipeline_name=pipeline.pipeline.pipeline_name,
         )
 
         build_and_push_image = pipelines_.CodeBuildStep(
