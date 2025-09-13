@@ -99,6 +99,7 @@ class S3LambdaStack(Stack):
                 resources=[sns_topic_arn],
             )
         )
+        
 
         # ----------------------------------------------------------------------
         # Lambda Functions
@@ -132,6 +133,7 @@ class S3LambdaStack(Stack):
             role=monitoring_lambda_role,
             timeout=Duration.minutes(5),
         )
+
 
         # ----------------------------------------------------------------------
         # Event Notifications

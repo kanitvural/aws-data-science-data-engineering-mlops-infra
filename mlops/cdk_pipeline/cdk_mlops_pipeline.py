@@ -82,6 +82,12 @@ class CDKMLOpsPipelineStack(Stack):
         shap_output_path = f"s3://{mlops_bucket}/shap-analysis"
         shap_job_name = f"flight-delay-shap-{timestamp}-{unique_id}"
         processed_data_key = f"processed-data/flight-features-{timestamp}.csv"
+        
+        # Retraining ENV Variables
+        
+        data_science_bucket = Fn.import_value("DataScienceBucketName")
+        data_science_prefix = "retrain_data/new_predictions.csv"
+        mlops_prefix = "predicted/flight-events/"
 
         # GitHub connections information
         github_repo = "kanitvural/aws-data-science-data-engineering-mlops-infra"
@@ -344,13 +350,13 @@ class CDKMLOpsPipelineStack(Stack):
         # Manual Approval #1
         # ---------------------------
 
-        manual_approval = pipelines_.ManualApprovalStep(
+        manual_approval_monitoring = pipelines_.ManualApprovalStep(
             "ManualApprovalBeforeMonitoring", comment="Please approve to start Model Monitoring."
         )
 
-        manual_approval.add_step_dependency(prod_deployment_notification)
+        manual_approval_monitoring.add_step_dependency(prod_deployment_notification)
 
-        sm_prod_autoscaling_deploy.add_post(manual_approval)
+        sm_prod_autoscaling_deploy.add_post(manual_approval_monitoring)
 
         start_model_monitoring = pipelines_.CodeBuildStep(
             "StartModelMonitoring",
@@ -399,7 +405,7 @@ class CDKMLOpsPipelineStack(Stack):
             ],
         )
 
-        start_model_monitoring.add_step_dependency(manual_approval)
+        start_model_monitoring.add_step_dependency(manual_approval_monitoring)
         sm_prod_autoscaling_deploy.add_post(start_model_monitoring)
 
         # ---------------------------
@@ -459,3 +465,48 @@ class CDKMLOpsPipelineStack(Stack):
         start_shap_analysis.add_step_dependency(manual_approval_shap)
         sm_prod_autoscaling_deploy.add_post(manual_approval_shap)
         sm_prod_autoscaling_deploy.add_post(start_shap_analysis)
+        
+        # ---------------------------
+        # Manual Approval #3
+        # ---------------------------
+
+        manual_approval_retrain = pipelines_.ManualApprovalStep(
+            "ManualApprovalBeforeRetraining", comment="Please approve to start Model Retraining."
+        )
+        
+        start_model_retraining = pipelines_.CodeBuildStep(
+            "StartModelMonitoring",
+            input=source,
+            build_environment=codebuild.BuildEnvironment(
+                compute_type=codebuild.ComputeType.SMALL,
+                build_image=codebuild.LinuxBuildImage.STANDARD_7_0,
+            ),
+            commands=[
+                "echo '🔧 Starting SageMaker Model Monitoring...'",
+                "pip install --upgrade pip boto3 pandas",
+                "python mlops/scripts/prepare_retrain_data_and_send_to_ds_bucket.py",
+            ],
+            env={
+                "REGION": self.region,
+                "BUCKET": mlops_bucket,
+                "DATA_SCIENCE_BUCKET" : data_science_bucket,
+                "DATA_SCIENCE_PREFIX" : data_science_prefix
+            },
+            role_policy_statements=[
+                iam.PolicyStatement(
+                    actions=[
+                        "s3:GetObject",
+                        "s3:ListBucket",
+                        "s3:PutObject",
+                    ],
+                    resources=["*"],
+                )
+            ],
+        )
+        
+        manual_approval_retrain.add_step_dependency(start_shap_analysis)
+        start_model_retraining.add_step_dependency(manual_approval_retrain)
+        sm_prod_autoscaling_deploy.add_post(manual_approval_retrain)
+        sm_prod_autoscaling_deploy.add_post(start_model_retraining)
+
+
