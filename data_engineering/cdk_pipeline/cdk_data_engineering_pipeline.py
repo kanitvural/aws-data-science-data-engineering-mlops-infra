@@ -11,6 +11,7 @@ class CDKDataEngineeringPipelineStack(Stack):
         super().__init__(scope, id, **kwargs)
 
         project_name = self.node.try_get_context("project_name") or "data-engineering"
+        pipeline_name = f"{project_name}-pipeline-{self.account}"
         notification_email = self.node.try_get_context("notification_email")
 
         # GitHub connections information
@@ -38,6 +39,7 @@ class CDKDataEngineeringPipelineStack(Stack):
         pipeline = pipelines_.CodePipeline(
             self,
             id="CDKDataEngineeringPipeline",
+            pipeline_name=pipeline_name,
             synth=synth_step,
         )
 
