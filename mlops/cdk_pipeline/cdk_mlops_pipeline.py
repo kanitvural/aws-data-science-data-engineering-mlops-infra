@@ -21,6 +21,7 @@ class CDKMLOpsPipelineStack(Stack):
         super().__init__(scope, id, **kwargs)
 
         project_name = self.node.try_get_context("project_name") or "mlops"
+        pipeline_name = f"{project_name}-pipeline-{self.account}" 
         notification_email = self.node.try_get_context("notification_email")
 
         # Sagemaker Endpoint Instance configurations
@@ -114,6 +115,7 @@ class CDKMLOpsPipelineStack(Stack):
         pipeline = pipelines_.CodePipeline(
             self,
             id="CDKMLOpsPipeline",
+            pipeline_name=pipeline_name,
             synth=synth_step,
         )
 
