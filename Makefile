@@ -1,5 +1,5 @@
 ifndef env
-$(error env is undefined. Usage: make <bootstrap|deploy|destroy> env=<ds|de|mlops>)
+$(error env is undefined. Usage: make <bootstrap|deploy|destroy> env=<ds|de|mlops|app>)
 endif
 
 bootstrap:
