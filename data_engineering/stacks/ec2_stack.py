@@ -1,6 +1,14 @@
 # stacks/ec2_stack.py
 
-from aws_cdk import Stack, aws_ec2 as ec2, aws_s3 as s3, aws_kinesis as kinesis, aws_iam as iam, CfnOutput, Fn
+from aws_cdk import (
+    Stack,
+    aws_ec2 as ec2,
+    aws_s3 as s3,
+    aws_kinesis as kinesis,
+    aws_iam as iam,
+    CfnOutput,
+    Fn,
+)
 from constructs import Construct
 
 
@@ -9,6 +17,7 @@ class EC2Stack(Stack):
         self,
         scope: Construct,
         id: str,
+        project_name: str, 
         **kwargs,
     ) -> None:
         super().__init__(scope, id, **kwargs)
@@ -19,7 +28,8 @@ class EC2Stack(Stack):
         # ✅ Custom VPC (10.0.0.0/16 with 3 public subnets matching the image)
         vpc = ec2.Vpc(
             self,
-            id="DataDepartmentVPC",
+            id="FlightProjectVPC",
+            vpc_name="flight-project-vpc",
             ip_addresses=ec2.IpAddresses.cidr("10.0.0.0/16"),
             availability_zones=["eu-central-1a", "eu-central-1b", "eu-central-1c"],
             subnet_configuration=[
@@ -40,6 +50,7 @@ class EC2Stack(Stack):
         # ✅ Security Group
         security_group = ec2.SecurityGroup(
             self,
+            security_group_name=f"{project_name}-data-simulator-sg",
             id="DataSimulatorSecurityGroup",
             vpc=vpc,
             description="Security group for EC2 data simulator",
@@ -221,6 +232,7 @@ sudo systemctl start data-simulator.service
         self.ec2_instance = ec2.Instance(
             self,
             id="DataSimulatorInstance",
+            instance_name=f"{project_name}-data-simulator-ec2",
             instance_type=ec2.InstanceType.of(
                 ec2.InstanceClass.T3,
                 ec2.InstanceSize.MEDIUM,
@@ -253,86 +265,3 @@ sudo systemctl start data-simulator.service
             value=self.ec2_instance.instance_private_ip,
             export_name="EC2PrivateIP",
         )
-
-
-# Bu örnek kinesise tek tek veri yolluyor. Mevcutta batch olarak gönderiliyor.
-
-# import pandas as pd
-# import json
-# import boto3
-# import numpy as np
-# from datetime import datetime
-# import time
-# import random
-# import logging
-
-# logging.basicConfig(level=logging.INFO)
-# logger = logging.getLogger(__name__)
-
-# class DataSimulator:
-#     def __init__(self, kinesis_stream_name, csv_path):
-#         self.kinesis_client = boto3.client('kinesis',region_name='eu-central-1')
-#         self.stream_name = kinesis_stream_name
-#         self.df = pd.read_csv(csv_path)
-#         self.current_index = 0
-
-#     def generate_flight_event(self, row):
-#         return {{
-#         "year": int(row['year']),
-#         "month": int(row['month']),
-#         "day": int(row['day']),
-#         "dep_time": float(row['dep_time']) if pd.notna(row['dep_time']) else None,
-#         "sched_dep_time": int(row['sched_dep_time']) if pd.notna(row['sched_dep_time']) else None,
-#         "dep_delay": float(row['dep_delay']) if pd.notna(row['dep_delay']) else None,
-#         "arr_time": float(row['arr_time']) if pd.notna(row['arr_time']) else None,
-#         "sched_arr_time": int(row['sched_arr_time']) if pd.notna(row['sched_arr_time']) else None,
-#         "arr_delay": float(row['arr_delay']) if pd.notna(row['arr_delay']) else None,
-#         "carrier": row['carrier'],
-#         "flight": int(row['flight']),
-#         "tailnum": row['tailnum'],
-#         "origin": row['origin'],
-#         "dest": row['dest'],
-#         "air_time": float(row['air_time']) if pd.notna(row['air_time']) else None,
-#         "distance": float(row['distance']) if pd.notna(row['distance']) else None,
-#         "hour": int(row['hour']),
-#         "minute": int(row['minute']),
-#         "airline": row['airline'],
-#         "route": row['route'],
-#         "temp": float(row['temp']) if pd.notna(row['temp']) else None,
-#         "dewp": float(row['dewp']) if pd.notna(row['dewp']) else None,
-#         "humid": float(row['humid']) if pd.notna(row['humid']) else None,
-#         "wind_dir": float(row['wind_dir']) if pd.notna(row['wind_dir']) else None,
-#         "wind_speed": float(row['wind_speed']) if pd.notna(row['wind_speed']) else None,
-#         "wind_gust": float(row['wind_gust']) if pd.notna(row['wind_gust']) else None,
-#         "precip": float(row['precip']) if pd.notna(row['precip']) else None,
-#         "pressure": float(row['pressure']) if pd.notna(row['pressure']) else None,
-#         "visib": float(row['visib']) if pd.notna(row['visib']) else None
-#     }}
-
-#     def send_to_kinesis(self, data):
-#         try:
-#             response = self.kinesis_client.put_record(
-#                 StreamName=self.stream_name,
-#                 Data=json.dumps(data),
-#                 PartitionKey=str(data['flight'])
-#             )
-#             logger.info(f"Kinesis put_record response: {{response}}")
-#             return response
-#         except Exception as e:
-#             logger.error(f"Error sending to Kinesis: {{e}}")
-#             return None
-
-#     def start_streaming(self, events_per_second=5):
-#         logger.info(f"Streaming to {{self.stream_name}} at {{events_per_second}} events/sec")
-#         while self.current_index < len(self.df):
-#             row = self.df.iloc[self.current_index]
-#             event = self.generate_flight_event(row)
-#             self.send_to_kinesis(event)
-#             logger.info(f"Sent event {{self.current_index + 1}}/{{len(self.df)}}")
-#             self.current_index += 1
-#             time.sleep(1.0 / events_per_second)
-
-# if __name__ == "__main__":
-#     stream_name = "{kinesis_stream.stream_name}"
-#     simulator = DataSimulator(stream_name, "flights_weather2022.csv")
-#     simulator.start_streaming(events_per_second=2)
