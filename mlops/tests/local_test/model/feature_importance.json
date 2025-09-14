@@ -1,0 +1,22 @@
+{
+  "month": 55.0,
+  "day": 76.0,
+  "arr_delay": 760.0,
+  "distance": 202.0,
+  "hour": 159.0,
+  "minute": 40.0,
+  "temp": 86.0,
+  "humid": 41.0,
+  "wind_dir": 49.0,
+  "wind_speed": 25.0,
+  "precip": 31.0,
+  "pressure": 104.0,
+  "visib": 10.0,
+  "distance_ratio_by_total": 52.0,
+  "aircraft_count_by_airline": 79.0,
+  "american_airlines_inc": 4.0,
+  "frontier_airlines_inc": 11.0,
+  "jetblue_airways": 34.0,
+  "skywest_airlines_inc": 8.0,
+  "united_air_lines_inc": 8.0
+}

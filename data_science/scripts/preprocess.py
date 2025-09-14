@@ -6,127 +6,169 @@ import logging
 import argparse
 from sklearn.model_selection import train_test_split
 
-# ----------------------------------------
-# Logging Setup
-# ----------------------------------------
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
-# ----------------------------------------
-# Load the dataset
-# ----------------------------------------
+BASE_DIR = "/opt/ml/processing"
+INPUT_DIR = os.path.join(BASE_DIR, "input")
+OUTPUT_DIR = os.path.join(BASE_DIR, "output")
+TRAIN_DIR = os.path.join(OUTPUT_DIR, "train")
+VALIDATION_DIR = os.path.join(OUTPUT_DIR, "validation")
+TEST_DIR = os.path.join(OUTPUT_DIR, "test")
+# Combined dataset directory for final training job
+COMBINED_DIR = os.path.join(OUTPUT_DIR, "combined")
+# Baseline dataset directory for sagemaker model monitoring
+BASELINE_DIR = os.path.join(OUTPUT_DIR, "baseline")
+# Raw drift test data directory
+DRIFT_DIR = os.path.join(OUTPUT_DIR, "drift")
+
+
+INPUT_PATH = os.path.join(INPUT_DIR, "flights_sample.csv")
+TRAIN_PATH = os.path.join(TRAIN_DIR, "train.csv")
+VALIDATION_PATH = os.path.join(VALIDATION_DIR, "validation.csv")
+TEST_PATH = os.path.join(TEST_DIR, "test.csv")
+COMBINED_PATH = os.path.join(COMBINED_DIR, "train.csv")
+BASELINE_PATH = os.path.join(BASELINE_DIR, "baseline.csv")
+DRIFT_RAW_PATH = os.path.join(DRIFT_DIR, "raw_test_data_for_model_drift.csv")
+
+logging.basicConfig(
+    level=logging.INFO, format="[%(asctime)s] %(levelname)s: %(message)s", handlers=[logging.StreamHandler(sys.stdout)]
+)
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--output-dir", type=str, default=OUTPUT_DIR)
+    parser.add_argument("--input-path", type=str, default=INPUT_PATH)
+    parser.add_argument("--train-path", type=str, default=TRAIN_PATH)
+    parser.add_argument("--validation-path", type=str, default=VALIDATION_PATH)
+    parser.add_argument("--test-path", type=str, default=TEST_PATH)
+    parser.add_argument("--combined-path", type=str, default=COMBINED_PATH)
+    parser.add_argument("--baseline-path", type=str, default=BASELINE_PATH)
+    parser.add_argument("--drift-raw-path", type=str, default=DRIFT_RAW_PATH)
+
+    return parser.parse_known_args()
+
+
 def load_data(file_path):
     logging.info(f"Loading dataset from {file_path}")
     if not os.path.exists(file_path):
         logging.error(f"Dataset not found: {file_path}")
         sys.exit(1)
-    df = pd.read_csv(file_path)
+    df = pd.read_csv(file_path, parse_dates=["dep_time", "sched_dep_time", "arr_time", "sched_arr_time", "date"])
+    df["date_string"] = df["date_string"].astype(str)
+    df["airline"] = df["airline"].str.lower().str.replace(r"\s+", "_", regex=True) .str.replace(r"\.", "", regex=True)   
     logging.info(f"Dataset shape: {df.shape}")
     return df
 
-# ----------------------------------------
-# Data Cleaning Functions
-# ----------------------------------------
-def drop_missing_values(df):
-    logging.info("Dropping missing values...")
-    df.dropna(subset=["dep_time", "dep_delay", "arr_time", "arr_delay", "air_time"], how="all", inplace=True)
-    df.dropna(subset=["arr_time", "arr_delay", "air_time"], inplace=True)
-    return df
 
-def clean_time_columns(df):
-    logging.info("Cleaning time columns...")
-    df["date"] = pd.to_datetime(df[["year", "month", "day"]])
-    df["date_string"] = df["date"].astype(str).str.replace("-", "")
+def create_drift_data(df_original, random_state=42):
+    """
+    Create raw test data with moderate drift for model monitoring
+    """
+    logging.info("Creating drift test data...")
+    
+    np.random.seed(random_state)
+    
+    # Sample same size as test data would be (approximately 20% of original)
+    sample_size = int(len(df_original) * 0.2)
+    df_drift = df_original.sample(n=sample_size, random_state=random_state).copy()
+    
+    # Remove target variable as this is for prediction
+    if 'dep_delay' in df_drift.columns:
+        df_drift.drop('dep_delay', axis=1, inplace=True)
+    
+    # 1. Apply airline distribution drift
+    airline_multipliers = {
+        'united_air_lines_inc': 1.25,
+        'alaska_airlines_inc': 0.75,
+        'american_airlines_inc': 1.15,
+        'delta_air_lines_inc': 0.85,
+        'southwest_airlines_co': 1.20,
+    }
+    
+    airline_dfs = []
+    for airline in df_drift['airline'].unique():
+        airline_df = df_drift[df_drift['airline'] == airline].copy()
+        
+        if airline in airline_multipliers:
+            multiplier = airline_multipliers[airline]
+            new_size = int(len(airline_df) * multiplier)
+            new_size = max(1, min(new_size, len(airline_df) * 2))
+            
+            if new_size > len(airline_df):
+                additional_samples = new_size - len(airline_df)
+                additional_df = airline_df.sample(n=additional_samples, replace=True, random_state=random_state)
+                airline_df = pd.concat([airline_df, additional_df], ignore_index=True)
+            elif new_size < len(airline_df):
+                airline_df = airline_df.sample(n=new_size, random_state=random_state)
+        
+        airline_dfs.append(airline_df)
+    
+    df_drift = pd.concat(airline_dfs, ignore_index=True).sample(frac=1, random_state=random_state).reset_index(drop=True)
+    
+    # 2. Apply weather conditions drift
+    temp_shift = np.random.normal(5, 2, len(df_drift))
+    df_drift['temp'] = df_drift['temp'] + temp_shift
+    
+    humid_multiplier = np.random.normal(1.12, 0.03, len(df_drift))
+    df_drift['humid'] = np.clip(df_drift['humid'] * humid_multiplier, 0, 100)
+    
+    wind_multiplier = np.random.normal(1.18, 0.05, len(df_drift))
+    df_drift['wind_speed'] = df_drift['wind_speed'] * wind_multiplier
+    
+    if 'dewp' in df_drift.columns:
+        df_drift['dewp'] = df_drift['dewp'] + temp_shift * 0.7
+    
+    # 3. Apply distance drift
+    distance_multiplier = np.random.normal(1.12, 0.08, len(df_drift))
+    df_drift['distance'] = df_drift['distance'] * distance_multiplier
+    
+    if 'air_time' in df_drift.columns:
+        df_drift['air_time'] = df_drift['air_time'] * (distance_multiplier ** 0.8)
+    
+    # 4. Apply temporal drift
+    hour_shift_mask = np.random.random(len(df_drift)) < 0.15
+    hour_shift = np.random.choice([-2, -1, 1, 2], size=np.sum(hour_shift_mask))
+    df_drift.loc[hour_shift_mask, 'hour'] = np.clip(
+        df_drift.loc[hour_shift_mask, 'hour'] + hour_shift, 0, 23
+    )
+    
+    if np.any(hour_shift_mask):
+        new_minutes = np.random.choice([0, 15, 30, 45], size=np.sum(hour_shift_mask))
+        df_drift.loc[hour_shift_mask, 'minute'] = new_minutes
+    
+    # 5. Apply pressure drift
+    pressure_shift = np.random.normal(-2.5, 1.5, len(df_drift))
+    df_drift['pressure'] = df_drift['pressure'] + pressure_shift
+    
+    logging.info(f"Drift data created with shape: {df_drift.shape}")
+    return df_drift
 
-    df["dep_time"] = df["dep_time"].astype(int).astype(str).str.zfill(4)
-    df["sched_dep_time"] = df["sched_dep_time"].astype(str).str.zfill(4)
-    df["arr_time"] = df["arr_time"].astype(int).astype(str).str.zfill(4)
-    df["sched_arr_time"] = df["sched_arr_time"].astype(str).str.zfill(4)
 
-    df["sched_dep_time"] = df["date_string"].str.cat(df["sched_dep_time"])
-    df["sched_dep_time"] = pd.to_datetime(df["sched_dep_time"], format="%Y%m%d%H%M")
-
-    df["sched_arr_time"] = df["date_string"].str.cat(df["sched_arr_time"])
-    df["sched_arr_time"] = pd.to_datetime(df["sched_arr_time"], format="%Y%m%d%H%M")
-
-    df["dep_time"] = df["dep_time"].replace({"2400": "0000"})
-    df["dep_time"] = df["date_string"].str.cat(df["dep_time"])
-    df["dep_time"] = pd.to_datetime(df["dep_time"], format="%Y%m%d%H%M")
-    df.loc[df["dep_time"].dt.hour == 0, "dep_time"] += pd.Timedelta(days=1)
-
-    df["arr_time"] = df["arr_time"].replace({"2400": "0000"})
-    df["arr_time"] = df["date_string"].str.cat(df["arr_time"])
-    df["arr_time"] = pd.to_datetime(df["arr_time"], format="%Y%m%d%H%M")
-    df.loc[df["arr_time"].dt.hour == 0, "arr_time"] += pd.Timedelta(days=1)
-
-    return df
-
-def fill_missing_wind_data(df):
-    logging.info("Filling missing wind data...")
-    df = df.sort_values("dep_time").reset_index(drop=True)
-    if len(df) > 10:
-        df = df[:-10]
-
-    wind_data_to_be_filled = ["wind_dir", "wind_speed", "wind_gust"]
-    for value in wind_data_to_be_filled:
-        df[value]=df[value].ffill()
-    return df
-
-def clean_inconsistent_features(df):
-    logging.info("Cleaning inconsistent features...")
-    dep_delay_check = df['dep_delay'] == ((df['dep_time'] - df['sched_dep_time']).dt.total_seconds() / 60)
-    df = df[dep_delay_check]
-
-    arr_delay_check = df['arr_delay'] == ((df['arr_time'] - df['sched_arr_time']).dt.total_seconds() / 60)
-    df = df[arr_delay_check]
-    return df
-
-def drop_duplicates(df):
-    logging.info("Dropping duplicates...")
-    df.drop_duplicates(inplace=True)
-    return df
-
-# ----------------------------------------
-# Feature Engineering
-# ----------------------------------------
 def feature_engineering(df):
     logging.info("Starting feature engineering...")
-    
+
     df["distance_ratio_by_total"] = df.groupby("airline")["distance"].transform("sum") / df["distance"].sum()
 
     bins = [0, 500, 1000, np.inf]
     labels = ["0-500 miles", "500-1000 miles", "1000+ miles"]
     df["distance_category"] = pd.cut(df["distance"], bins=bins, labels=labels, ordered=True)
+    df["distance_category"] = df["distance_category"].cat.codes
 
-    df["daily_flight_count"] = df.groupby(["airline", "date"]).transform("size")
-
-    airline_delay_group = df.groupby(["airline", "date"]).agg({
-        "dep_delay": "sum", "arr_delay": "sum", "daily_flight_count": "mean"
-    }).reset_index()
-    airline_delay_group["airline_daily_performance_kpi"] = (
-        (airline_delay_group["dep_delay"] + airline_delay_group["arr_delay"]) / airline_delay_group["daily_flight_count"]
-    )
-    airline_delay_group.drop(["dep_delay", "arr_delay", "daily_flight_count"], axis=1, inplace=True)
-    df = df.merge(airline_delay_group, on=["airline", "date"], how="left")
+    df["daily_flight_count"] = df.groupby(["airline", "date"])["airline"].transform("count")
 
     airline_total_aircraft_count = df.groupby("airline")["tailnum"].nunique()
     df["aircraft_count_by_airline"] = df["airline"].map(airline_total_aircraft_count)
 
-    bins = [-np.inf, -10.0, -5.0, 0.0, 5.0, np.inf]
-    labels = ["Level 1", "Level 2", "Level 3", "Level 4", "Level 5"]
-    df["dep_delay_category"] = pd.cut(df["dep_delay"], bins=bins, labels=labels)
-
-    columns_to_be_remove = ["date_string", "hour_check_dep", "hour_check_sched"]
+    date_string_column = ["date_string"]
     corrs = ["air_time", "flight", "dewp", "wind_gust", "daily_flight_count"]
-    cat_with_high_card = [col for col in df.columns if df[col].nunique() > 80 and str(df[col].dtypes) in ["category", "object"]]
+    cat_with_high_card = [
+        col for col in df.columns if df[col].nunique() > 80 and str(df[col].dtypes) in ["category", "object"]
+    ]
     date_features = df.select_dtypes(include="datetime64").columns.to_list()
     other_features = ["carrier", "origin"]
-    cols_will_be_not_used = corrs + cat_with_high_card + date_features + other_features + columns_to_be_remove
+    cols_will_be_not_used = corrs + cat_with_high_card + date_features + other_features + date_string_column
 
     feature_columns = [col for col in df.columns if col not in cols_will_be_not_used]
     df = df[feature_columns]
-
-    df["distance_category"] = df["distance_category"].cat.codes
-    df["dep_delay_category"] = df["dep_delay_category"].cat.codes
 
     category_one_hot = pd.get_dummies(df["airline"], drop_first=True).astype(int)
     df.drop("airline", axis=1, inplace=True)
@@ -135,9 +177,7 @@ def feature_engineering(df):
     logging.info(f"Final feature shape: {df.shape}")
     return df
 
-# ----------------------------------------
-# Data Split and Save
-# ----------------------------------------
+
 def split_data(df, test_size=0.2, val_size=0.2, random_state=42, shuffle=True):
     logging.info("Splitting data into train, validation, and test sets...")
     df_train_val, df_test = train_test_split(df, test_size=test_size, random_state=random_state, shuffle=shuffle)
@@ -145,42 +185,56 @@ def split_data(df, test_size=0.2, val_size=0.2, random_state=42, shuffle=True):
     df_train, df_val = train_test_split(df_train_val, test_size=val_ratio, random_state=random_state)
     return df_train, df_val, df_test
 
-def save_data(train_df, val_df, test_df, output_dir):
-    logging.info(f"Saving datasets to {output_dir}...")
-    os.makedirs(output_dir, exist_ok=True)
 
-    train_df.to_csv(os.path.join(output_dir, "train.csv"), index=False)
-    val_df.to_csv(os.path.join(output_dir, "validation.csv"), index=False)
-    test_df.to_csv(os.path.join(output_dir, "test.csv"), index=False)
+def save_data(train_df, val_df, test_df, drift_df, args):
+    logging.info(f"Saving datasets to {args.output_dir}...")
+    os.makedirs(args.output_dir, exist_ok=True)
+
+    dirs = ["train", "validation", "test", "combined", "baseline", "drift"]
+    for d in dirs:
+        os.makedirs(os.path.join(args.output_dir, d), exist_ok=True)
+
+    train_df.to_csv(args.train_path, index=False)
+    val_df.to_csv(args.validation_path, index=False)
+    test_df.to_csv(args.test_path, index=False)
+
+    # combined_df for final training job.
+    combined_df = pd.concat([train_df, val_df], ignore_index=True)
+    combined_df.to_csv(args.combined_path, index=False)
+
+    # baseline_df for sagemaker model monitoring.
+    baseline_df = combined_df.copy()
+    baseline_df.to_csv(args.baseline_path, index=False)
+    
+    # drift_df for model drift testing (raw data without target)
+    drift_df.to_csv(args.drift_raw_path, index=False)
 
     logging.info(f"Train shape: {train_df.shape}")
     logging.info(f"Validation shape: {val_df.shape}")
     logging.info(f"Test shape: {test_df.shape}")
+    logging.info(f"Combined df for final trainig job shape: {combined_df.shape}")
+    logging.info(f"Baseline df for sagemaker model monitoring shape: {baseline_df.shape}")
+    logging.info(f"Raw drift test data shape: {drift_df.shape}")
     logging.info("Data saved successfully.")
 
-# ----------------------------------------
-# Main
-# ----------------------------------------
-def main(args):
-    df = load_data(args.input_path)
-    df = drop_missing_values(df)
-    df = clean_time_columns(df)
-    df = fill_missing_wind_data(df)
-    df = clean_inconsistent_features(df)
-    df = drop_duplicates(df)
-    df = feature_engineering(df)
-    df_train, df_val, df_test = split_data(df)
-    save_data(df_train, df_val, df_test, args.output_path)
-    
 
-def parse_arguments():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--input-path", type=str, default="/opt/ml/processing/input/data.csv")
-    parser.add_argument("--output-path", type=str, default="/opt/ml/processing/output")
-    args = parser.parse_args()
-    return args
+def main(args):
+    # Load and do initial processing
+    df_original = load_data(args.input_path)
+    
+    # Create drift data before feature engineering (using raw processed data)
+    df_drift = create_drift_data(df_original)
+    
+    # Apply feature engineering to original data
+    df = feature_engineering(df_original)
+    df_train, df_val, df_test = split_data(df)
+    
+    # Save all datasets including drift data
+    save_data(df_train, df_val, df_test, df_drift, args)
 
 
 if __name__ == "__main__":
-    args = parse_arguments()
+    logging.info("Starting preprocessing...")
+    args, _ = parse_args()
     main(args)
+    logging.info("Preprocessing completed.")

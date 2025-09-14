@@ -1,11 +1,9 @@
 from aws_cdk import (
     Stack,
     pipelines as pipelines_,
-    aws_codepipeline as codepipeline,
-    aws_codepipeline_actions as codepipeline_actions,
     aws_codebuild as codebuild,
     aws_iam as iam,
-    Fn
+    Fn,
 )
 from constructs import Construct
 from .data_science_stage import DataScienceStage
@@ -15,16 +13,44 @@ class CDKDataSciencePipelineStack(Stack):
     def __init__(self, scope: Construct, id: str, **kwargs):
         super().__init__(scope, id, **kwargs)
 
-        # Context'ten parametreleri al
         project_name = self.node.try_get_context("project_name") or "data-science"
-        # notification_email = self.node.try_get_context("notification_email")
+        pipeline_name = f"{project_name}-pipeline-{self.account}" 
+        notification_email = self.node.try_get_context("notification_email")
 
         # GitHub connections information
         github_repo = "kanitvural/aws-data-science-data-engineering-mlops-infra"
         github_branch = "datascience"
         connection_arn = self.node.try_get_context("githubConnectionArn")
 
-        # Source aşaması
+        # Athena ENV variables
+        input_data = "flights_sample.csv"
+        glue_db_name = Fn.import_value("GlueDatabaseName")
+        glue_table_name = Fn.import_value("GlueTableName")
+        athena_output_bucket_name = Fn.import_value("ArtifactsBucketName")
+        data_science_bucket_name = f"{project_name}-bucket-{self.account}"
+        data_engineering_bucket_name = Fn.import_value("DataLakeBucketName")
+
+        # Sagemaker ENV variables
+        processing_instance_count = 1
+        sagemaker_execution_role_arn = (
+            f"arn:aws:iam::{self.account}:role/SageMakerExecutionRole-{project_name}-{self.account}"
+        )
+        ecr_repository_arn = (
+            f"{self.account}.dkr.ecr.{self.region}.amazonaws.com/{project_name}-repository-{self.account}:latest"
+        )
+        # sns_topic_arn = This value is retrieved using boto3 in sm_pipeline.py
+        processing_instance_type = "ml.t3.large"
+        training_instance_count = 1
+        training_instance_type = "ml.t3.large"
+        clarify_instance_count = 1
+        clarify_instance_type = "ml.t3.large"
+        rmse_threshold = 15.0
+        max_jobs = 16
+        max_parallel_jobs = 2
+
+        # Retrain data path that will be sended by MLOps Team
+        retrain_data_path = "retrain_data/new_predictions.csv"
+
         source = pipelines_.CodePipelineSource.connection(
             repo_string=github_repo,
             branch=github_branch,
@@ -36,31 +62,33 @@ class CDKDataSciencePipelineStack(Stack):
             input=source,
             commands=[
                 "npm install -g aws-cdk",
+                "pip install --upgrade pip",
                 "pip install -r requirements.txt",
-                "cdk synth",
+                "cdk synth --context @aws-cdk/core:bootstrapQualifier=ds",
             ],
         )
 
-        # Pipeline'ı oluştur
         pipeline = pipelines_.CodePipeline(
             self,
             id="CDKDataSciencePipeline",
+            pipeline_name=pipeline_name, 
             synth=synth_step,
         )
 
-        # DataScienceStage parametrelerle oluştur
         data_science_stage = DataScienceStage(
             self,
             id="DataScienceStage",
             project_name=project_name,
+            notification_email=notification_email,
         )
-
-        # 2. Stage: ECR'ye Docker image pushla
 
         build_and_push_image = pipelines_.CodeBuildStep(
             "BuildAndPushImageToECR",
             input=source,
-            build_environment=codebuild.BuildEnvironment(privileged=True),
+            build_environment=codebuild.BuildEnvironment(
+                compute_type=codebuild.ComputeType.SMALL,  # 3GB RAM, 2 vCPU
+                build_image=codebuild.LinuxBuildImage.STANDARD_7_0,  # Ubuntu 22.04
+            ),
             commands=[
                 # == install + pre_build ==
                 "printenv",
@@ -94,72 +122,197 @@ class CDKDataSciencePipelineStack(Stack):
             ],
         )
 
-
         athena_query_step = pipelines_.CodeBuildStep(
             "AthenaSamplingAndCopy",
             input=source,
             build_environment=codebuild.BuildEnvironment(
-                build_image=codebuild.LinuxBuildImage.STANDARD_5_0,
+                compute_type=codebuild.ComputeType.SMALL,  # 3GB RAM, 2 vCPU
+                build_image=codebuild.LinuxBuildImage.STANDARD_7_0,  # Ubuntu 22.04
             ),
             commands=[
+                "echo Starting Athena Query...",
+                "pip install --upgrade pip",
                 "pip install boto3 pandas pyarrow",
                 "python data_science/scripts/athena_query.py",
             ],
             env={
-                "ATHENA_DB": "your_glue_db_name",
-                "TABLE_NAME": "your_glue_table",
-                "OUTPUT_BUCKET": "s3://your-temp-athena-output-bucket/query-results/",
-                "DEST_BUCKET": Fn.import_value("DataScienceBucketName") + "/sample.csv", # CFN Output'tan al export_name den erişilir
+                "GLUE_DB_NAME": glue_db_name,
+                "GLUE_TABLE_NAME": glue_table_name,
+                "ATHENA_OUTPUT_BUCKET_NAME": f"s3://{athena_output_bucket_name}/query-results/",
+                "DEST_BUCKET_NAME": f"s3://{data_science_bucket_name}/athena-sample/{input_data}",
+                "RETRAIN_DATA_PATH": retrain_data_path,
+                "REGION": self.region,
             },
             role_policy_statements=[
+                # Athena permissions
                 iam.PolicyStatement(
                     actions=[
                         "athena:StartQueryExecution",
                         "athena:GetQueryExecution",
                         "athena:GetQueryResults",
-                        "glue:GetTable",
-                        "glue:GetDatabase",
+                        "athena:StopQueryExecution",
+                        "athena:GetWorkGroup",
+                    ],
+                    resources=[
+                        f"arn:aws:athena:{self.region}:{self.account}:workgroup/primary",
+                        f"arn:aws:athena:{self.region}:{self.account}:datacatalog/*",
+                    ],
+                ),
+                # Glue permissions
+                iam.PolicyStatement(
+                    actions=["glue:GetTable", "glue:GetDatabase", "glue:GetPartitions"],
+                    resources=[
+                        f"arn:aws:glue:{self.region}:{self.account}:catalog",
+                        f"arn:aws:glue:{self.region}:{self.account}:database/*",
+                        f"arn:aws:glue:{self.region}:{self.account}:table/*/*",
+                    ],
+                ),
+                # S3 permissions
+                iam.PolicyStatement(
+                    actions=[
                         "s3:GetObject",
                         "s3:PutObject",
+                        "s3:ListBucket",
+                        "s3:GetBucketLocation",
+                        "s3:DeleteObject",
                     ],
-                    resources=["*"],
-                )
+                    resources=[
+                        f"arn:aws:s3:::{athena_output_bucket_name}",
+                        f"arn:aws:s3:::{athena_output_bucket_name}/*",
+                        f"arn:aws:s3:::{data_science_bucket_name}",
+                        f"arn:aws:s3:::{data_science_bucket_name}/*",
+                        f"arn:aws:s3:::{data_engineering_bucket_name}",
+                        f"arn:aws:s3:::{data_engineering_bucket_name}/*",
+                    ],
+                ),
             ],
         )
 
-        pipeline_stage = pipeline.add_stage(data_science_stage)
-        pipeline_stage.add_post(build_and_push_image, athena_query_step)
+        run_sagemaker_pipeline = pipelines_.CodeBuildStep(
+            "RunSageMakerPipeline",
+            input=source,
+            build_environment=codebuild.BuildEnvironment(
+                compute_type=codebuild.ComputeType.SMALL,
+                build_image=codebuild.LinuxBuildImage.STANDARD_7_0,
+            ),
+            commands=[
+                "echo Starting SageMaker Pipeline execution...",
+                "pip install --upgrade pip",
+                "pip install boto3 sagemaker",
+                "cd data_science/scripts",
+                "python sm_pipeline.py",
+            ],
+            env={
+                "SAGEMAKER_EXECUTION_ROLE_ARN": sagemaker_execution_role_arn,
+                "PROJECT_NAME": project_name,
+                "INPUT_DATA": input_data,
+                "AWS_DEFAULT_REGION": self.region,
+                "ECR_REPOSITORY_URI": ecr_repository_arn,
+                "S3_BUCKET_NAME": data_science_bucket_name,
+                "PROCESSING_INSTANCE_COUNT": str(processing_instance_count),
+                "PROCESSING_INSTANCE_TYPE": processing_instance_type,
+                "TRAINING_INSTANCE_COUNT": str(training_instance_count),
+                "TRAINING_INSTANCE_TYPE": training_instance_type,
+                "CLARIFY_INSTANCE_COUNT": str(clarify_instance_count),
+                "CLARIFY_INSTANCE_TYPE": clarify_instance_type,
+                "RMSE_THRESHOLD": str(rmse_threshold),
+                "MAX_JOBS": str(max_jobs),
+                "MAX_PARALLEL_JOBS": str(max_parallel_jobs),
+            },
+            role_policy_statements=[
+                # CloudFormation permissions to describe stacks
+                iam.PolicyStatement(
+                    actions=[
+                        "cloudformation:DescribeStacks",
+                        "cloudformation:ListExports",
+                    ],
+                    resources=["*"],
+                ),
+                # SageMaker permissions
+                iam.PolicyStatement(
+                    actions=[
+                        "sagemaker:CreatePipeline",
+                        "sagemaker:UpdatePipeline",
+                        "sagemaker:StartPipelineExecution",
+                        "sagemaker:DescribePipeline",
+                        "sagemaker:DescribePipelineExecution",
+                        "sagemaker:ListPipelineExecutions",
+                        "sagemaker:StopPipelineExecution",
+                        "sagemaker:CreateProcessingJob",
+                        "sagemaker:CreateTrainingJob",
+                        "sagemaker:CreateModel",
+                        "sagemaker:DescribeProcessingJob",
+                        "sagemaker:DescribeTrainingJob",
+                        "sagemaker:DescribeModel",
+                        "sagemaker:ListTrainingJobs",
+                        "sagemaker:ListProcessingJobs",
+                        "sagemaker:AddTags",
+                        "sagemaker:ListTags",
+                    ],
+                    resources=["*"],
+                ),
+                iam.PolicyStatement(
+                    actions=[
+                        "s3:GetObject",
+                        "s3:PutObject",
+                        "s3:ListBucket",
+                        "s3:GetBucketLocation",
+                        "s3:DeleteObject",
+                    ],
+                    resources=[
+                        f"arn:aws:s3:::{data_science_bucket_name}",
+                        f"arn:aws:s3:::{data_science_bucket_name}/*",
+                    ],
+                ),
+                iam.PolicyStatement(
+                    actions=[
+                        "ecr:GetAuthorizationToken",
+                        "ecr:BatchCheckLayerAvailability",
+                        "ecr:GetDownloadUrlForLayer",
+                        "ecr:BatchGetImage",
+                        "ecr:DescribeRepositories",
+                        "ecr:DescribeImages",
+                    ],
+                    resources=["*"],
+                ),
+                iam.PolicyStatement(
+                    actions=[
+                        "sns:Publish",
+                        "sns:GetTopicAttributes",
+                        "sns:ListTopics",
+                    ],
+                    resources=[
+                        f"arn:aws:sns:{self.region}:{self.account}:*",
+                    ],
+                ),
+                # IAM permissions for SageMaker execution role
+                iam.PolicyStatement(
+                    actions=[
+                        "iam:GetRole",
+                        "iam:PassRole",
+                    ],
+                    resources=[
+                        f"arn:aws:iam::{self.account}:role/SageMakerExecutionRole*",
+                        f"arn:aws:iam::{self.account}:role/service-role/SageMakerExecutionRole*",
+                    ],
+                ),
+                iam.PolicyStatement(
+                    actions=[
+                        "logs:CreateLogGroup",
+                        "logs:CreateLogStream",
+                        "logs:PutLogEvents",
+                        "logs:DescribeLogGroups",
+                        "logs:DescribeLogStreams",
+                    ],
+                    resources=[
+                        f"arn:aws:logs:{self.region}:{self.account}:log-group:/aws/sagemaker/*",
+                    ],
+                ),
+            ],
+        )
 
-        # pipeline_stage_post_build = pipeline_stage.add_post(build_and_push_image)
-        # pipeline_stage_post_build.add_post(run_sagemaker_pipeline)
-
-        # # 3. Stage: SageMaker pipeline çalıştır
-        # run_sagemaker_pipeline = pipelines_.CodeBuildStep(
-        #     "RunSageMakerPipeline",
-        #     input=source,
-        #     commands=[
-        #         "cd sagemaker",
-        #         "pip install -r requirements.txt",
-        #         "python run_pipeline.py"
-        #     ],
-        #     role_policy_statements=[
-        #         iam.PolicyStatement(
-        #             actions=[
-        #                 "sagemaker:StartPipelineExecution",
-        #                 "sagemaker:DescribePipeline",
-        #                 "sagemaker:DescribePipelineExecution",
-        #                 "sagemaker:ListPipelineExecutions",
-        #                 "s3:PutObject",
-        #                 "s3:GetObject",
-        #                 "s3:ListBucket"
-        #             ],
-        #             resources=["*"]
-        #         )
-        #     ]
-        # )
-
-        # # Stage'leri post olarak sırayla ekle
-        # pipeline.add_stage(pipelines_.Stage(self, "BuildAndPushStage")).add_post(build_and_push_image)
-        # pipeline.add_stage(pipelines_.Stage(self, "SageMakerPipelineStage")).add_post(run_sagemaker_pipeline)
-
-        # pipeline.add_stage(data_science_stage)
+        deploy_stage = pipeline.add_stage(data_science_stage)
+        deploy_stage.add_post(build_and_push_image, athena_query_step)
+        run_sagemaker_pipeline.add_step_dependency(build_and_push_image)
+        run_sagemaker_pipeline.add_step_dependency(athena_query_step)
+        deploy_stage.add_post(run_sagemaker_pipeline)

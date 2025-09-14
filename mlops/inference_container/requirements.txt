@@ -1,0 +1,9 @@
+numpy
+pandas
+setuptools
+wheel
+xgboost
+fastapi
+uvicorn
+gunicorn
+boto3

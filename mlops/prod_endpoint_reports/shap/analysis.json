@@ -1,0 +1,40 @@
+{
+    "version": "1.0",
+    "explanations": {
+        "kernel_shap": {
+            "label0": {
+                "global_shap_values": {
+                    "year": 0.38179235928683963,
+                    "month": 0.3942481044385832,
+                    "day": 0.3915397528263952,
+                    "arr_delay": 1.924889585283625,
+                    "distance": 0.48097463172500465,
+                    "hour": 0.46561446864574924,
+                    "minute": 0.3936455512595789,
+                    "temp": 0.3796071260115772,
+                    "humid": 0.368653010620884,
+                    "wind_dir": 0.3813841270777261,
+                    "wind_speed": 0.39431888104742824,
+                    "precip": 0.39745864551871235,
+                    "pressure": 0.39239051922613505,
+                    "visib": 0.39871033236335773,
+                    "distance_ratio_by_total": 0.39741072077112666,
+                    "distance_category": 0.37492736560439754,
+                    "aircraft_count_by_airline": 0.38672143189124486,
+                    "allegiant_air": 0.38616604987663605,
+                    "american_airlines_inc": 0.37772328032575264,
+                    "delta_air_lines_inc": 0.3593132112648076,
+                    "frontier_airlines_inc": 0.3910872018012939,
+                    "hawaiian_airlines_inc": 0.3768264352960139,
+                    "horizon_air": 0.39218521455831673,
+                    "jetblue_airways": 0.3753755503844184,
+                    "skywest_airlines_inc": 0.38073728403050305,
+                    "southwest_airlines_co": 0.38352726029103906,
+                    "spirit_air_lines": 0.3872952386396827,
+                    "united_air_lines_inc": 3.855216555104329
+                },
+                "expected_value": 1.28
+            }
+        }
+    }
+}

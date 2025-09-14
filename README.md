@@ -56,3 +56,23 @@ command.
  * `cdk docs`        open CDK documentation
 
 Enjoy!
+
+## Usage
+
+```bash
+
+chmod +x run.sh
+
+make bootstrap env=ds
+make deploy env=ds
+make destroy env=ds
+
+make bootstrap env=de
+make deploy env=de
+make destroy env=de
+
+make bootstrap env=mlops
+make deploy env=mlops
+make destroy env=mlops
+
+```
