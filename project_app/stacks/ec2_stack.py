@@ -22,7 +22,8 @@ class EC2Stack(Stack):
         data_bucket_key = "raw_test_data_for_model_drift.csv"
         dynamodb_table_name = Fn.import_value(f"{project_name}-raw-flights-table-name")
         raw_kinesis_stream_name = Fn.import_value(f"{project_name}-KinesisRawName")
-
+        website_url = Fn.import_value("ProjectAppWebsiteURL")
+        sns_topic_arn = Fn.import_value(f"{project_name}-sns-topic-arn")
         
         # vpc_id = Fn.import_value("flight-project-vpc-id")
 
@@ -32,12 +33,12 @@ class EC2Stack(Stack):
         #     Fn.import_value("flight-project-subnet-c")   # eu-central-1c
         # ]
 
+
         vpc_id = "vpc-05e81295194e18eca"
-        
         public_subnet_ids = [
-            "subnet-0f34d5f46cb85310a",  # eu-central-1a
-            "subnet-0d2cdff5d7abe1e8d",  # eu-central-1b
-            "subnet-025f78bace1dd224f"   # eu-central-1c
+            "subnet-0f34d5f46cb85310a",
+            "subnet-0d2cdff5d7abe1e8d",
+            "subnet-025f78bace1dd224f"
         ]
         
         vpc = ec2.Vpc.from_vpc_attributes(
@@ -48,7 +49,7 @@ class EC2Stack(Stack):
             public_subnet_ids=public_subnet_ids
         )
 
-        # ✅ Security Group
+        # Security Group
         security_group = ec2.SecurityGroup(
             self,
             security_group_name=f"{project_name}-data-simulator-sg",
@@ -64,7 +65,7 @@ class EC2Stack(Stack):
             description="SSH access",
         )
 
-        # ✅ IAM Role for EC2
+        # IAM Role for EC2
         ec2_role = iam.Role(
             self,
             id="DataSimulatorRole",
@@ -74,10 +75,10 @@ class EC2Stack(Stack):
                 iam.ManagedPolicy.from_aws_managed_policy_name("CloudWatchAgentServerPolicy"),
                 iam.ManagedPolicy.from_aws_managed_policy_name("AmazonS3FullAccess"),
                 iam.ManagedPolicy.from_aws_managed_policy_name("AmazonDynamoDBFullAccess"),
+                iam.ManagedPolicy.from_aws_managed_policy_name("AmazonSNSFullAccess"),
             ],
         )
 
-        # ✅ Amazon Linux 2023 User Data Script
         user_data_script = f"""#!/bin/bash
 sudo dnf update -y
 sudo dnf install -y python3 python3-pip git wget unzip
@@ -93,7 +94,6 @@ sudo ln -sf /usr/local/aws-cli/v2/current/bin/aws /usr/bin/aws
 pip3 install --upgrade pip
 pip3 install pandas numpy boto3 requests uuid
 
-
 sudo mkdir -p /opt/data-simulator
 sudo chown ec2-user:ec2-user /opt/data-simulator
 cd /opt/data-simulator
@@ -103,6 +103,7 @@ aws s3 cp s3://{data_bucket_name}/{data_bucket_prefix}/{data_bucket_key} .
 cat > data_simulator.py << EOF
 import pandas as pd
 import json
+import sys
 import boto3
 import numpy as np
 from datetime import datetime
@@ -111,17 +112,38 @@ import uuid
 import logging
 from decimal import Decimal
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
 logger = logging.getLogger(__name__)
 
 class DataSimulator:
-    def __init__(self, kinesis_stream_name, dynamodb_table_name, csv_path):
-        self.kinesis_client = boto3.client('kinesis', region_name='eu-central-1')
+    def __init__(self, kinesis_stream_name, dynamodb_table_name, csv_path, sns_topic_arn, website_url):
+        self.kinesis_client = boto3.client('kinesis', region_name={self.region}')
         self.stream_name = kinesis_stream_name
-        self.dynamodb = boto3.resource('dynamodb', region_name='eu-central-1')
+        self.dynamodb = boto3.resource('dynamodb', region_name={self.region})
         self.raw_table = self.dynamodb.Table(dynamodb_table_name)
         self.df = pd.read_csv(csv_path)
         self.current_index = 0
+        self.sns_client = boto3.client("sns", region_name={self.region})
+        self.sns_topic_arn = sns_topic_arn
+        self.website_url = website_url
+
+    def notify_start(self):
+        message = f"🚀 Data Generator has started streaming!\\n\\nProject app live here: {self.website_url}"
+        try:
+            self.sns_client.publish(
+                TopicArn=self.sns_topic_arn,
+                Subject="Data Simulator Started",
+                Message=message
+            )
+            logger.info("SNS notification sent successfully")
+        except Exception as e:
+            logger.error(f"Error sending SNS notification: {{e}}")
 
     def generate_flight_event(self, row):
         return {{
@@ -176,7 +198,6 @@ class DataSimulator:
     def write_to_dynamodb(self, event):
         try:
             event_copy = event.copy()
-            # Float → Decimal dönüşümü
             for k, v in event_copy.items():
                 if isinstance(v, float):
                     event_copy[k] = Decimal(str(v))
@@ -187,6 +208,7 @@ class DataSimulator:
 
     def start_streaming(self, events_per_second=10):
         logger.info(f"Streaming to {{self.stream_name}} at {{events_per_second}} events/sec")
+        self.notify_start()
         total = len(self.df)
         while self.current_index < total:
             start_time = time.time()
@@ -201,7 +223,13 @@ class DataSimulator:
             time.sleep(sleep_time)
 
 if __name__ == "__main__":
-    simulator = DataSimulator("{raw_kinesis_stream_name}", "{dynamodb_table_name}", "{data_bucket_key}")
+    simulator = DataSimulator(
+        "{raw_kinesis_stream_name}",
+        "{dynamodb_table_name}",
+        "{data_bucket_key}",
+        "{sns_topic_arn}",
+        "{website_url}"
+    )
     simulator.start_streaming(events_per_second=10)
 EOF
 
@@ -232,7 +260,6 @@ sudo systemctl start data-simulator.service
             self, "ImportedKeyPair", key_pair_name=self.node.try_get_context("key_name")
         )
 
-        # ✅ EC2 Instance (Amazon Linux 2023)
         self.ec2_instance = ec2.Instance(
             self,
             id="DataSimulatorInstance",
@@ -250,7 +277,6 @@ sudo systemctl start data-simulator.service
             key_pair=key_pair,
         )
 
-        # ✅ Outputs
         CfnOutput(
             self,
             "EC2InstanceId",
