@@ -5,7 +5,7 @@ app = cdk.App()
 
 # Environment
 env = cdk.Environment(
-    account=app.node.try_get_context("account"),
+    account=app.node.try_get_context("account") or "058264126563",
     region=app.node.try_get_context("region") or "eu-central-1",
 )
 
