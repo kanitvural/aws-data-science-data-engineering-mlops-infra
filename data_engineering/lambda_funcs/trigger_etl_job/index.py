@@ -2,11 +2,14 @@ import boto3
 import os
 import logging
 
-# Log ayarları
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[logging.StreamHandler()]
+)
+logger = logging.getLogger(__name__)
 
-# Ortam değişkeninden job adını al
+
 GLUE_JOB_NAME = os.environ.get("GLUE_JOB_NAME")
 
 def lambda_handler(event, context):

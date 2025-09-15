@@ -34,7 +34,9 @@ class GlueStack(Stack):
         data_bucket_name = Fn.import_value("DataLakeBucketName")
         data_bucket_arn = Fn.import_value("DataLakeBucketArn")
 
-        artifacts_bucket_name_obj = s3.Bucket.from_bucket_name(self, "ImportedArtifactsBucket", artifacts_bucket_name) # Bucket deployment expects IBucket object
+        artifacts_bucket_name_obj = s3.Bucket.from_bucket_name(
+            self, "ImportedArtifactsBucket", artifacts_bucket_name
+        )  # Bucket deployment expects IBucket object
 
         # Deploy Glue ETL script to artifacts bucket
         try:
@@ -91,9 +93,12 @@ class GlueStack(Stack):
             "FlightDatabase",
             catalog_id=self.account,
             database_input=glue.CfnDatabase.DatabaseInputProperty(
-                name="flight_db", description="Flight events database"
+                name="flight_db",
+                description="Flight events database",
             ),
         )
+        
+        self.glue_database.apply_removal_policy(RemovalPolicy.DESTROY)
 
         # Glue ETL Job
         self.etl_job = glue.CfnJob(
@@ -119,6 +124,8 @@ class GlueStack(Stack):
             timeout=60,
             glue_version="4.0",
         )
+        
+        self.etl_job.apply_removal_policy(RemovalPolicy.DESTROY)
 
         # Lambda Role
         etl_trigger_lambda_role = iam.Role(
@@ -171,6 +178,8 @@ class GlueStack(Stack):
                 s3_targets=[glue.CfnCrawler.S3TargetProperty(path=f"s3://{data_bucket_name}/processed/flight-events/")]
             ),
         )
+        
+        self.processed_crawler.apply_removal_policy(RemovalPolicy.DESTROY)
 
         # Lambda to start crawler
         start_crawler_lambda = lambda_.Function(

@@ -37,6 +37,7 @@ class DataEngineeringStage(Stage):
         ec2_stack = EC2Stack(
             self,
             id="EC2Infrastructure",
+            project_name=project_name
         )
 
         # Dependencies
