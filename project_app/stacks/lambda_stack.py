@@ -13,15 +13,15 @@ from constructs import Construct
 
 
 class LambdaStack(Stack):
-    def __init__(self, scope: Construct, id: str, **kwargs):
+    def __init__(self, scope: Construct, id: str, project_name: str, **kwargs):
         super().__init__(scope, id, **kwargs)
 
         # ----------------------------------------------------------------------
         # Import Kinesis Streams
         # ----------------------------------------------------------------------
-        kinesis_raw_arn = Fn.import_value("KinesisRawArn")
-        kinesis_processed_arn = Fn.import_value("KinesisProcessedArn")
-        kinesis_predicted_arn = Fn.import_value("KinesisPredictedArn")
+        kinesis_raw_arn = Fn.import_value(f"{project_name}-KinesisRawArn")
+        kinesis_processed_arn = Fn.import_value(f"{project_name}-KinesisProcessedArn")
+        kinesis_predicted_arn = Fn.import_value(f"{project_name}-KinesisPredictedArn")
 
         kinesis_raw = kinesis.Stream.from_stream_arn(self, "RawStream", kinesis_raw_arn)
         kinesis_processed = kinesis.Stream.from_stream_arn(self, "ProcessedStream", kinesis_processed_arn)

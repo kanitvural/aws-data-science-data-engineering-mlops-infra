@@ -45,7 +45,8 @@ class AppPipelineStage(Stage):
         
         lambda_stack = LambdaStack(
             self,
-            id="LambdaInfrastructure"
+            id="LambdaInfrastructure",
+            project_name=project_name
         )
 
         # Dependencies
