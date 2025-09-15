@@ -35,9 +35,9 @@ class EC2Stack(Stack):
         vpc_id = "vpc-05e81295194e18eca"
         
         public_subnet_ids = [
-            "subnet-0bec158d7eee0a255",  # eu-central-1a
-            "subnet-0b9c132f4e0bb0601",  # eu-central-1b
-            "subnet-0ece3a24d671dae7c"   # eu-central-1c
+            "subnet-0f34d5f46cb85310a",  # eu-central-1a
+            "subnet-0d2cdff5d7abe1e8d",  # eu-central-1b
+            "subnet-025f78bace1dd224f"   # eu-central-1c
         ]
         
         vpc = ec2.Vpc.from_vpc_attributes(
