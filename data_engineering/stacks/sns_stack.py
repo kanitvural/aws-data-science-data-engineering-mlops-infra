@@ -39,10 +39,3 @@ class SNSStack(Stack):
             value=self.topic.topic_arn,
             export_name=f"{project_name}-sns-topic-arn"
         )
-
-        # Debug için topic policy'yi de export et
-        CfnOutput(
-            self, "SNSTopicPolicy",
-            value=self.topic.topic_name,
-            description="SNS Topic Name for debugging"
-        )
