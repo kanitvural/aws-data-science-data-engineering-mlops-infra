@@ -10,16 +10,16 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-CRAWLER_NAME = os.environ.get("CRAWLER_NAME")
+crawler_name = os.environ.get("CRAWLER_NAME")
 
 def lambda_handler(event, context):
     glue = boto3.client("glue")
     try:
-        glue.start_crawler(Name=CRAWLER_NAME)
-        logger.info(f"Crawler started: {CRAWLER_NAME}")
+        glue.start_crawler(Name=crawler_name)
+        logger.info(f"Crawler started: {crawler_name}")
         return {
             "statusCode": 200,
-            "body": f"Crawler started: {CRAWLER_NAME}"
+            "body": f"Crawler started: {crawler_name}"
         }
     except Exception as e:
         logger.error(f"Failed to start crawler: {str(e)}")
