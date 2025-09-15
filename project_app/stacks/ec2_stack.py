@@ -23,14 +23,29 @@ class EC2Stack(Stack):
         dynamodb_table_name = Fn.import_value(f"{project_name}-raw-flights-table-name")
         kinesis_stream_name = Fn.import_value("KinesisStreamName")
 
+        
         # vpc_id = Fn.import_value("flight-project-vpc-id")
-        vpc_id = "vpc-05e81295194e18eca"
 
+        # public_subnet_ids = [
+        #     Fn.import_value("flight-project-subnet-a"),  # eu-central-1a
+        #     Fn.import_value("flight-project-subnet-b"),  # eu-central-1b
+        #     Fn.import_value("flight-project-subnet-c")   # eu-central-1c
+        # ]
+
+        vpc_id = "vpc-05e81295194e18eca"
+        
+        public_subnet_ids = [
+            "subnet-0bec158d7eee0a255",  # eu-central-1a
+            "subnet-0b9c132f4e0bb0601",  # eu-central-1b
+            "subnet-0ece3a24d671dae7c"   # eu-central-1c
+        ]
+        
         vpc = ec2.Vpc.from_vpc_attributes(
             self,
             "ImportedVPC",
             vpc_id=vpc_id,
-            availability_zones=["eu-central-1a", "eu-central-1b", "eu-central-1c"]
+            availability_zones=["eu-central-1a", "eu-central-1b", "eu-central-1c"],
+            public_subnet_ids=public_subnet_ids
         )
 
         # ✅ Security Group
