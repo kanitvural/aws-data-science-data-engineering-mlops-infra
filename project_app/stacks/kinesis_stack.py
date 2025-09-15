@@ -22,7 +22,9 @@ class KinesisStack(Stack):
         # ✅ Import MLOps S3 bucket (Firehose target)
         # mlops_bucket_name = Fn.import_value("MLOpsBucketName")
         mlops_bucket_name = "mlops-bucket-058264126563"
-        data_bucket = s3.Bucket.from_bucket_name(self, "ImportedMLOpsBucket", mlops_bucket_name)
+        data_bucket = s3.Bucket.from_bucket_name(
+            self, "ImportedMLOpsBucket", mlops_bucket_name
+        )
 
         # ----------------------------------------------------------------------
         # Kinesis Streams
@@ -79,7 +81,11 @@ class KinesisStack(Stack):
             self,
             id="FirehoseDeliveryRole",
             assumed_by=iam.ServicePrincipal("firehose.amazonaws.com"),
-            managed_policies=[iam.ManagedPolicy.from_aws_managed_policy_name("AmazonKinesisReadOnlyAccess")],
+            managed_policies=[
+                iam.ManagedPolicy.from_aws_managed_policy_name(
+                    "AmazonKinesisReadOnlyAccess"
+                )
+            ],
         )
 
         # S3 permissions
@@ -128,20 +134,25 @@ class KinesisStack(Stack):
                     log_group_name=firehose_log_group.log_group_name,
                     log_stream_name=firehose_log_stream.log_stream_name,
                 ),
-                data_format_conversion_configuration=firehose.CfnDeliveryStream.DataFormatConversionConfigurationProperty(
+                processing_configuration=firehose.CfnDeliveryStream.ProcessingConfigurationProperty(
                     enabled=True,
-                    output_format_configuration=firehose.CfnDeliveryStream.OutputFormatConfigurationProperty(
-                        serializer=firehose.CfnDeliveryStream.SerializerProperty(
-                            parquet_ser_de={}
+                    processors=[
+                        firehose.CfnDeliveryStream.ProcessorProperty(
+                            type="AppendDelimiterToRecord",
+                            parameters=[
+                                firehose.CfnDeliveryStream.ProcessorParameterProperty(
+                                    parameter_name="Delimiter", parameter_value="\\n"
+                                )
+                            ],
                         )
-                    ),
+                    ],
                 ),
             ),
         )
 
-        # ----------------------------------------------------------------------
-        # Outputs
-        # ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+# Outputs
+# ----------------------------------------------------------------------
 
         # Kinesis Raw Stream
         CfnOutput(
