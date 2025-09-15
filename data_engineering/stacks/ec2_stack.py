@@ -3,8 +3,6 @@
 from aws_cdk import (
     Stack,
     aws_ec2 as ec2,
-    aws_s3 as s3,
-    aws_kinesis as kinesis,
     aws_iam as iam,
     CfnOutput,
     Fn,
@@ -271,28 +269,28 @@ sudo systemctl start data-simulator.service
         )
         
         # VPC ID and Subney IDs export
-        cdk.CfnOutput(
+        CfnOutput(
             self,
             "VPCId",
             value=vpc.vpc_id,
             export_name="flight-project-vpc-id"
         )
 
-        cdk.CfnOutput(
+        CfnOutput(
             self,
             "PublicSubnetA",
             value=vpc.public_subnets[0].subnet_id,
             export_name="flight-project-subnet-a"
         )
 
-        cdk.CfnOutput(
+        CfnOutput(
             self,
             "PublicSubnetB", 
             value=vpc.public_subnets[1].subnet_id,
             export_name="flight-project-subnet-b"
         )
 
-        cdk.CfnOutput(
+        CfnOutput(
             self,
             "PublicSubnetC",
             value=vpc.public_subnets[2].subnet_id,
