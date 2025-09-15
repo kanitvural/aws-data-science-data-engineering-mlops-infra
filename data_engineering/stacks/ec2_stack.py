@@ -17,7 +17,7 @@ class EC2Stack(Stack):
         self,
         scope: Construct,
         id: str,
-        project_name: str, 
+        project_name: str,
         **kwargs,
     ) -> None:
         super().__init__(scope, id, **kwargs)
@@ -33,7 +33,11 @@ class EC2Stack(Stack):
             ip_addresses=ec2.IpAddresses.cidr("10.0.0.0/16"),
             availability_zones=["eu-central-1a", "eu-central-1b", "eu-central-1c"],
             subnet_configuration=[
-                ec2.SubnetConfiguration(name="PublicSubnet", subnet_type=ec2.SubnetType.PUBLIC, cidr_mask=24)
+                ec2.SubnetConfiguration(
+                    name="PublicSubnet",
+                    subnet_type=ec2.SubnetType.PUBLIC,
+                    cidr_mask=24,
+                )
             ],
             nat_gateways=0,
             enable_dns_hostnames=True,
@@ -264,4 +268,33 @@ sudo systemctl start data-simulator.service
             "EC2PrivateIP",
             value=self.ec2_instance.instance_private_ip,
             export_name="EC2PrivateIP",
+        )
+        
+        # VPC ID and Subney IDs export
+        cdk.CfnOutput(
+            self,
+            "VPCId",
+            value=vpc.vpc_id,
+            export_name="flight-project-vpc-id"
+        )
+
+        cdk.CfnOutput(
+            self,
+            "PublicSubnetA",
+            value=vpc.public_subnets[0].subnet_id,
+            export_name="flight-project-subnet-a"
+        )
+
+        cdk.CfnOutput(
+            self,
+            "PublicSubnetB", 
+            value=vpc.public_subnets[1].subnet_id,
+            export_name="flight-project-subnet-b"
+        )
+
+        cdk.CfnOutput(
+            self,
+            "PublicSubnetC",
+            value=vpc.public_subnets[2].subnet_id,
+            export_name="flight-project-subnet-c"
         )
