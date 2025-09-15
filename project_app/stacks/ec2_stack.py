@@ -27,6 +27,8 @@ class EC2Stack(Stack):
             self,
             "ImportedVPC",
             vpc_name="flight-project-vpc",
+            region=self.region,
+            owner_account_id=self.account
         )
 
         # ✅ Security Group
