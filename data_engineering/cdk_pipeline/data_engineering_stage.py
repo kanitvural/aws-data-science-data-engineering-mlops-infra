@@ -15,13 +15,13 @@ class DataEngineeringStage(Stage):
             self,
             id="SNSInfrastructure",
             project_name=project_name,
+            notification_email=notification_email
         )
         
         s3_stack = S3Stack(
             self,
             id="S3Infrastructure",
             project_name=project_name,
-            notification_email=notification_email
         )
 
         kinesis_stack = KinesisStack(
