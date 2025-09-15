@@ -23,10 +23,14 @@ class EC2Stack(Stack):
         dynamodb_table_name = Fn.import_value(f"{project_name}-raw-flights-table-name")
         kinesis_stream_name = Fn.import_value("KinesisStreamName")
 
-        vpc = ec2.Vpc.from_lookup(
+        # vpc_id = Fn.import_value("flight-project-vpc-id")
+        vpc_id = "vpc-05e81295194e18eca"
+
+        vpc = ec2.Vpc.from_vpc_attributes(
             self,
             "ImportedVPC",
-            vpc_name="flight-project-vpc",
+            vpc_id=vpc_id,
+            availability_zones=["eu-central-1a", "eu-central-1b", "eu-central-1c"]
         )
 
         # ✅ Security Group
