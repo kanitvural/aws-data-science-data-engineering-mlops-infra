@@ -25,22 +25,14 @@ class EC2Stack(Stack):
         website_url = Fn.import_value("ProjectAppWebsiteURL")
         sns_topic_arn = Fn.import_value(f"{project_name}-sns-topic-arn")
         
-        # vpc_id = Fn.import_value("flight-project-vpc-id")
+        vpc_id = Fn.import_value("flight-project-vpc-id")
 
-        # public_subnet_ids = [
-        #     Fn.import_value("flight-project-subnet-a"),  # eu-central-1a
-        #     Fn.import_value("flight-project-subnet-b"),  # eu-central-1b
-        #     Fn.import_value("flight-project-subnet-c")   # eu-central-1c
-        # ]
-
-
-        vpc_id = "vpc-05e81295194e18eca"
         public_subnet_ids = [
-            "subnet-0f34d5f46cb85310a",
-            "subnet-0d2cdff5d7abe1e8d",
-            "subnet-025f78bace1dd224f"
+            Fn.import_value("flight-project-subnet-a"),  
+            Fn.import_value("flight-project-subnet-b"), 
+            Fn.import_value("flight-project-subnet-c")  
         ]
-        
+
         vpc = ec2.Vpc.from_vpc_attributes(
             self,
             "ImportedVPC",
