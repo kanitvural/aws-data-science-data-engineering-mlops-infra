@@ -21,7 +21,7 @@ class EC2Stack(Stack):
         data_bucket_prefix = "sagemaker-preprocess-output/drift"
         data_bucket_key = "raw_test_data_for_model_drift.csv"
         dynamodb_table_name = Fn.import_value(f"{project_name}-raw-flights-table-name")
-        kinesis_stream_name = Fn.import_value("KinesisStreamName")
+        raw_kinesis_stream_name = Fn.import_value(f"{project_name}-KinesisRawName")
 
         
         # vpc_id = Fn.import_value("flight-project-vpc-id")
@@ -201,7 +201,7 @@ class DataSimulator:
             time.sleep(sleep_time)
 
 if __name__ == "__main__":
-    simulator = DataSimulator({kinesis_stream_name}, {dynamodb_table_name}, {data_bucket_key})
+    simulator = DataSimulator({raw_kinesis_stream_name}, {dynamodb_table_name}, {data_bucket_key})
     simulator.start_streaming(events_per_second=10)
 EOF
 
