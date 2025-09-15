@@ -268,7 +268,7 @@ sudo systemctl start data-simulator.service
             export_name="EC2PrivateIP",
         )
         
-        # VPC ID and Subney IDs export
+        # VPC ID and Subnet IDs export
         CfnOutput(
             self,
             "VPCId",
