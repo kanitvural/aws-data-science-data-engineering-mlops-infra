@@ -1,5 +1,3 @@
-# stacks/kinesis_stack.py  
-
 from aws_cdk import (
     Duration,
     Stack,
