@@ -1,5 +1,5 @@
 import aws_cdk as cdk
-from data_engineering.cdk_pipeline.cdk_data_engineering_pipeline import CDKDataEngineeringPipelineStack
+from project_app.cdk_pipeline.cdk_app_pipeline import CDKAppPipelineStack
 
 app = cdk.App()
 
@@ -8,6 +8,6 @@ env = cdk.Environment(
     region=app.node.try_get_context("region") or "eu-central-1",
 )
 
-CDKDataEngineeringPipelineStack(app, "CDKDataEngineeringPipelineStack", env=env)
+CDKAppPipelineStack(app, "CDKAppPipelineStack", env=env)
 
 app.synth()
