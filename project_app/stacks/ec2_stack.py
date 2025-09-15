@@ -201,7 +201,7 @@ class DataSimulator:
             time.sleep(sleep_time)
 
 if __name__ == "__main__":
-    simulator = DataSimulator({raw_kinesis_stream_name}, {dynamodb_table_name}, {data_bucket_key})
+    simulator = DataSimulator("{raw_kinesis_stream_name}", "{dynamodb_table_name}", "{data_bucket_key}")
     simulator.start_streaming(events_per_second=10)
 EOF
 
