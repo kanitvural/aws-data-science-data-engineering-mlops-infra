@@ -64,7 +64,7 @@ class KinesisStack(Stack):
         firehose_log_group = logs.LogGroup(
             self,
             id="FirehoseLogGroup",
-            log_group_name="/aws/kinesisfirehose/raw-and-predicted-data",
+            log_group_name=f"/aws/kinesisfirehose/raw-and-predicted-data-{project_name}",
             retention=logs.RetentionDays.ONE_WEEK,
             removal_policy=RemovalPolicy.DESTROY,
         )
