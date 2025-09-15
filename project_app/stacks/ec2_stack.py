@@ -79,6 +79,7 @@ class EC2Stack(Stack):
             ],
         )
 
+        # User Data Script
         user_data_script = f"""#!/bin/bash
 sudo dnf update -y
 sudo dnf install -y python3 python3-pip git wget unzip
@@ -123,18 +124,18 @@ logger = logging.getLogger(__name__)
 
 class DataSimulator:
     def __init__(self, kinesis_stream_name, dynamodb_table_name, csv_path, sns_topic_arn, website_url):
-        self.kinesis_client = boto3.client('kinesis', region_name={self.region}')
+        self.kinesis_client = boto3.client('kinesis', region_name='eu-central-1')
         self.stream_name = kinesis_stream_name
-        self.dynamodb = boto3.resource('dynamodb', region_name={self.region})
+        self.dynamodb = boto3.resource('dynamodb', region_name='eu-central-1')
         self.raw_table = self.dynamodb.Table(dynamodb_table_name)
         self.df = pd.read_csv(csv_path)
         self.current_index = 0
-        self.sns_client = boto3.client("sns", region_name={self.region})
+        self.sns_client = boto3.client("sns", region_name="eu-central-1")
         self.sns_topic_arn = sns_topic_arn
         self.website_url = website_url
 
     def notify_start(self):
-        message = f"🚀 Data Generator has started streaming!\\n\\nProject app live here: {self.website_url}"
+        message = "🚀 Data Generator has started streaming!\\n\\nProject app live here: " + self.website_url
         try:
             self.sns_client.publish(
                 TopicArn=self.sns_topic_arn,
