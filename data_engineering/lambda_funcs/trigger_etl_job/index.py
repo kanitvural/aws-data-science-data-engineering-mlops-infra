@@ -10,12 +10,12 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-GLUE_JOB_NAME = os.environ.get("GLUE_JOB_NAME")
+glue_job_name = os.environ.get("GLUE_JOB_NAME")
 
 def lambda_handler(event, context):
     glue = boto3.client("glue")
     try:
-        response = glue.start_job_run(JobName=GLUE_JOB_NAME)
+        response = glue.start_job_run(JobName=glue_job_name)
         logger.info(f"Glue job started: {response['JobRunId']}")
         return {
             'statusCode': 200,

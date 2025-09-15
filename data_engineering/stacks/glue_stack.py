@@ -10,7 +10,6 @@ from aws_cdk import (
     aws_events as events,
     aws_events_targets as targets,
     aws_sns as sns,
-    aws_sns_subscriptions as subscriptions,
     CfnOutput,
     RemovalPolicy,
     Fn,
@@ -24,7 +23,6 @@ class GlueStack(Stack):
         scope: Construct,
         id: str,
         project_name: str,
-        notification_email: str,
         **kwargs,
     ) -> None:
         super().__init__(scope, id, **kwargs)
@@ -33,6 +31,8 @@ class GlueStack(Stack):
         artifacts_bucket_arn = Fn.import_value("ArtifactsBucketArn")
         data_bucket_name = Fn.import_value("DataLakeBucketName")
         data_bucket_arn = Fn.import_value("DataLakeBucketArn")
+        
+        sns_topic_arn = Fn.import_value(f"{project_name}-sns-topic-arn")
 
         artifacts_bucket_name_obj = s3.Bucket.from_bucket_name(
             self, "ImportedArtifactsBucket", artifacts_bucket_name
@@ -193,9 +193,12 @@ class GlueStack(Stack):
             timeout=Duration.seconds(30),
         )
 
-        # SNS Topic for notifications
-        job_notification_topic = sns.Topic(self, "GlueJobNotificationTopic")
-        job_notification_topic.add_subscription(subscriptions.EmailSubscription(notification_email))
+        
+        sns_topic = sns.Topic.from_topic_arn(
+            self, 
+            "ImportedSNSTopic", 
+            sns_topic_arn
+        )
 
         # EventBridge rule for job success
         events.Rule(
@@ -211,7 +214,7 @@ class GlueStack(Stack):
             ),
             targets=[
                 targets.LambdaFunction(start_crawler_lambda),
-                targets.SnsTopic(job_notification_topic),
+                targets.SnsTopic(sns_topic),
             ],
         )
 
@@ -227,7 +230,7 @@ class GlueStack(Stack):
                     "state": ["FAILED"],
                 },
             ),
-            targets=[targets.SnsTopic(job_notification_topic)],
+            targets=[targets.SnsTopic(sns_topic)],
         )
 
         # Logs
@@ -262,9 +265,4 @@ class GlueStack(Stack):
             self,
             "GlueRoleArn",
             value=self.glue_role.role_arn,
-        )
-        CfnOutput(
-            self,
-            "SnsTopicName",
-            value=job_notification_topic.topic_name,
         )
