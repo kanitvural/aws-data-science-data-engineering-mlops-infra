@@ -35,7 +35,6 @@ class DataEngineeringStage(Stage):
             self,
             id="GlueInfrastructure",
             project_name=project_name,
-            notification_email=notification_email,
         )
 
         ec2_stack = EC2Stack(
