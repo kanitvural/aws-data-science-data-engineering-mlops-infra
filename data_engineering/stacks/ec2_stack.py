@@ -1,5 +1,3 @@
-# stacks/ec2_stack.py
-
 from aws_cdk import (
     Stack,
     aws_ec2 as ec2,
