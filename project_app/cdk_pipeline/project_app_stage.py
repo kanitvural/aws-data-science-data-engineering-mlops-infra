@@ -8,7 +8,7 @@ from project_app.stacks.sns_stack import SNSStack
 from project_app.stacks.dynamodb_stack import DynamoDBStack
 
 
-class ProjectAppPipelineStage(Stage):
+class AppPipelineStage(Stage):
     def __init__(self, scope: Construct, id: str, project_name: str, notification_email: str = None, **kwargs):
         super().__init__(scope, id, **kwargs)
 

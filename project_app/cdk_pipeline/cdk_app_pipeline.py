@@ -3,10 +3,10 @@ from aws_cdk import (
     pipelines as pipelines_,
 )
 from constructs import Construct
-from .project_app_stage import ProjectAppPipelineStage
+from .project_app_stage import AppPipelineStage
 
 
-class CDKProjectAppPipelineStack(Stack):
+class CDKAppPipelineStack(Stack):
     def __init__(self, scope: Construct, id: str, **kwargs):
         super().__init__(scope, id, **kwargs)
 
@@ -38,15 +38,15 @@ class CDKProjectAppPipelineStack(Stack):
         # Create the CodePipeline
         pipeline = pipelines_.CodePipeline(
             self,
-            id="CDKProjectAppPipeline",
+            id="CDKAppPipeline",
             pipeline_name=pipeline_name,
             synth=synth_step,
         )
 
         # Add the ProjectAppPipeline to the pipeline
-        project_app_stage = ProjectAppPipelineStage(
+        project_app_stage = AppPipelineStage(
             self,
-            id="ProjectAppPipelineStage",
+            id="AppPipelineStage",
             project_name=project_name,
             notification_email=notification_email,
         )

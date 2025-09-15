@@ -1,15 +1,15 @@
 import aws_cdk as cdk
-from project_app.cdk_pipeline.cdk_app_pipeline import CDKProjectAppPipelineStack
+from project_app.cdk_pipeline.cdk_app_pipeline import CDKAppPipelineStack
 
 app = cdk.App()
 
 # Environment
 env = cdk.Environment(
-    account=app.node.try_get_context("account") or "058264126563",
+    account=app.node.try_get_context("account"),
     region=app.node.try_get_context("region") or "eu-central-1",
 )
 
 # Stack'i sadece CDK parametreleriyle oluştur
-CDKProjectAppPipelineStack(app, "CDKProjectAppPipelineStack", env=env)
+CDKAppPipelineStack(app, "CDKAppPipelineStack", env=env)
 
 app.synth()
