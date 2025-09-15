@@ -255,17 +255,17 @@ sudo systemctl start data-simulator.service
             self,
             "EC2InstanceId",
             value=self.ec2_instance.instance_id,
-            export_name="EC2InstanceId",
+            export_name=f"{project_name}-EC2InstanceId",
         )
         CfnOutput(
             self,
             "EC2PublicIP",
             value=self.ec2_instance.instance_public_ip,
-            export_name="EC2PublicIP",
+            export_name=f"{project_name}-EC2PublicIP",
         )
         CfnOutput(
             self,
             "EC2PrivateIP",
             value=self.ec2_instance.instance_private_ip,
-            export_name="EC2PrivateIP",
+            export_name=f"{project_name}-EC2PrivateIP",
         )
