@@ -21,6 +21,7 @@ class AppPipelineStage(Stage):
         kinesis_stack = KinesisStack(
             self,
             id="KinesisInfrastructure",
+            project_name=project_name
         )
 
         ec2_stack = EC2Stack(

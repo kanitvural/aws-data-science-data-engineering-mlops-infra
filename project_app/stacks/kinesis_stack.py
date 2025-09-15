@@ -16,7 +16,7 @@ from constructs import Construct
 
 
 class KinesisStack(Stack):
-    def __init__(self, scope: Construct, id: str, **kwargs) -> None:
+    def __init__(self, scope: Construct, id: str, project_name: str, **kwargs) -> None:
         super().__init__(scope, id, **kwargs)
 
         # ✅ Import MLOps S3 bucket (Firehose target)
@@ -129,7 +129,6 @@ class KinesisStack(Stack):
                 buffering_hints=firehose.CfnDeliveryStream.BufferingHintsProperty(
                     size_in_m_bs=1, interval_in_seconds=30
                 ),
-                compression_format="GZIP",
                 cloud_watch_logging_options=firehose.CfnDeliveryStream.CloudWatchLoggingOptionsProperty(
                     enabled=True,
                     log_group_name=firehose_log_group.log_group_name,
@@ -160,13 +159,13 @@ class KinesisStack(Stack):
             self,
             id="KinesisRawName",
             value=self.kinesis_raw.stream_name,
-            export_name="KinesisRawName",
+            export_name=f"{project_name}-KinesisRawName",
         )
         CfnOutput(
             self,
             id="KinesisRawArn",
             value=self.kinesis_raw.stream_arn,
-            export_name="KinesisRawArn",
+            export_name=f"{project_name}-KinesisRawArn",
         )
 
         # Kinesis Processed Stream
@@ -174,13 +173,13 @@ class KinesisStack(Stack):
             self,
             id="KinesisProcessedName",
             value=self.kinesis_processed.stream_name,
-            export_name="KinesisProcessedName",
+            export_name=f"{project_name}-KinesisProcessedName",
         )
         CfnOutput(
             self,
             id="KinesisProcessedArn",
             value=self.kinesis_processed.stream_arn,
-            export_name="KinesisProcessedArn",
+            export_name=f"{project_name}-KinesisProcessedArn",
         )
 
         # Kinesis Predicted Stream
@@ -188,13 +187,13 @@ class KinesisStack(Stack):
             self,
             id="KinesisPredictedName",
             value=self.kinesis_predicted.stream_name,
-            export_name="KinesisPredictedName",
+            export_name=f"{project_name}-KinesisPredictedName",
         )
         CfnOutput(
             self,
             id="KinesisPredictedArn",
             value=self.kinesis_predicted.stream_arn,
-            export_name="KinesisPredictedArn",
+            export_name=f"{project_name}-KinesisPredictedArn",
         )
 
         # Firehose Stream
@@ -202,5 +201,5 @@ class KinesisStack(Stack):
             self,
             id="FirehoseStreamName",
             value="raw-and-predicted-data",
-            export_name="FirehoseStreamName",
+            export_name=f"{project_name}-FirehoseStreamName",
         )
