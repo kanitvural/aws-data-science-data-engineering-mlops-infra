@@ -36,8 +36,7 @@ class LambdaStack(Stack):
         # Import Endpoint Name
         # ----------------------------------------------------------------------
     
-        # prod_endpoint_name = Fn.import_value("mlops-prod-endpoint-name")
-        prod_endpoint_name = "mlops-prod-endpoint"
+        prod_endpoint_name = Fn.import_value("mlops-prod-endpoint-name")
 
         # ----------------------------------------------------------------------
         # Lambda Roles
