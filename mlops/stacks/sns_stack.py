@@ -14,7 +14,7 @@ class SNSStack(Stack):
 
         self.topic = sns.Topic(
             self, "MLOpsNotificationTopic",
-            display_name="SageMaker Job Notifications",
+            display_name="MLOps Notifications",
         )
 
         self.topic.add_subscription(subs.EmailSubscription(notification_email))
