@@ -31,11 +31,11 @@ class LambdaStack(Stack):
         # Import DynamoDB Table
         # ----------------------------------------------------------------------
         raw_flights_table = dynamodb.Table.from_table_name(self, "RawFlightsTable", "raw-flights")
-        
+
         # ----------------------------------------------------------------------
         # Import Endpoint Name
         # ----------------------------------------------------------------------
-    
+
         # prod_endpoint_name = Fn.import_value("mlops-prod-endpoint-name")
         prod_endpoint_name = "mlops-prod-endpoint"
 
@@ -52,7 +52,10 @@ class LambdaStack(Stack):
         )
         preprocess_lambda_role.add_to_policy(
             iam.PolicyStatement(
-                actions=["kinesis:PutRecord", "kinesis:PutRecords"],
+                actions=[
+                    "kinesis:PutRecord",
+                    "kinesis:PutRecords",
+                ],
                 resources=[kinesis_processed_arn],
             )
         )
@@ -67,7 +70,10 @@ class LambdaStack(Stack):
         )
         inference_lambda_role.add_to_policy(
             iam.PolicyStatement(
-                actions=["kinesis:PutRecord", "kinesis:PutRecords"],
+                actions=[
+                    "kinesis:PutRecord",
+                    "kinesis:PutRecords",
+                ],
                 resources=[kinesis_predicted_arn],
             )
         )
@@ -77,7 +83,7 @@ class LambdaStack(Stack):
                 actions=[
                     "sagemaker:InvokeEndpoint",
                 ],
-                resources=["*"] 
+                resources=["*"],
             )
         )
 
@@ -99,9 +105,9 @@ class LambdaStack(Stack):
         # ----------------------------------------------------------------------
         # Lambda Functions
         # ----------------------------------------------------------------------
-        pandas_layer = lambda_.LayerVersion(
+        pre_pandas_layer = lambda_.LayerVersion(
             self,
-            "PandasLayer",
+            "PandasLayerPre",
             code=lambda_.Code.from_asset("project_app/lambda_funcs/preprocess_lambda/lambda_layer/lambda_layer.zip"),
             compatible_runtimes=[lambda_.Runtime.PYTHON_3_9],
             description="Layer with pandas for preprocess lambda",
@@ -114,7 +120,7 @@ class LambdaStack(Stack):
             handler="index.lambda_handler",
             code=lambda_.Code.from_asset("project_app/lambda_funcs/preprocess_lambda"),
             role=preprocess_lambda_role,
-            layers=[pandas_layer],
+            layers=[pre_pandas_layer],
             environment={
                 "REGION": self.region,
                 "KINESIS_PROCESSED_STREAM_NAME": kinesis_processed.stream_name,
@@ -128,6 +134,14 @@ class LambdaStack(Stack):
                 starting_position=lambda_.StartingPosition.TRIM_HORIZON,
             )
         )
+        
+        inf_pandas_layer = lambda_.LayerVersion(
+            self,
+            "PandasLayerInf",
+            code=lambda_.Code.from_asset("project_app/lambda_funcs/inference_lambda/lambda_layer/lambda_layer.zip"),
+            compatible_runtimes=[lambda_.Runtime.PYTHON_3_9],
+            description="Layer with pandas for preprocess lambda",
+        )
 
         inference_lambda = lambda_.Function(
             self,
@@ -136,6 +150,7 @@ class LambdaStack(Stack):
             handler="index.lambda_handler",
             code=lambda_.Code.from_asset("project_app/lambda_funcs/inference_lambda"),
             role=inference_lambda_role,
+            layers=[inf_pandas_layer],
             environment={
                 "REGION": self.region,
                 "ENDPOINT_NAME": prod_endpoint_name,
