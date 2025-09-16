@@ -97,7 +97,11 @@ class LambdaStack(Stack):
         )
         writer_lambda_role.add_to_policy(
             iam.PolicyStatement(
-                actions=["dynamodb:PutItem", "dynamodb:BatchWriteItem"],
+                actions=[
+                    "dynamodb:PutItem",
+                    "dynamodb:BatchWriteItem",
+                    "dynamodb:UpdateItem",
+                ],
                 resources=[raw_flights_table.table_arn],
             )
         )
@@ -134,7 +138,7 @@ class LambdaStack(Stack):
                 starting_position=lambda_.StartingPosition.TRIM_HORIZON,
             )
         )
-        
+
         inf_pandas_layer = lambda_.LayerVersion(
             self,
             "PandasLayerInf",
