@@ -10,26 +10,26 @@ from fastapi import FastAPI, Request, Response
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-MODEL_DIR = os.environ.get("SM_MODEL_DIR", "/opt/ml/model")
-MODEL_TAR_PATH = os.path.join(MODEL_DIR, "model.tar.gz")
-MODEL_PATH = os.path.join(MODEL_DIR, "xgboost-model.json")
+model_dir = os.environ.get("SM_MODEL_DIR", "/opt/ml/model")
+model_tar_path = os.path.join(model_dir, "model.tar.gz")
+model_path = os.path.join(model_dir, "xgboost-model.json")
 
 model = None
 
 def load_xgb_model():
     global model
     if model is None:
-        if os.path.exists(MODEL_TAR_PATH) and not os.path.exists(MODEL_PATH):
-            with tarfile.open(MODEL_TAR_PATH, "r:gz") as tar:
-                tar.extractall(path=MODEL_DIR)
+        if os.path.exists(model_tar_path) and not os.path.exists(model_path):
+            with tarfile.open(model_tar_path, "r:gz") as tar:
+                tar.extractall(path=model_dir)
             logger.info("Model extracted")
 
-        if os.path.exists(MODEL_PATH):
+        if os.path.exists(model_path):
             model = xgb.Booster()
-            model.load_model(MODEL_PATH)
+            model.load_model(model_path)
             logger.info("Model loaded")
         else:
-            logger.error(f"Model file not found: {MODEL_PATH}")
+            logger.error(f"Model file not found: {model_path}")
             return None
     return model
 
