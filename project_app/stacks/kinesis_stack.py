@@ -20,7 +20,8 @@ class KinesisStack(Stack):
         super().__init__(scope, id, **kwargs)
 
         # ✅ Import MLOps S3 bucket (Firehose target)
-        mlops_bucket_name = Fn.import_value("MLOpsBucketName")
+        # mlops_bucket_name = Fn.import_value("MLOpsBucketName")
+        mlops_bucket_name = "mlops-bucket-058264126563"
 
         data_bucket = s3.Bucket.from_bucket_name(
             self, "ImportedMLOpsBucket", mlops_bucket_name
