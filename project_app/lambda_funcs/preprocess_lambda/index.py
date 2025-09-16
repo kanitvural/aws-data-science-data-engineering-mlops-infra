@@ -16,10 +16,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-REGION = os.environ["REGION"]
-PROCESSED_STREAM = os.environ["KINESIS_PROCESSED_STREAM_NAME"]
+region = os.environ["REGION"]
+processed_stream = os.environ["KINESIS_PROCESSED_STREAM_NAME"]
 
-kinesis_client = boto3.client('kinesis', region_name= REGION)
+kinesis_client = boto3.client('kinesis', region_name= region)
 
 def feature_engineering(df):
     logging.info("Starting feature engineering...")
@@ -90,7 +90,7 @@ def lambda_handler(event, context):
     
     for _, row in df_processed.iterrows():
         kinesis_client.put_record(
-            StreamName=PROCESSED_STREAM,
+            StreamName=processed_stream,
             Data=json.dumps(row.to_dict()),
             PartitionKey=str(row.get("flight", "0"))
         )
