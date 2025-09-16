@@ -486,6 +486,7 @@ class CDKMLOpsPipelineStack(Stack):
             commands=[
                 "echo '🔧 Starting SageMaker Model Monitoring...'",
                 "pip install --upgrade pip boto3 pandas",
+                "pip install fsspec s3fs",
                 "python mlops/scripts/prepare_retrain_data_and_send_to_ds_bucket.py",
             ],
             env={
