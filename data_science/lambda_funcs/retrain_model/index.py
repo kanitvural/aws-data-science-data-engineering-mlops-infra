@@ -8,9 +8,9 @@ from datetime import datetime
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-REGION = os.environ["REGION"]
-PIPELINE_NAME = os.environ["PIPELINE_NAME"]
-SNS_TOPIC_ARN = os.environ["SNS_TOPIC_ARN"]
+region = os.environ["REGION"]
+pipeline_name = os.environ["PIPELINE_NAME"]
+sns_topic_arn = os.environ["SNS_TOPIC_ARN"]
 
 
 def lambda_handler(event, context):
@@ -56,7 +56,7 @@ def lambda_handler(event, context):
 def send_notification_email(bucket, key):
     """Send notification email to data science team"""
     try:
-        sns = boto3.client('sns', region_name=REGION)
+        sns = boto3.client('sns', region_name=region)
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")
         
         subject = "MLOps Alert: Model Retraining Pipeline Triggered"
@@ -78,7 +78,7 @@ AUTOMATIC ACTIONS TAKEN:
 - Retraining pipeline automatically triggered
 
 PIPELINE DETAILS:
-- Pipeline: {PIPELINE_NAME}
+- Pipeline: {pipeline_name}
 - Status: Starting retraining process
 - Expected completion: 30-45 minutes
 
@@ -96,7 +96,7 @@ MLOps Automation System
         """
         
         response = sns.publish(
-            TopicArn=SNS_TOPIC_ARN,
+            TopicArn=sns_topic_arn,
             Subject=subject,
             Message=message
         )
@@ -110,17 +110,17 @@ MLOps Automation System
 def trigger_pipeline():
     """Trigger the data science pipeline"""
     try:
-        codepipeline = boto3.client('codepipeline', region_name=REGION)
+        codepipeline = boto3.client('codepipeline', region_name=region)
         
         response = codepipeline.start_pipeline_execution(
-            name=PIPELINE_NAME
+            name=pipeline_name
         )
         
         execution_id = response['pipelineExecutionId']
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")
         
         logger.info(f"Pipeline triggered successfully!")
-        logger.info(f"   - Pipeline: {PIPELINE_NAME}")
+        logger.info(f"   - Pipeline: {pipeline_name}")
         logger.info(f"   - Execution ID: {execution_id}")
         logger.info(f"   - Timestamp: {timestamp}")
         

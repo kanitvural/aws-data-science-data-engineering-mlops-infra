@@ -28,28 +28,27 @@ def get_sns_topic_arn():
             return output['OutputValue']
 
 # Environment Variables
-PROJECT_NAME = os.environ["PROJECT_NAME"]
-INPUT_DATA = os.environ["INPUT_DATA"]
-AWS_DEFAULT_REGION = os.environ["AWS_DEFAULT_REGION"]
-ECR_REPOSITORY_URI = os.environ["ECR_REPOSITORY_URI"]
-S3_BUCKET_NAME = os.environ["S3_BUCKET_NAME"]
-SNS_TOPIC_ARN = get_sns_topic_arn()
-PROCESSING_INSTANCE_COUNT = int(os.environ["PROCESSING_INSTANCE_COUNT"])
-PROCESSING_INSTANCE_TYPE = os.environ["PROCESSING_INSTANCE_TYPE"]
-TRAINING_INSTANCE_COUNT = int(os.environ["TRAINING_INSTANCE_COUNT"])
-TRAINING_INSTANCE_TYPE = os.environ["TRAINING_INSTANCE_TYPE"]
-CLARIFY_INSTANCE_COUNT = int(os.environ["CLARIFY_INSTANCE_COUNT"])
-CLARIFY_INSTANCE_TYPE = os.environ["CLARIFY_INSTANCE_TYPE"]
-RMSE_THRESHOLD = float(os.environ["RMSE_THRESHOLD"])
-MAX_JOBS = int(os.environ["MAX_JOBS"])
-MAX_PARALLEL_JOBS = int(os.environ["MAX_PARALLEL_JOBS"])
+project_name = os.environ["PROJECT_NAME"]
+input_data = os.environ["INPUT_DATA"]
+aws_default_region = os.environ["AWS_DEFAULT_REGION"]
+ecr_repository_uri = os.environ["ECR_REPOSITORY_URI"]
+s3_bucket_name = os.environ["S3_BUCKET_NAME"]
+sns_topic_arn_value = get_sns_topic_arn()
+processing_instance_count_value = int(os.environ["PROCESSING_INSTANCE_COUNT"])
+processing_instance_type_value = os.environ["PROCESSING_INSTANCE_TYPE"]
+training_instance_count_value = int(os.environ["TRAINING_INSTANCE_COUNT"])
+training_instance_type_value = os.environ["TRAINING_INSTANCE_TYPE"]
+clarify_instance_count_value = int(os.environ["CLARIFY_INSTANCE_COUNT"])
+clarify_instance_type_value = os.environ["CLARIFY_INSTANCE_TYPE"]
+rmse_threshold_value = float(os.environ["RMSE_THRESHOLD"])
+max_jobs_value = int(os.environ["MAX_JOBS"])
+max_parallel_jobs_value = int(os.environ["MAX_PARALLEL_JOBS"])
 
-input_data = INPUT_DATA
-data_science_bucket = S3_BUCKET_NAME
-region = AWS_DEFAULT_REGION
-pipeline_name = f"{PROJECT_NAME}-sagemaker-train-pipeline"
-base_job_prefix = f"{PROJECT_NAME}-flights-data"
-image_uri = ECR_REPOSITORY_URI
+data_science_bucket = s3_bucket_name
+region = aws_default_region
+pipeline_name = f"{project_name}-sagemaker-train-pipeline"
+base_job_prefix = f"{project_name}-flights-data"
+image_uri = ecr_repository_uri
 timestamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
 
 # Sessions
@@ -60,19 +59,20 @@ pipeline_session = PipelineSession(boto_session=boto_session, default_bucket=dat
 role = os.environ["SAGEMAKER_EXECUTION_ROLE_ARN"]
 
 # Sagemaker Pipeline Parameters
-processing_instance_count = ParameterInteger(name="ProcessingInstanceCount", default_value=PROCESSING_INSTANCE_COUNT)
-processing_instance_type = ParameterString(name="ProcessingInstanceType", default_value=PROCESSING_INSTANCE_TYPE)
-training_instance_count = ParameterInteger(name="TrainingInstanceCount", default_value=TRAINING_INSTANCE_COUNT)
-training_instance_type = ParameterString(name="TrainingInstanceType", default_value=TRAINING_INSTANCE_TYPE)
-clarify_instance_count = ParameterInteger(name="ClarifyInstanceCount", default_value=CLARIFY_INSTANCE_COUNT)
-clarify_instance_type = ParameterString(name="ClarifyInstanceType", default_value=CLARIFY_INSTANCE_TYPE)
+processing_instance_count = ParameterInteger(name="ProcessingInstanceCount", default_value=processing_instance_count_value)
+processing_instance_type = ParameterString(name="ProcessingInstanceType", default_value=processing_instance_type_value)
+training_instance_count = ParameterInteger(name="TrainingInstanceCount", default_value=training_instance_count_value)
+training_instance_type = ParameterString(name="TrainingInstanceType", default_value=training_instance_type_value)
+clarify_instance_count = ParameterInteger(name="ClarifyInstanceCount", default_value=clarify_instance_count_value)
+clarify_instance_type = ParameterString(name="ClarifyInstanceType", default_value=clarify_instance_type_value)
 
 # Hyperparameter Tuning Parameters
-rmse_threshold = ParameterFloat(name="RMSEThreshold", default_value=RMSE_THRESHOLD)
-max_jobs = ParameterInteger(name="MaxJobs", default_value=MAX_JOBS)
-max_parallel_jobs = ParameterInteger(name="MaxParallelJobs", default_value=MAX_PARALLEL_JOBS)
+rmse_threshold = ParameterFloat(name="RMSEThreshold", default_value=rmse_threshold_value)
+max_jobs = ParameterInteger(name="MaxJobs", default_value=max_jobs_value)
+max_parallel_jobs = ParameterInteger(name="MaxParallelJobs", default_value=max_parallel_jobs_value)
 
-sns_topic_arn = ParameterString(name="SnsTopicArn",default_value=SNS_TOPIC_ARN)
+sns_topic_arn = ParameterString(name="SnsTopicArn", default_value=sns_topic_arn_value)
+
 
 # -------------------------------------------
 # Step-1: Clarify Pre Training Bias Analysis
