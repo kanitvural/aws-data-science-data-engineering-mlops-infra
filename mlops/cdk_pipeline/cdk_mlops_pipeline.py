@@ -58,7 +58,7 @@ class CDKMLOpsPipelineStack(Stack):
         monitor_name = "flight-delay-dataquality-monitor"
         prod_endpoint_name = f"{project_name}-prod-endpoint"
         sagemaker_role_arn = Fn.import_value(f"{project_name}-sagemaker-execution-role-arn")
-        mlops_bucket = Fn.import_value("MLOpsBucketName")
+        mlops_bucket = f"{project_name}-bucket-{self.account}"
         monitoring_output_path = f"s3://{mlops_bucket}/monitoring-results/"
         baseline_constraints_uri = f"s3://{mlops_bucket}/baseline_report/constraints.json"
         baseline_statistics_uri = f"s3://{mlops_bucket}/baseline_report/statistics.json"
