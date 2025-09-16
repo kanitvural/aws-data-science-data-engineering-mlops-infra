@@ -9,19 +9,20 @@ import logging
 import sys
 import tarfile
 
-BASE_DIR = "/opt/ml/processing"
-MODEL_NAME = "xgboost-model.json"
-MODEL_TAR_NAME = "model.tar.gz"
+base_dir = "/opt/ml/processing"
+model_name = "xgboost-model.json"
+model_tar_name = "model.tar.gz"
 
-MODEL_DIR = os.path.join(BASE_DIR, "model")
-MODEL_TAR_PATH = os.path.join(MODEL_DIR, MODEL_TAR_NAME)
-MODEL_PATH = os.path.join(MODEL_DIR, MODEL_NAME)
+model_dir = os.path.join(base_dir, "model")
+model_tar_path = os.path.join(model_dir, model_tar_name)
+model_path = os.path.join(model_dir, model_name)
 
-TEST_DIR = os.path.join(BASE_DIR, "test")
-TEST_PATH = os.path.join(TEST_DIR, "test.csv")
+test_dir = os.path.join(base_dir, "test")
+test_path = os.path.join(test_dir, "test.csv")
 
-OUTPUT_DIR = os.path.join(BASE_DIR, "evaluation")
-OUTPUT_PATH = os.path.join(OUTPUT_DIR, "evaluation.json")
+output_dir = os.path.join(base_dir, "evaluation")
+output_path = os.path.join(output_dir, "evaluation.json")
+
 
 logging.basicConfig(
     level=logging.INFO, format="[%(asctime)s] %(levelname)s: %(message)s", handlers=[logging.StreamHandler(sys.stdout)]
@@ -30,12 +31,12 @@ logging.basicConfig(
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--output-dir", type=str, default=OUTPUT_DIR)
-    parser.add_argument("--model-dir", type=str, default=MODEL_DIR)
-    parser.add_argument("--model-path", type=str, default=MODEL_PATH)
-    parser.add_argument("--model-tar-path", type=str, default=MODEL_TAR_PATH)
-    parser.add_argument("--test-path", type=str, default=TEST_PATH)
-    parser.add_argument("--output-path", type=str, default=OUTPUT_PATH)
+    parser.add_argument("--output-dir", type=str, default=output_dir)
+    parser.add_argument("--model-dir", type=str, default=model_dir)
+    parser.add_argument("--model-path", type=str, default=model_path)
+    parser.add_argument("--model-tar-path", type=str, default=model_tar_path)
+    parser.add_argument("--test-path", type=str, default=test_path)
+    parser.add_argument("--output-path", type=str, default=output_path)
     return parser.parse_known_args()
 
 

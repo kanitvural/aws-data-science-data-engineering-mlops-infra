@@ -7,27 +7,29 @@ import argparse
 from sklearn.model_selection import train_test_split
 
 
-BASE_DIR = "/opt/ml/processing"
-INPUT_DIR = os.path.join(BASE_DIR, "input")
-OUTPUT_DIR = os.path.join(BASE_DIR, "output")
-TRAIN_DIR = os.path.join(OUTPUT_DIR, "train")
-VALIDATION_DIR = os.path.join(OUTPUT_DIR, "validation")
-TEST_DIR = os.path.join(OUTPUT_DIR, "test")
+base_dir = "/opt/ml/processing"
+
+input_dir = os.path.join(base_dir, "input")
+output_dir = os.path.join(base_dir, "output")
+train_dir = os.path.join(output_dir, "train")
+validation_dir = os.path.join(output_dir, "validation")
+test_dir = os.path.join(output_dir, "test")
+
 # Combined dataset directory for final training job
-COMBINED_DIR = os.path.join(OUTPUT_DIR, "combined")
+combined_dir = os.path.join(output_dir, "combined")
 # Baseline dataset directory for sagemaker model monitoring
-BASELINE_DIR = os.path.join(OUTPUT_DIR, "baseline")
+baseline_dir = os.path.join(output_dir, "baseline")
 # Raw drift test data directory
-DRIFT_DIR = os.path.join(OUTPUT_DIR, "drift")
+drift_dir = os.path.join(output_dir, "drift")
 
+input_path = os.path.join(input_dir, "flights_sample.csv")
+train_path = os.path.join(train_dir, "train.csv")
+validation_path = os.path.join(validation_dir, "validation.csv")
+test_path = os.path.join(test_dir, "test.csv")
+combined_path = os.path.join(combined_dir, "train.csv")
+baseline_path = os.path.join(baseline_dir, "baseline.csv")
+drift_raw_path = os.path.join(drift_dir, "raw_test_data_for_model_drift.csv")
 
-INPUT_PATH = os.path.join(INPUT_DIR, "flights_sample.csv")
-TRAIN_PATH = os.path.join(TRAIN_DIR, "train.csv")
-VALIDATION_PATH = os.path.join(VALIDATION_DIR, "validation.csv")
-TEST_PATH = os.path.join(TEST_DIR, "test.csv")
-COMBINED_PATH = os.path.join(COMBINED_DIR, "train.csv")
-BASELINE_PATH = os.path.join(BASELINE_DIR, "baseline.csv")
-DRIFT_RAW_PATH = os.path.join(DRIFT_DIR, "raw_test_data_for_model_drift.csv")
 
 logging.basicConfig(
     level=logging.INFO, format="[%(asctime)s] %(levelname)s: %(message)s", handlers=[logging.StreamHandler(sys.stdout)]
@@ -35,14 +37,14 @@ logging.basicConfig(
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--output-dir", type=str, default=OUTPUT_DIR)
-    parser.add_argument("--input-path", type=str, default=INPUT_PATH)
-    parser.add_argument("--train-path", type=str, default=TRAIN_PATH)
-    parser.add_argument("--validation-path", type=str, default=VALIDATION_PATH)
-    parser.add_argument("--test-path", type=str, default=TEST_PATH)
-    parser.add_argument("--combined-path", type=str, default=COMBINED_PATH)
-    parser.add_argument("--baseline-path", type=str, default=BASELINE_PATH)
-    parser.add_argument("--drift-raw-path", type=str, default=DRIFT_RAW_PATH)
+    parser.add_argument("--output-dir", type=str, default=output_dir)
+    parser.add_argument("--input-path", type=str, default=input_path)
+    parser.add_argument("--train-path", type=str, default=train_path)
+    parser.add_argument("--validation-path", type=str, default=validation_path)
+    parser.add_argument("--test-path", type=str, default=test_path)
+    parser.add_argument("--combined-path", type=str, default=combined_path)
+    parser.add_argument("--baseline-path", type=str, default=baseline_path)
+    parser.add_argument("--drift-raw-path", type=str, default=drift_raw_path)
 
     return parser.parse_known_args()
 

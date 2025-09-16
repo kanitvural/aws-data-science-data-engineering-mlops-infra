@@ -23,12 +23,13 @@ pd.set_option('display.precision', 6)
 pd.options.display.float_format = '{:.6f}'.format
 
 # Environment variables
-GLUE_DB_NAME = os.environ["GLUE_DB_NAME"]
-GLUE_TABLE_NAME = os.environ["GLUE_TABLE_NAME"]
-ATHENA_OUTPUT_BUCKET_NAME = os.environ["ATHENA_OUTPUT_BUCKET_NAME"]
-DEST_BUCKET_NAME = os.environ["DEST_BUCKET_NAME"]
-REGION = os.environ["REGION"]
-RETRAIN_DATA_PATH = os.environ["RETRAIN_DATA_PATH"]
+glue_db_name = os.environ["GLUE_DB_NAME"]
+glue_table_name = os.environ["GLUE_TABLE_NAME"]
+athena_output_bucket_name = os.environ["ATHENA_OUTPUT_BUCKET_NAME"]
+dest_bucket_name = os.environ["DEST_BUCKET_NAME"]
+region = os.environ["REGION"]
+retrain_data_path = os.environ["RETRAIN_DATA_PATH"]
+
 
 # SQL Query for sampling 
 QUERY = f"""
@@ -36,7 +37,7 @@ WITH numbered_rows AS (
   SELECT *,
          ROW_NUMBER() OVER (PARTITION BY airline, route ORDER BY RAND()) AS row_num,
          COUNT(*) OVER (PARTITION BY airline, route) AS group_size
-  FROM {GLUE_DB_NAME}.{GLUE_TABLE_NAME}
+  FROM {glue_db_name}.{glue_table_name}
 )
 SELECT year, month, day, dep_time, sched_dep_time, dep_delay,
        arr_time, sched_arr_time, arr_delay, carrier, flight,
@@ -83,15 +84,15 @@ def get_athena_sample():
     logger.info("Getting Athena sample data")
     
     # Clients
-    athena = boto3.client("athena", region_name=REGION)
-    s3 = boto3.client("s3", region_name=REGION)
+    athena = boto3.client("athena", region_name=region)
+    s3 = boto3.client("s3", region_name=region)
     
     # 1. Start Athena query execution
     logger.info("Starting Athena query execution")
     response = athena.start_query_execution(
         QueryString=QUERY,
-        QueryExecutionContext={"Database": GLUE_DB_NAME},
-        ResultConfiguration={"OutputLocation": ATHENA_OUTPUT_BUCKET_NAME},
+        QueryExecutionContext={"Database": glue_db_name},
+        ResultConfiguration={"OutputLocation": athena_output_bucket_name},
         WorkGroup="primary"
     )
     query_id = response["QueryExecutionId"]
@@ -124,7 +125,7 @@ def get_athena_sample():
         time.sleep(5)
 
     # 3. Download query result CSV from S3
-    bucket = ATHENA_OUTPUT_BUCKET_NAME.split("/")[2]
+    bucket = athena_output_bucket_name.split("/")[2]
     key = f"query-results/{query_id}.csv"
     
     logger.info(f"Downloading query result from s3://{bucket}/{key}")
@@ -144,16 +145,16 @@ def get_athena_sample():
 def main():
     try:
         logger.info("Starting Athena data sampling process")
-        logger.info(f"Database: {GLUE_DB_NAME}, Table: {GLUE_TABLE_NAME}")
+        logger.info(f"Database: {glue_db_name}, Table: {glue_table_name}")
         
-        s3 = boto3.client("s3", region_name=REGION)
+        s3 = boto3.client("s3", region_name=region)
         
         # Parse destination bucket info
-        dest_bucket = DEST_BUCKET_NAME.split("/")[2]
-        dest_key = "/".join(DEST_BUCKET_NAME.split("/")[3:])
+        dest_bucket = dest_bucket_name.split("/")[2]
+        dest_key = "/".join(dest_bucket_name.split("/")[3:])
         
         # Check if retrain data exists
-        retrain_exists = check_retrain_data_exists(s3, dest_bucket, RETRAIN_DATA_PATH)
+        retrain_exists = check_retrain_data_exists(s3, dest_bucket, retrain_data_path)
         
         if retrain_exists:
             logger.info("🔄 RETRAIN MODE: Found retrain data, combining with Athena sample")
@@ -163,7 +164,7 @@ def main():
                 athena_df = get_athena_sample()
                 
                 # 2. Load and clean retrain data
-                retrain_df = load_retrain_csv(s3, dest_bucket, RETRAIN_DATA_PATH)
+                retrain_df = load_retrain_csv(s3, dest_bucket, retrain_data_path)
                 
                 # 3. Combine and shuffle
                 logger.info("Combining Athena sample with retrain data")
@@ -175,7 +176,7 @@ def main():
                 logger.info(f"  - Retrain data: {len(retrain_df)} rows")
                 
                 # 4. Cleanup retrain file
-                delete_retrain_file(s3, dest_bucket, RETRAIN_DATA_PATH)
+                delete_retrain_file(s3, dest_bucket, retrain_data_path)
                 
             except Exception as e:
                 logger.error(f"Error in retrain logic: {e}")

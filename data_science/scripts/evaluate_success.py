@@ -6,17 +6,18 @@ import argparse
 import sys
 import json
 
-BASE_DIR = "/opt/ml/processing"
+base_dir = "/opt/ml/processing"
 
-INPUT_MODEL_DIR = os.path.join(BASE_DIR, "input", "model")
-INPUT_EVALUATION_DIR = os.path.join(BASE_DIR, "input", "evaluation")
-OUTPUT_MODEL_DIR = os.path.join(BASE_DIR, "output", "model")
+input_model_dir = os.path.join(base_dir, "input", "model")
+input_evaluation_dir = os.path.join(base_dir, "input", "evaluation")
+output_model_dir = os.path.join(base_dir, "output", "model")
 
-AWS_REGION = os.environ.get("AWS_REGION", "eu-central-1")
-SNS_TOPIC_ARN = os.environ.get("SNS_TOPIC_ARN", "")
-OUTPUT_MODEL_S3_DIR = os.environ.get("OUTPUT_MODEL_S3_DIR", "")
-RMSE_THRESHOLD = float(os.environ.get("RMSE_THRESHOLD", "9"))
-PROJECT_NAME = os.environ.get("PROJECT_NAME", "data-science")
+region = os.environ.get("AWS_REGION", "eu-central-1")
+sns_topic_arn = os.environ.get("SNS_TOPIC_ARN", "")
+output_model_s3_dir = os.environ.get("OUTPUT_MODEL_S3_DIR", "")
+rmse_threshold = float(os.environ.get("RMSE_THRESHOLD", "9"))
+project_name = os.environ.get("PROJECT_NAME", "data-science")
+
 
 logging.basicConfig(
     level=logging.INFO, format="[%(asctime)s] %(levelname)s: %(message)s", handlers=[logging.StreamHandler(sys.stdout)]
@@ -24,7 +25,7 @@ logging.basicConfig(
 
 
 def load_evaluation_results():
-    evaluation_file = os.path.join(INPUT_EVALUATION_DIR, "evaluation.json")
+    evaluation_file = os.path.join(input_evaluation_dir, "evaluation.json")
 
     if not os.path.exists(evaluation_file):
         logging.error(f"Evaluation file not found: {evaluation_file}")
@@ -48,14 +49,14 @@ def load_evaluation_results():
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input-model-dir", type=str, default=INPUT_MODEL_DIR)
-    parser.add_argument("--input-evaluation-dir", type=str, default=INPUT_EVALUATION_DIR)
-    parser.add_argument("--output-model-dir", type=str, default=OUTPUT_MODEL_DIR)
-    parser.add_argument("--sns-topic-arn", type=str, default=SNS_TOPIC_ARN)
-    parser.add_argument("--region", type=str, default=AWS_REGION)
-    parser.add_argument("--output-model-s3-dir", type=str, default=OUTPUT_MODEL_S3_DIR)
-    parser.add_argument("--rmse-threshold", type=float, default=RMSE_THRESHOLD)
-    parser.add_argument("--project-name", type=str, default=PROJECT_NAME)
+    parser.add_argument("--input-model-dir", type=str, default=input_model_dir)
+    parser.add_argument("--input-evaluation-dir", type=str, default=input_evaluation_dir)
+    parser.add_argument("--output-model-dir", type=str, default=output_model_dir)
+    parser.add_argument("--sns-topic-arn", type=str, default=sns_topic_arn)
+    parser.add_argument("--region", type=str, default=region)
+    parser.add_argument("--output-model-s3-dir", type=str, default=output_model_s3_dir)
+    parser.add_argument("--rmse-threshold", type=float, default=rmse_threshold)
+    parser.add_argument("--project-name", type=str, default=project_name)
     return parser.parse_known_args()
 
 
