@@ -16,12 +16,11 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 region = os.environ["REGION"]
-raw_table = os.environ["TABLE_NAME"]
-
+table_name = os.environ["TABLE_NAME"]  
 dynamodb = boto3.resource('dynamodb', region_name=region)
 
 def lambda_handler(event, context):
-    raw_table = dynamodb.Table(raw_table)
+    raw_table = dynamodb.Table(table_name) 
     
     for record in event["Records"]:
         
