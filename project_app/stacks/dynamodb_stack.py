@@ -20,7 +20,11 @@ class DynamoDBStack(Stack):
             table_name="raw-flights",
             partition_key=dynamodb.Attribute(
                 name="id",
-                type=dynamodb.AttributeType.STRING
+                type=dynamodb.AttributeType.STRING,
+            ),
+            sort_key=dynamodb.Attribute(
+                name="timestamp",
+                type=dynamodb.AttributeType.NUMBER,
             ),
             billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,  # On-demand
             removal_policy=RemovalPolicy.DESTROY,

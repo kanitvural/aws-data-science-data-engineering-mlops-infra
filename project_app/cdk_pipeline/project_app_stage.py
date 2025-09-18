@@ -6,6 +6,7 @@ from project_app.stacks.ec2_stack import EC2Stack
 from project_app.stacks.lambda_stack import LambdaStack
 from project_app.stacks.sns_stack import SNSStack
 from project_app.stacks.dynamodb_stack import DynamoDBStack
+from project_app.stacks.backend_stack import BackendStack
 
 
 class AppPipelineStage(Stage):
@@ -48,9 +49,16 @@ class AppPipelineStage(Stage):
             id="LambdaInfrastructure",
             project_name=project_name
         )
+        
+        backend_stack = BackendStack(
+            self,
+            id="BackendInfrastructure",
+            project_name=project_name
+        )
 
         # Dependencies
-        dynamodb_stack.add_dependency(sns_stack)       
+        dynamodb_stack.add_dependency(sns_stack) 
+        backend_stack.add_dependency(dynamodb_stack)      
         kinesis_stack.add_dependency(dynamodb_stack)  
         lambda_stack.add_dependency(kinesis_stack)    
         s3_stack.add_dependency(lambda_stack)         
