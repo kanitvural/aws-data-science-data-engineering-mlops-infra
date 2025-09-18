@@ -172,7 +172,7 @@ class DataSimulator:
             "date": str(row['date']) if pd.notna(row['date']) else None,
             "date_string": str(row['date_string']) if pd.notna(row['date_string']) else None,
             "dep_delay": None,
-            "timestamp": str(datetime.utcnow())
+            "timestamp": int(datetime.utcnow().timestamp())
         }}
 
     def send_to_kinesis(self, event):
