@@ -28,7 +28,7 @@ class DynamoDBStack(Stack):
             ),
             billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,  # On-demand
             removal_policy=RemovalPolicy.DESTROY,
-            stream=dynamodb.StreamViewType.NEW_IMAGE,
+            stream=dynamodb.StreamViewType.NEW_AND_OLD_IMAGES,
         )
         
         # ----------------------------------------------------------------------
