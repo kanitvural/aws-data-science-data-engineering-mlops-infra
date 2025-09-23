@@ -229,7 +229,7 @@ class LambdaStack(Stack):
             self,
             "FlightStreamHandlerLambda",
             runtime=lambda_.Runtime.PYTHON_3_9,
-            handler="flight_stream_handler.index.lambda_handler",
+            handler="index.lambda_handler",
             code=lambda_.Code.from_asset("project_app/lambda_funcs/flight_dynamodb_stream_handler"),
             role=flight_stream_handler_lambda_role,
             environment={
