@@ -227,15 +227,15 @@ class LambdaStack(Stack):
 
         flight_stream_handler_lambda = lambda_.Function(
             self,
-            "FlightStreamHandlerLambda",
+            "FlightStreamLambda",
             runtime=lambda_.Runtime.PYTHON_3_9,
             handler="index.lambda_handler",
-            code=lambda_.Code.from_asset("project_app/lambda_funcs/flight_dynamodb_stream_handler"),
+            code=lambda_.Code.from_asset("project_app/lambda_funcs/flight_dynamodb_stream_lambda"),
             role=flight_stream_handler_lambda_role,
             environment={
                 "TABLE_NAME": websocket_table.table_name,
                 "REGION": self.region,
-                "API_GATEWAY_WOBSOCKET_ENDPOINT": api_gateway_websocket_endpoint
+                "API_GATEWAY_WEBSOCKET_ENDPOINT": api_gateway_websocket_endpoint
             },
         )
         flight_stream_handler_lambda.add_event_source(

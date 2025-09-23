@@ -1,7 +1,9 @@
+import os
 import json
 import boto3
 import logging
 import sys
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -10,11 +12,15 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+api_endpoint = os.environ["API_GATEWAY_WEBSOCKET_ENDPOINT"]  
+region = os.environ["REGION"]
+table_name = os.environ["TABLE_NAME"]
+
 def lambda_handler(event, context):
     # WebSocket API endpoint
     apigateway = boto3.client(
         "apigatewaymanagementapi",
-        endpoint_url="https://dit8spfe8a.execute-api.eu-central-1.amazonaws.com/production",
+        endpoint_url=api_endpoint,
     )
 
     for record in event["Records"]:
@@ -75,8 +81,8 @@ def deserialize_dynamodb_json(item):
 
 def send_to_all_connections(apigateway, message):
     # Fetch connections from DynamoDB instead of using fixed ID
-    dynamodb = boto3.resource("dynamodb", region_name="eu-central-1")
-    table = dynamodb.Table("websocket-connections")
+    dynamodb = boto3.resource("dynamodb", region_name=region)
+    table = dynamodb.Table(table_name)
 
     response = table.scan()
     connections = response["Items"]
