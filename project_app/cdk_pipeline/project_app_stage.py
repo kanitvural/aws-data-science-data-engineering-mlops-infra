@@ -6,7 +6,8 @@ from project_app.stacks.ec2_stack import EC2Stack
 from project_app.stacks.lambda_stack import LambdaStack
 from project_app.stacks.sns_stack import SNSStack
 from project_app.stacks.dynamodb_stack import DynamoDBStack
-from project_app.stacks.backend_stack import BackendStack
+from project_app.stacks.api_gateway_rest_stack import ApiGatewayRestStack
+from project_app.stacks.api_gateway_websocket_stack import ApiGatewayWebSocketStack
 
 
 class AppPipelineStage(Stage):
@@ -50,16 +51,23 @@ class AppPipelineStage(Stage):
             project_name=project_name
         )
         
-        backend_stack = BackendStack(
+        api_gateway_rest_stack = ApiGatewayRestStack(
             self,
-            id="BackendInfrastructure",
+            id="ApiGatewayRestInfrastructure",
+            project_name=project_name
+        )
+        
+        api_gateway_websocket_stack = ApiGatewayWebSocketStack(
+            self,
+            id="ApiGatewayWebSocketInfrastructure",
             project_name=project_name
         )
 
         # Dependencies
         dynamodb_stack.add_dependency(sns_stack) 
-        backend_stack.add_dependency(dynamodb_stack)      
-        kinesis_stack.add_dependency(dynamodb_stack)  
+        api_gateway_rest_stack.add_dependency(dynamodb_stack)
+        api_gateway_websocket_stack.add_dependency(api_gateway_rest_stack)   
+        kinesis_stack.add_dependency(api_gateway_websocket_stack)  
         lambda_stack.add_dependency(kinesis_stack)    
         s3_stack.add_dependency(lambda_stack)         
         ec2_stack.add_dependency(s3_stack)    

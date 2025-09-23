@@ -30,7 +30,15 @@ class LambdaStack(Stack):
         # ----------------------------------------------------------------------
         # Import DynamoDB Table
         # ----------------------------------------------------------------------
-        raw_flights_table = dynamodb.Table.from_table_name(self, "RawFlightsTable", "raw-flights")
+        raw_flights_table_name = Fn.import_value(f"{project_name}-raw-flights-table-name")
+        raw_flights_table = dynamodb.Table.from_table_name(
+            self, "RawFlightsTable", raw_flights_table_name
+        )
+        
+        websocket_table_name = Fn.import_value(f"{project_name}-websocket-connections-table-name")
+        websocket_table = dynamodb.Table.from_table_name(
+            self, "WebsocketConnectionsTable", websocket_table_name
+        )
 
         # ----------------------------------------------------------------------
         # Import Endpoint Name
@@ -103,6 +111,34 @@ class LambdaStack(Stack):
                     "dynamodb:UpdateItem",
                 ],
                 resources=[raw_flights_table.table_arn],
+            )
+        )
+        
+        flight_stream_handler_lambda_role = iam.Role(
+            self,
+            "FlightStreamHandlerLambdaRole",
+            assumed_by=iam.ServicePrincipal("lambda.amazonaws.com"),
+            managed_policies=[
+                iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AWSLambdaBasicExecutionRole")
+            ],
+        )
+        flight_stream_handler_lambda_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "dynamodb:PutItem",
+                    "dynamodb:DeleteItem",
+                    "dynamodb:GetItem",
+                    "dynamodb:Scan",
+                    "dynamodb:Query",   
+                    "dynamodb:UpdateItem"
+                ],
+                resources=[websocket_table.table_arn],
+            )
+        )
+        flight_stream_handler_lambda_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=["execute-api:ManageConnections"],
+                resources=["*"],
             )
         )
 
@@ -184,6 +220,30 @@ class LambdaStack(Stack):
         writer_lambda.add_event_source(
             event_sources.KinesisEventSource(
                 kinesis_predicted, batch_size=10, starting_position=lambda_.StartingPosition.TRIM_HORIZON
+            )
+        )
+        
+        api_gateway_websocket_endpoint = Fn.import_value(f"{project_name}-FlightsWebSocketEndpoint")
+
+        flight_stream_handler_lambda = lambda_.Function(
+            self,
+            "FlightStreamHandlerLambda",
+            runtime=lambda_.Runtime.PYTHON_3_9,
+            handler="index.lambda_handler",
+            code=lambda_.Code.from_asset("project_app/lambda_funcs/api_gateway_websocket_lambdas/flight_stream_handler"),
+            role=flight_stream_handler_lambda_role,
+            environment={
+                "TABLE_NAME": websocket_table.table_name,
+                "REGION": self.region,
+                "API_GATEWAY_WOBSOCKET_ENDPOINT": api_gateway_websocket_endpoint
+            },
+        )
+        flight_stream_handler_lambda.add_event_source(
+            event_sources.DynamoEventSource(
+                raw_flights_table,
+                starting_position=lambda_.StartingPosition.TRIM_HORIZON,
+                batch_size=10,
+                report_batch_item_failures=True,
             )
         )
 

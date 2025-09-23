@@ -1,7 +1,7 @@
 from aws_cdk import Stack, aws_lambda as _lambda, aws_apigateway as apigw, aws_iam as iam, CfnOutput, Fn
 from constructs import Construct
 
-class BackendStack(Stack):
+class ApiGatewayRestStack(Stack):
     def __init__(self, scope: Construct, id: str, project_name: str, **kwargs):
         super().__init__(scope, id, **kwargs)
 
@@ -12,7 +12,7 @@ class BackendStack(Stack):
             "GetFlightsLambda",
             runtime=_lambda.Runtime.PYTHON_3_9,
             handler="index.lambda_handler",
-            code=_lambda.Code.from_asset("project_app/lambda_funcs/backend_lambda"),
+            code=_lambda.Code.from_asset("project_app/lambda_funcs/api_gateway_rest_lambda"),
             environment={
                 "TABLE_NAME": dynamodb_table_name,
                 "REGION": self.region,

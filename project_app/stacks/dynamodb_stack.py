@@ -12,7 +12,7 @@ class DynamoDBStack(Stack):
         super().__init__(scope, id, **kwargs)
 
         # ----------------------------------------------------------------------
-        # DynamoDB Table
+        # DynamoDB Table for Raw Flights Data
         # ----------------------------------------------------------------------
         table = dynamodb.Table(
             self,
@@ -28,8 +28,24 @@ class DynamoDBStack(Stack):
             ),
             billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,  # On-demand
             removal_policy=RemovalPolicy.DESTROY,
+            stream=dynamodb.StreamViewType.NEW_IMAGE,
         )
-
+        
+        # ----------------------------------------------------------------------
+        # DynamoDB Table for WebSocket Connections
+        # ----------------------------------------------------------------------
+        connections_table = dynamodb.Table(
+            self,
+            id="WebSocketConnectionsTable",
+            table_name="websocket-connections",
+            partition_key=dynamodb.Attribute(
+                name="connectionId",
+                type=dynamodb.AttributeType.STRING,
+            ),
+            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,  # On-demand
+            removal_policy=RemovalPolicy.DESTROY,
+        )
+        
         # ----------------------------------------------------------------------
         # Output
         # ----------------------------------------------------------------------
@@ -40,3 +56,13 @@ class DynamoDBStack(Stack):
             description="DynamoDB table name for raw flights data",
             export_name=f"{project_name}-raw-flights-table-name",
         )
+        
+        CfnOutput(
+            self,
+            "WebSocketConnectionsTableName",
+            value=connections_table.table_name,
+            description="DynamoDB table name for WebSocket connections",
+            export_name=f"{project_name}-websocket-connections-table-name",
+        )
+        
+
