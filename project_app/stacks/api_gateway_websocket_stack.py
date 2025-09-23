@@ -57,7 +57,7 @@ class ApiGatewayWebSocketStack(Stack):
             "WebSocketConnectLambda",
             runtime=lambda_.Runtime.PYTHON_3_9,
             handler="index.lambda_handler",
-            code=lambda_.Code.from_asset("project_app/lambda_funcs/api_gateway_websocket_lambdas/connect"),
+            code=lambda_.Code.from_asset("project_app/lambda_funcs/api_gateway_connect"),
             role=ws_lambda_role,
             environment={
                 "TABLE_NAME": websocket_table.table_name,
@@ -70,7 +70,7 @@ class ApiGatewayWebSocketStack(Stack):
             "WebSocketDisconnectLambda",
             runtime=lambda_.Runtime.PYTHON_3_9,
             handler="index.lambda_handler",
-            code=lambda_.Code.from_asset("project_app/lambda_funcs/api_gateway_websocket_lambdas/disconnect"),
+            code=lambda_.Code.from_asset("project_app/lambda_funcs/api_gateway_disconnect"),
             role=ws_lambda_role,
             environment={
                 "TABLE_NAME": websocket_table.table_name,
