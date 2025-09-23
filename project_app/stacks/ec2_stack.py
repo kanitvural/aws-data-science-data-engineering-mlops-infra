@@ -223,7 +223,7 @@ if __name__ == "__main__":
         "{sns_topic_arn}",
         "{website_url}"
     )
-    simulator.start_streaming(events_per_second=10)
+    simulator.start_streaming(events_per_second=2)
 EOF
 
 chmod +x data_simulator.py
