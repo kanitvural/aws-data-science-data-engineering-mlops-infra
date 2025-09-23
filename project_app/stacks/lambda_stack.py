@@ -230,7 +230,7 @@ class LambdaStack(Stack):
             "FlightStreamLambda",
             runtime=lambda_.Runtime.PYTHON_3_9,
             handler="index.lambda_handler",
-            code=lambda_.Code.from_asset("project_app/lambda_funcs/flight_dynamodb_stream_lambda"),
+            code=lambda_.Code.from_asset("project_app/lambda_funcs/api_gateway_websocket_lambdas/flight_dynamodb_stream_lambda"),
             role=flight_stream_handler_lambda_role,
             environment={
                 "TABLE_NAME": websocket_table.table_name,
