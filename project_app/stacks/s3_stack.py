@@ -6,9 +6,10 @@ from aws_cdk import (
     RemovalPolicy,
     CfnOutput,
     Duration,
+    Fn
 )
 from constructs import Construct
-import os
+import json
 
 
 class S3Stack(Stack):
@@ -112,7 +113,7 @@ class S3Stack(Stack):
         )
         
         static_deployment.node.add_dependency(deployment)
-
+        
         # ----------------------------------------------------------------------
         # Outputs
         # ----------------------------------------------------------------------

@@ -3,24 +3,29 @@ from aws_cdk import (
     aws_dynamodb as dynamodb,
     RemovalPolicy,
     CfnOutput,
+    Fn,
+    aws_lambda as lambda_,
+    aws_lambda_event_sources as event_sources,
+    aws_iam as iam,
 )
 from constructs import Construct
 
 
-class DynamoDBStack(Stack):
+class WebSocketDynamoDBStack(Stack):
     def __init__(self, scope: Construct, id: str, project_name: str, **kwargs):
         super().__init__(scope, id, **kwargs)
 
+  
         # ----------------------------------------------------------------------
-        # DynamoDB Table
+        # DynamoDB Table for WebSocket Connections
         # ----------------------------------------------------------------------
-        table = dynamodb.Table(
+        websocket_connections_table = dynamodb.Table(
             self,
-            id="RawFlightsTable",
-            table_name="raw-flights",
+            id="WebSocketConnectionsTable",
+            table_name="websocket-connections",
             partition_key=dynamodb.Attribute(
-                name="id",
-                type=dynamodb.AttributeType.STRING
+                name="connectionId",
+                type=dynamodb.AttributeType.STRING,
             ),
             billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,  # On-demand
             removal_policy=RemovalPolicy.DESTROY,
@@ -29,10 +34,11 @@ class DynamoDBStack(Stack):
         # ----------------------------------------------------------------------
         # Output
         # ----------------------------------------------------------------------
+
         CfnOutput(
             self,
-            "DynamoDBTableName",
-            value=table.table_name,
-            description="DynamoDB table name for raw flights data",
-            export_name=f"{project_name}-raw-flights-table-name",
+            "WebSocketConnectionsTableName",
+            value=websocket_connections_table.table_name,
+            description="DynamoDB table name for WebSocket connections",
+            export_name=f"{project_name}-websocket-connections-table-name",
         )

@@ -30,13 +30,16 @@ class LambdaStack(Stack):
         # ----------------------------------------------------------------------
         # Import DynamoDB Table
         # ----------------------------------------------------------------------
-        raw_flights_table = dynamodb.Table.from_table_name(self, "RawFlightsTable", "raw-flights")
-
+        raw_flights_table_name = Fn.import_value(f"{project_name}-raw-flights-table-name")
+        raw_flights_table = dynamodb.Table.from_table_name(
+            self, "RawFlightsTable", raw_flights_table_name
+        )
+        
         # ----------------------------------------------------------------------
         # Import Endpoint Name
         # ----------------------------------------------------------------------
 
-        # prod_endpoint_name = Fn.import_value("mlops-prod-endpoint-name")
+        # prod_endpoint_name = Fn.import_value("mlops-prod-endpoint-name") test
         prod_endpoint_name = "mlops-prod-endpoint"
 
         # ----------------------------------------------------------------------
@@ -105,6 +108,7 @@ class LambdaStack(Stack):
                 resources=[raw_flights_table.table_arn],
             )
         )
+        
 
         # ----------------------------------------------------------------------
         # Lambda Functions
@@ -186,7 +190,9 @@ class LambdaStack(Stack):
                 kinesis_predicted, batch_size=10, starting_position=lambda_.StartingPosition.TRIM_HORIZON
             )
         )
+        
 
+        
         # ----------------------------------------------------------------------
         # CFN Outputs
         # ----------------------------------------------------------------------
