@@ -11,7 +11,7 @@ from aws_cdk import (
 from constructs import Construct
 
 
-class DynamoDBStack(Stack):
+class RawDynamoDBStack(Stack):
     def __init__(self, scope: Construct, id: str, project_name: str, **kwargs):
         super().__init__(scope, id, **kwargs)
 
