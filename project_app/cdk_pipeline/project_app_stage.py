@@ -65,10 +65,10 @@ class AppPipelineStage(Stage):
 
         # Dependencies 
         dynamodb_stack.add_dependency(sns_stack)
-        api_gateway_rest_stack.add_dependency(sns_stack)  
-        api_gateway_websocket_stack.add_dependency(api_gateway_rest_stack)
-        dynamodb_stack.add_dependency(api_gateway_websocket_stack)  
+        api_gateway_rest_stack.add_dependency(dynamodb_stack)  
+        api_gateway_websocket_stack.add_dependency(sns_stack)  
+        dynamodb_stack.add_dependency(api_gateway_websocket_stack) 
         kinesis_stack.add_dependency(dynamodb_stack)
         lambda_stack.add_dependency(kinesis_stack)
         s3_stack.add_dependency(lambda_stack)
-        ec2_stack.add_dependency(s3_stack) 
+        ec2_stack.add_dependency(s3_stack)
