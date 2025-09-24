@@ -122,10 +122,10 @@ class ApiGatewayWebSocketStack(Stack):
 
         CfnOutput(
             self,
-            "FlightsWebSocketWSS",
-            value=f"wss://{ws_api.api_id}.execute-api.{self.region}.amazonaws.com/{ws_stage.stage_name}",
-            description="WebSocket WSS URL",
-            export_name=f"{project_name}-FlightsWebSocketWSS",
+            "FlightsWebSocketManagementEndpoint",
+            value=f"https://{ws_api.api_id}.execute-api.{self.region}.amazonaws.com/{ws_stage.stage_name}",
+            description="WebSocket Management API Endpoint (for Lambda)",
+            export_name=f"{project_name}-FlightsWebSocketManagementEndpoint",
         )
 
         CfnOutput(

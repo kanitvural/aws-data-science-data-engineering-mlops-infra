@@ -71,7 +71,7 @@ class RawDynamoDBStack(Stack):
             )
         )
 
-        api_gateway_websocket_endpoint = Fn.import_value(f"{project_name}-FlightsWebSocketEndpoint")
+        api_gateway_websocket_mgmt_endpoint  = Fn.import_value(f"{project_name}-FlightsWebSocketManagementEndpoint")
 
         flight_stream_handler_lambda = lambda_.Function(
             self,
@@ -85,7 +85,7 @@ class RawDynamoDBStack(Stack):
             environment={
                 "TABLE_NAME": websocket_table.table_name,
                 "REGION": self.region,
-                "API_GATEWAY_WEBSOCKET_ENDPOINT": api_gateway_websocket_endpoint,
+                "API_GATEWAY_WEBSOCKET_ENDPOINT": api_gateway_websocket_mgmt_endpoint ,
             },
         )
         flight_stream_handler_lambda.add_event_source(
