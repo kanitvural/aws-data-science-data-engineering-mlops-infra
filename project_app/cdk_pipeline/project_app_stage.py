@@ -53,7 +53,6 @@ class AppPipelineStage(Stage):
         )
         
         
-        
         lambda_stack = LambdaStack(
             self,
             id="LambdaInfrastructure",

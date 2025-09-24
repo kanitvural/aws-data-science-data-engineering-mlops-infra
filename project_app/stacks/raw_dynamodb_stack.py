@@ -14,6 +14,9 @@ from constructs import Construct
 class RawDynamoDBStack(Stack):
     def __init__(self, scope: Construct, id: str, project_name: str, **kwargs):
         super().__init__(scope, id, **kwargs)
+        
+        websocket_table_name = Fn.import_value(f"{project_name}-websocket-connections-table-name")
+        websocket_table = dynamodb.Table.from_table_name(self, "WebsocketConnectionsTable", websocket_table_name)
 
         # ----------------------------------------------------------------------
         # DynamoDB Table for Raw Flights Data
@@ -33,21 +36,6 @@ class RawDynamoDBStack(Stack):
             billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,  # On-demand
             removal_policy=RemovalPolicy.DESTROY,
             stream=dynamodb.StreamViewType.NEW_AND_OLD_IMAGES,
-        )
-
-        # ----------------------------------------------------------------------
-        # DynamoDB Table for WebSocket Connections
-        # ----------------------------------------------------------------------
-        websocket_connections_table = dynamodb.Table(
-            self,
-            id="WebSocketConnectionsTable",
-            table_name="websocket-connections",
-            partition_key=dynamodb.Attribute(
-                name="connectionId",
-                type=dynamodb.AttributeType.STRING,
-            ),
-            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,  # On-demand
-            removal_policy=RemovalPolicy.DESTROY,
         )
 
         # ----------------------------------------------------------------------
@@ -73,7 +61,7 @@ class RawDynamoDBStack(Stack):
                     "dynamodb:Query",
                     "dynamodb:UpdateItem",
                 ],
-                resources=[websocket_connections_table.table_arn],
+                resources=[websocket_table.table_arn],
             )
         )
         flight_stream_handler_lambda_role.add_to_policy(
@@ -95,7 +83,7 @@ class RawDynamoDBStack(Stack):
             ),
             role=flight_stream_handler_lambda_role,
             environment={
-                "TABLE_NAME": websocket_connections_table.table_name,
+                "TABLE_NAME": websocket_table.table_name,
                 "REGION": self.region,
                 "API_GATEWAY_WEBSOCKET_ENDPOINT": api_gateway_websocket_endpoint,
             },
@@ -118,12 +106,4 @@ class RawDynamoDBStack(Stack):
             value=raw_flights_table.table_name,
             description="DynamoDB table name for raw flights data",
             export_name=f"{project_name}-raw-flights-table-name",
-        )
-
-        CfnOutput(
-            self,
-            "WebSocketConnectionsTableName",
-            value=websocket_connections_table.table_name,
-            description="DynamoDB table name for WebSocket connections",
-            export_name=f"{project_name}-websocket-connections-table-name",
         )
