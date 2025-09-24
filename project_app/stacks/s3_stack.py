@@ -6,9 +6,10 @@ from aws_cdk import (
     RemovalPolicy,
     CfnOutput,
     Duration,
+    Fn
 )
 from constructs import Construct
-import os
+import json
 
 
 class S3Stack(Stack):
@@ -112,6 +113,22 @@ class S3Stack(Stack):
         )
         
         static_deployment.node.add_dependency(deployment)
+        
+        # ----------------------------------------------------------------------
+        # Config.json Deployment For Fetching WebSocket URL
+        # ----------------------------------------------------------------------
+        websocket_url = Fn.import_value(f"{project_name}-FlightsWebSocketEndpoint")
+
+        config_data = json.dumps({"WEBSOCKET_URL": websocket_url})
+
+        config_deployment = s3deploy.BucketDeployment(
+            self,
+            "DeployConfigJson",
+            destination_bucket=bucket,
+            sources=[s3deploy.Source.data("config.json", config_data)],
+        )
+
+        config_deployment.node.add_dependency(static_deployment)
 
         # ----------------------------------------------------------------------
         # Outputs
