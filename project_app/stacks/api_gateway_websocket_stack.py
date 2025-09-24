@@ -87,10 +87,16 @@ class ApiGatewayWebSocketStack(Stack):
             api_name="FlightsWebSocketAPI",
             route_selection_expression="request.body.action",
             connect_route_options=apigwv2.WebSocketRouteOptions(
-                integration=apigw_integrations.WebSocketLambdaIntegration(handler=connect_lambda)
+                integration=apigw_integrations.WebSocketLambdaIntegration(
+                    "ConnectIntegration",
+                    connect_lambda
+                )
             ),
             disconnect_route_options=apigwv2.WebSocketRouteOptions(
-                integration=apigw_integrations.WebSocketLambdaIntegration(handler=disconnect_lambda)
+                integration=apigw_integrations.WebSocketLambdaIntegration(
+                    "DisconnectIntegration", 
+                    disconnect_lambda
+                )
             ),
         )
 
