@@ -1,0 +1,23 @@
+{
+  "pages": {
+    "/page": [
+      "static/chunks/c485d_next_dist_2ec06253._.js",
+      "static/chunks/flight-dashboard_src_app_favicon_ico_mjs_e8e6fe2d._.js",
+      "static/chunks/[root-of-the-server]__ce4b545e._.css",
+      "static/chunks/flight-dashboard_src_app_layout_tsx_b321dc01._.js",
+      "static/chunks/c485d_next_dist_client_components_builtin_global-error_e77727d2.js",
+      "static/chunks/flight-dashboard_src_components_23fad603._.js",
+      "static/chunks/c485d_529e7d27._.js",
+      "static/chunks/flight-dashboard_src_app_page_tsx_e77727d2._.js",
+      "static/chunks/[turbopack]_browser_dev_hmr-client_hmr-client_ts_b232dbe4._.js",
+      "static/chunks/c485d_next_dist_compiled_react-dom_47a64bc7._.js",
+      "static/chunks/c485d_next_dist_compiled_next-devtools_index_fd197a2b.js",
+      "static/chunks/c485d_next_dist_compiled_19c063c7._.js",
+      "static/chunks/c485d_next_dist_client_886332d6._.js",
+      "static/chunks/c485d_next_dist_21e90d18._.js",
+      "static/chunks/c485d_@swc_helpers_cjs_20a9d73f._.js",
+      "static/chunks/flight-dashboard_a0ff3932._.js",
+      "static/chunks/turbopack-flight-dashboard_892c7ea4._.js"
+    ]
+  }
+}
