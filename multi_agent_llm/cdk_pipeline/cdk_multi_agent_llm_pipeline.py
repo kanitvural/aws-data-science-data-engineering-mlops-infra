@@ -93,7 +93,7 @@ class CDKLLMPipelineStack(Stack):
                     "--non-interactive"
                 ),
                 "echo '🔨 Launching AgentCore agent...'",
-                "agentcore launch --env OPENAI_API_KEY=$OPENAI_API_KEY --codebuild-bucket=$MULTI_AGENT_LLM_BUCKET_ARN",
+                "agentcore launch --env OPENAI_API_KEY=$OPENAI_API_KEY",
                 "echo '✅ AgentCore deployment completed successfully!'",
             ],
             env={
