@@ -1,4 +1,4 @@
-from aws_cdk import Stack, aws_lambda as _lambda, aws_apigateway as apigw, aws_iam as iam, CfnOutput, Fn
+from aws_cdk import Stack, aws_lambda as _lambda, aws_apigateway as apigw, aws_iam as iam, CfnOutput, Fn, Duration
 from constructs import Construct
 
 class ApiGatewayRestStack(Stack):
@@ -14,6 +14,7 @@ class ApiGatewayRestStack(Stack):
             environment={
                 "REGION": self.region,
             },
+            timeout=Duration.seconds(120)
         )
 
         agent_invoke_lambda.add_to_role_policy(
