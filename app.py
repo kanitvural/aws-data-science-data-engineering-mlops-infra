@@ -8,6 +8,6 @@ env = cdk.Environment(
     region=app.node.try_get_context("region") or "eu-central-1",
 )
 
-CDKAppPipelineStack(app, "CDKAppPipelineStack", env=env)
+CDKAppPipelineStack(app, "CDKLLMPipelineStack", env=env)
 
 app.synth()
