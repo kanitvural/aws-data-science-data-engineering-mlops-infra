@@ -30,8 +30,6 @@ class CDKLLMPipelineStack(Stack):
             f"arn:aws:iam::{self.account}:role/AgentCoreExecutionRole-{project_name}-{self.account}"
         )
 
-        multi_agent_llm_bucket_arn = f"arn:aws:s3:::{project_name}-bucket-{self.account}"
-
         # GitHub connections information
         github_repo = "kanitvural/aws-data-science-data-engineering-mlops-infra"
         github_branch = "llm"
@@ -103,7 +101,6 @@ class CDKLLMPipelineStack(Stack):
                 "OPENAI_API_KEY": openai_api_key,
                 "ECR_REPOSITORY": ecr_repository_arn,
                 "AGENTCORE_EXECUTION_ROLE_ARN": agentcore_execution_role_arn,
-                "MULTI_AGENT_LLM_BUCKET_ARN": multi_agent_llm_bucket_arn,
             },
             role_policy_statements=[
                 iam.PolicyStatement(
