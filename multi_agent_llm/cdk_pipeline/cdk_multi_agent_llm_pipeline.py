@@ -71,7 +71,7 @@ class CDKLLMPipelineStack(Stack):
             build_environment=codebuild.BuildEnvironment(
                 compute_type=codebuild.ComputeType.SMALL,
                 build_image=codebuild.LinuxBuildImage.STANDARD_7_0,
-                privileged=True,  
+                privileged=True,
             ),
             commands=[
                 "echo '🚀 Setting up Bedrock AgentCore deployment...'",
@@ -102,7 +102,6 @@ class CDKLLMPipelineStack(Stack):
                 "ECR_REPOSITORY": ecr_repository_arn,
                 "AGENTCORE_EXECUTION_ROLE_ARN": agentcore_execution_role_arn,
             },
-
             role_policy_statements=[
                 iam.PolicyStatement(
                     actions=[
@@ -160,6 +159,13 @@ class CDKLLMPipelineStack(Stack):
                         "lambda:InvokeFunction",
                     ],
                     resources=[f"arn:aws:lambda:{self.region}:{self.account}:function:*"],
+                ),
+                iam.PolicyStatement(
+                    actions=[
+                        "iam:GetRole",
+                        "iam:PassRole",
+                    ],
+                    resources=[f"*"],
                 ),
             ],
         )

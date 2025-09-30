@@ -29,7 +29,7 @@ class S3Stack(Stack):
             s3_deployment.BucketDeployment(
                 self,
                 id="DeployData",
-                sources=[s3_deployment.Source.asset("../../README.md")],
+                sources=[s3_deployment.Source.asset("multi_agent_llm/data")],
                 destination_bucket=self.data_bucket,
             )
         except Exception as e:
