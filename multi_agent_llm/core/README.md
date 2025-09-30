@@ -77,7 +77,7 @@ agentcore destroy
 aws ssm put-parameter \
   --name "/multi-agent-llm/openai-api-key" \
   --value "sk-xxxxxxx" \
-  --type "SecureString" \
+  --type "String" \
   --overwrite \
   --region eu-central-1
 ```
