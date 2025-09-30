@@ -65,7 +65,6 @@ class CDKLLMPipelineStack(Stack):
             project_name=project_name,
         )
 
-     
         create_bedrock_agent_core_endpoint = pipelines_.CodeBuildStep(
             "CreateBedrockAgentCoreEndpoint",
             input=source,
@@ -103,10 +102,8 @@ class CDKLLMPipelineStack(Stack):
                 "ECR_REPOSITORY": ecr_repository_arn,
                 "AGENTCORE_EXECUTION_ROLE_ARN": agentcore_execution_role_arn,
             },
-            # SSM Parameter Store'dan API key'i al
-            build_environment_variables={},
+
             role_policy_statements=[
-                # SSM Parameter Store okuma izni
                 iam.PolicyStatement(
                     actions=[
                         "ssm:GetParameter",
