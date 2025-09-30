@@ -214,7 +214,7 @@ class BedrockAgentCoreRoleStack(Stack):
             )
         )
 
-        # S3 permissions (senin eklediğin)
+        # S3 permissions 
         self.agentcore_execution_role.add_to_policy(
             iam.PolicyStatement(
                 effect=iam.Effect.ALLOW,
@@ -225,7 +225,7 @@ class BedrockAgentCoreRoleStack(Stack):
                     "s3:ListBucket",
                     "s3:GetBucketLocation"
                 ],
-                resources=["*"],  # İstersen belirli bucket ile daraltabilirsin
+                resources=["*"],  
             )
         )
 
