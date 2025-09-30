@@ -1,0 +1,6 @@
+boto3
+openai-agents
+bedrock-agentcore
+bedrock-agentcore-starter-toolkit
+python-dotenv
+pandas
