@@ -164,6 +164,9 @@ class CDKLLMPipelineStack(Stack):
                     actions=[
                         "iam:GetRole",
                         "iam:PassRole",
+                        "iam:CreateRole",
+                        "iam:AttachRolePolicy",
+                        "iam:PutRolePolicy",
                     ],
                     resources=[f"*"],
                 ),
