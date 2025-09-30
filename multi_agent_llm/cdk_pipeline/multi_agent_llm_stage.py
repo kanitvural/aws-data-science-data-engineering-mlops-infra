@@ -16,7 +16,6 @@ class MultiAgentLLMStage(Stage):
             project_name=project_name
         )
 
-
         s3_stack = S3Stack(
             self,
             id="S3Infrastructure",
