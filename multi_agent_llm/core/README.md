@@ -44,8 +44,7 @@ agentcore configure \
   --authorizer-config 'null' \
   --request-header-allowlist '' \
   --region eu-central-1 \
-  --non-interactive \
-  --verbose
+  --non-interactive 
 ```
 
 ```bash

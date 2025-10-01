@@ -2,8 +2,9 @@ import os
 import logging
 import boto3
 import json
+import uuid
+from datetime import datetime
 
-# Logging Config
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -11,15 +12,14 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Configuration
 region = os.environ["REGION"]
+MEMORY_ID = "flight_multi_agent_mem-v624VP5DN0"
+ACTOR_ID = "app/user-1234"
 
 def lambda_handler(event, context):
     logger.info("Received event: %s", json.dumps(event))
 
-    # Preflight request (OPTIONS) handling
     if event.get("httpMethod") == "OPTIONS":
-        logger.info("Handling preflight OPTIONS request")
         return {
             "statusCode": 200,
             "headers": {
@@ -35,10 +35,7 @@ def lambda_handler(event, context):
         prompt = body.get("prompt")
         session_id = body.get("sessionId")
 
-        logger.info("Parsed body: prompt=%s, sessionId=%s", prompt, session_id)
-
         if not prompt or not session_id:
-            logger.warning("Missing 'prompt' or 'sessionId'")
             return {
                 "statusCode": 400,
                 "body": json.dumps({"message": "Both 'prompt' and 'sessionId' are required."}),
@@ -49,25 +46,113 @@ def lambda_handler(event, context):
             }
 
         client = boto3.client('bedrock-agentcore', region_name=region)
-        payload = json.dumps({"prompt": prompt})
+        
+        # 1. FETCH CONVERSATION HISTORY
+        enhanced_prompt = prompt
+        try:
+            logger.info("Fetching conversation history from memory")
+            history_response = client.list_events(
+                memoryId=MEMORY_ID,
+                actorId=ACTOR_ID,
+                sessionId=session_id,
+                includePayloads=True,
+                maxResults=30  
+            )
+            
+            events = history_response.get('events', [])
+            
+            if events:
+                # Sort Hisyory
+                conversation_history = []
+                for event_item in reversed(events): 
+                    for payload in event_item.get('payload', []):
+                        conv = payload.get('conversational')
+                        if conv:
+                            role = conv.get('role', '').lower()
+                            content = conv.get('content', {})
+                            text = content.get('text', '') if isinstance(content, dict) else str(content)
+                            
+                            if text:
+                                conversation_history.append(f"{role}: {text}")
+                
+                # Get last 20 messages (10 user + 10 assistant)
+                if conversation_history:
+                    recent_history = conversation_history[-20:]
+                    context = "\n".join(recent_history)
+                    
+                    # Add context to the prompt
+                    enhanced_prompt = f"""Previous conversation:
+{context}
 
-        logger.info("Invoking AgentCore runtime with payload: %s", payload)
+Current question: {prompt}
+
+Remember to use the context from previous conversation when answering."""
+                    
+                    logger.info("Enhanced prompt with %d previous messages", len(recent_history))
+            else:
+                logger.info("No previous conversation history found")
+                
+        except Exception as e:
+            logger.warning(f"Could not fetch conversation history: {e}. Proceeding without history.")
+            enhanced_prompt = prompt
+        
+        # 2. SAVE USER MESSAGE TO THE MEMORY
+        logger.info("Creating user message event in memory")
+        user_event_response = client.create_event(
+            memoryId=MEMORY_ID,
+            actorId=ACTOR_ID,
+            sessionId=session_id,
+            eventTimestamp=datetime.utcnow(),
+            payload=[{
+                'conversational': {
+                    'role': 'USER',
+                    'content': {'text': prompt}
+                }
+            }],
+            clientToken=str(uuid.uuid4())
+        )
+        logger.info("User event created: %s", user_event_response['event']['eventId'])
+
+        # 3. INVOKE AGENT WITH ENHANCED PROMPT
+        payload_str = json.dumps({
+            "prompt": enhanced_prompt,
+            "session_id": session_id  # Session ID'yi de gönder
+        })
+        logger.info("Invoking AgentCore runtime with enhanced prompt")
 
         response = client.invoke_agent_runtime(
-            agentRuntimeArn='arn:aws:bedrock-agentcore:eu-central-1:058264126563:runtime/multi_agent_restaurant-0D8IWzBTKP',
+            agentRuntimeArn='arn:aws:bedrock-agentcore:eu-central-1:058264126563:runtime/flight_multi_agent-0fbFPQFDfe',
             runtimeSessionId=session_id,
-            payload=payload,
+            payload=payload_str,
             qualifier="DEFAULT"
         )
 
         response_body = response['response'].read()
         response_data = json.loads(response_body)
+        agent_response = response_data.get("result")
 
-        logger.info("Received response from AgentCore: %s", response_data)
+        logger.info("Received response from AgentCore: %s", agent_response)
+
+        # 4. SAVE ASSISTANT RESPONSE TO THE MEMORY
+        logger.info("Creating assistant message event in memory")
+        assistant_event_response = client.create_event(
+            memoryId=MEMORY_ID,
+            actorId=ACTOR_ID,
+            sessionId=session_id,
+            eventTimestamp=datetime.utcnow(),
+            payload=[{
+                'conversational': {
+                    'role': 'ASSISTANT',
+                    'content': {'text': agent_response}
+                }
+            }],
+            clientToken=str(uuid.uuid4())
+        )
+        logger.info("Assistant event created: %s", assistant_event_response['event']['eventId'])
 
         return {
             "statusCode": 200,
-            "body": json.dumps({"response": response_data.get("result")}),
+            "body": json.dumps({"response": agent_response}),
             "headers": {
                 "Content-Type": "application/json",
                 "Access-Control-Allow-Origin": "*"

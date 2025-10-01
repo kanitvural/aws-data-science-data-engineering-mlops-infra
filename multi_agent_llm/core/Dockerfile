@@ -7,7 +7,9 @@ ENV UV_SYSTEM_PYTHON=1 \
     PYTHONUNBUFFERED=1 \
     DOCKER_CONTAINER=1 \
     AWS_REGION=eu-central-1 \
-    AWS_DEFAULT_REGION=eu-central-1
+    AWS_DEFAULT_REGION=eu-central-1 \
+    BEDROCK_AGENTCORE_MEMORY_ID=flight_multi_agent_mem-v624VP5DN0 \
+    BEDROCK_AGENTCORE_MEMORY_NAME=flight_multi_agent_mem
 
 
 

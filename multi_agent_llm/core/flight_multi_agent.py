@@ -173,8 +173,9 @@ If user asks about accommodation → HAND OFF to Accommodation Agent.
 Otherwise say: I can't help you, I only handle restaurants and accommodation.
 """,
     handoffs=[restaurant_agent, accommodation_agent],
-    model_settings=ModelSettings(model_name="gpt-4o-mini", temperature=0)
+    model_settings=ModelSettings(model_name="gpt-4o-mini", temperature=0),
 )
+
 
 # ---------------------------
 # AgentCore App
