@@ -19,16 +19,16 @@ class CDKLLMPipelineStack(Stack):
 
         # ENV VARIABLES
 
-        openai_api_key = ssm.StringParameter.from_string_parameter_attributes(
-            self, "OpenAIApiKey", parameter_name=f"/{project_name}/openai-api-key"
-        ).string_value
+        # openai_api_key = ssm.StringParameter.from_string_parameter_attributes(
+        #     self, "OpenAIApiKey", parameter_name=f"/{project_name}/openai-api-key"
+        # ).string_value
 
-        ecr_repository_arn = (
-            f"{self.account}.dkr.ecr.{self.region}.amazonaws.com/{project_name}-repository-{self.account}:latest"
-        )
-        agentcore_execution_role_arn = (
-            f"arn:aws:iam::{self.account}:role/AgentCoreExecutionRole-{project_name}-{self.account}"
-        )
+        # ecr_repository_arn = (
+        #     f"{self.account}.dkr.ecr.{self.region}.amazonaws.com/{project_name}-repository-{self.account}:latest"
+        # )
+        # agentcore_execution_role_arn = (
+        #     f"arn:aws:iam::{self.account}:role/AgentCoreExecutionRole-{project_name}-{self.account}"
+        # )
 
         # GitHub connections information
         github_repo = "kanitvural/aws-data-science-data-engineering-mlops-infra"
@@ -84,25 +84,24 @@ class CDKLLMPipelineStack(Stack):
                     "agentcore configure "
                     "--entrypoint flight_multi_agent.py "
                     "--name flight_multi_agent "
-                    "--execution-role $AGENTCORE_EXECUTION_ROLE_ARN "
-                    "--ecr $ECR_REPOSITORY "
+                    "--execution-role rn:aws:iam::058264126563:role/AgentCoreExecutionRole-multi-agent-llm-058264126563 "
+                    "--ecr 058264126563.dkr.ecr.eu-central-1.amazonaws.com/multi-agent-llm-repository-058264126563 "
                     "--requirements-file requirements.txt "
                     "--authorizer-config 'null' "
                     "--request-header-allowlist '' "
-                    "--region $REGION "
+                    "--region eu-central-1 "
                     "--non-interactive"
                 ),
                 "echo '🔨 Launching AgentCore agent...'",
-                "export OPENAI_API_KEY=$OPENAI_API_KEY",
-                "agentcore launch --env OPENAI_API_KEY=$OPENAI_API_KEY",
+                "agentcore launch --env OPENAI_API_KEY=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",
                 "echo '✅ AgentCore deployment completed successfully!'",
             ],
-            env={
-                "REGION": self.region,
-                "OPENAI_API_KEY": openai_api_key,
-                "ECR_REPOSITORY": ecr_repository_arn,
-                "AGENTCORE_EXECUTION_ROLE_ARN": agentcore_execution_role_arn,
-            },
+            # env={
+            #     "REGION": self.region,
+            #     "OPENAI_API_KEY": openai_api_key,
+            #     "ECR_REPOSITORY": ecr_repository_arn,
+            #     "AGENTCORE_EXECUTION_ROLE_ARN": agentcore_execution_role_arn,
+            # },
             role_policy_statements=[
                 iam.PolicyStatement(
                     actions=[
@@ -137,7 +136,7 @@ class CDKLLMPipelineStack(Stack):
                         "codebuild:BatchGetBuilds",
                         "codebuild:DeleteProject",
                     ],
-                    resources=[f"arn:aws:codebuild:{self.region}:{self.account}:project/bedrock-agentcore-*"],
+                    resources=["*"],
                 ),
                 # IAM role
                 iam.PolicyStatement(
@@ -148,10 +147,7 @@ class CDKLLMPipelineStack(Stack):
                         "iam:AttachRolePolicy",
                         "iam:PutRolePolicy",
                     ],
-                    resources=[
-                        f"arn:aws:iam::{self.account}:role/BedrockAgentCore*",
-                        f"arn:aws:iam::{self.account}:role/AmazonBedrockAgentCoreSDKCodeBuild-*",
-                    ],
+                    resources=["*"],
                 ),
                 # Bedrock AgentCore
                 iam.PolicyStatement(
@@ -174,7 +170,7 @@ class CDKLLMPipelineStack(Stack):
                         "lambda:GetFunction",
                         "lambda:InvokeFunction",
                     ],
-                    resources=[f"arn:aws:lambda:{self.region}:{self.account}:function:*"],
+                    resources=["*"],
                 ),
                 # S3
                 iam.PolicyStatement(
@@ -193,7 +189,7 @@ class CDKLLMPipelineStack(Stack):
                         "logs:CreateLogStream",
                         "logs:PutLogEvents",
                     ],
-                    resources=[f"arn:aws:logs:{self.region}:{self.account}:log-group:/aws/codebuild/*"],
+                    resources=["*"],
                 ),
             ],
         )
