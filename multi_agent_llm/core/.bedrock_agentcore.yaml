@@ -1,0 +1,31 @@
+default_agent: flight_multi_agent
+agents:
+  flight_multi_agent:
+    name: flight_multi_agent
+    entrypoint: flight_multi_agent.py
+    platform: linux/arm64
+    container_runtime: docker
+    aws:
+      execution_role: arn:aws:iam::058264126563:role/AgentCoreExecutionRole-multi-agent-llm-058264126563
+      execution_role_auto_create: true
+      account: 058264126563
+      region: eu-central-1
+      ecr_repository: 058264126563.dkr.ecr.eu-central-1.amazonaws.com/multi-agent-llm-repository-058264126563
+      ecr_auto_create: false
+      network_configuration:
+        network_mode: PUBLIC
+      protocol_configuration:
+        server_protocol: HTTP
+      observability:
+        enabled: true
+    bedrock_agentcore:
+      agent_id: null
+      agent_arn: null
+      agent_session_id: null
+    codebuild:
+      project_name: bedrock-agentcore-flight_multi_agent-builder
+      execution_role: arn:aws:iam::058264126563:role/AmazonBedrockAgentCoreSDKCodeBuild-eu-central-1-fbebc81d65
+      source_bucket: bedrock-agentcore-codebuild-sources-058264126563-eu-central-1
+    authorizer_configuration: null
+    request_header_configuration: null
+    oauth_configuration: null

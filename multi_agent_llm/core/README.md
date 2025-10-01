@@ -53,7 +53,7 @@ agentcore launch --env OPENAI_API_KEY=$OPENAI_API_KEY
 agentcore invoke '{"prompt": "Hello, What is the longest delay? And Which airline?"}'
 ```
 
-Go to AWS Console > Amazon Bedrock AgentCore > Agent Runtime > data_agent_agentcore and copy the python code. Change region. Save as `data_test.py`
+Go to AWS Console > Amazon Bedrock AgentCore > Agent Runtime > flight_multi_agent and copy the python code. Change region. Save as `agent_test.py`
 
 ## Destroy AgentCore App
 

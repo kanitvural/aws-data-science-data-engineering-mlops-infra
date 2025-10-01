@@ -3,4 +3,5 @@ openai-agents
 bedrock-agentcore
 bedrock-agentcore-starter-toolkit
 python-dotenv
+strands-agents
 pandas
