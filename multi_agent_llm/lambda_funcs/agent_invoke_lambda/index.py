@@ -116,7 +116,7 @@ Remember to use the context from previous conversation when answering."""
         # 3. INVOKE AGENT WITH ENHANCED PROMPT
         payload_str = json.dumps({
             "prompt": enhanced_prompt,
-            "session_id": session_id  # Session ID'yi de gönder
+            "session_id": session_id  
         })
         logger.info("Invoking AgentCore runtime with enhanced prompt")
 
