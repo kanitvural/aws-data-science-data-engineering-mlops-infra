@@ -66,3 +66,5 @@ tests/
 
 # Keep wheelhouse for offline installations
 # wheelhouse/
+README.md
+agent_test.py
