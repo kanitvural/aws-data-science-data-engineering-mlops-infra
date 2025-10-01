@@ -206,3 +206,5 @@ cdk.out/
 
 mlruns/
 mlartifacts/
+
+_old_version_cdk_multi_agent_llm_pipeline.py
