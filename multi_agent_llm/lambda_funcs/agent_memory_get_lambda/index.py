@@ -74,6 +74,9 @@ def lambda_handler(event, context):
         
         events = response.get('events', [])
         logger.info("Retrieved %d events", len(events))
+
+        # Sort events by timestamp ascending (oldest first)
+        events.sort(key=lambda e: e['eventTimestamp'])
         history = []
         
         for event_item in events:
