@@ -679,20 +679,69 @@ function Chatbot() {
     const [inputValue, setInputValue] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$flight$2d$dashboard$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])("");
     const [sessionId, setSessionId] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$flight$2d$dashboard$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])("");
     const [isLoading, setIsLoading] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$flight$2d$dashboard$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(false);
+    const [historyLoaded, setHistoryLoaded] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$flight$2d$dashboard$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(false);
     const messagesEndRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$flight$2d$dashboard$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useRef"])(null);
     // Initialize or retrieve sessionId from sessionStorage
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$flight$2d$dashboard$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useEffect"])(()=>{
         let storedSessionId = sessionStorage.getItem("chatbot_session_id");
         if (!storedSessionId) {
+            // Use the same session ID as in your Python code
             storedSessionId = generateUUID();
             sessionStorage.setItem("chatbot_session_id", storedSessionId);
-            console.log("🆔 New session ID generated:", storedSessionId);
+            console.log("🆔 Session ID set to:", storedSessionId);
         } else {
             console.log("🆔 Session ID retrieved from storage:", storedSessionId);
         }
         setSessionId(storedSessionId);
     }, []);
-    // Bottom scrooling when message stream
+    // Fetch history when chatbot opens and conditions are met
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$flight$2d$dashboard$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useEffect"])(()=>{
+        const apiGatewayUrl = sessionStorage.getItem("api_gateway_url");
+        if (isOpen && sessionId && apiGatewayUrl && !historyLoaded) {
+            console.log("🔄 Chatbot opened, fetching history...");
+            fetchHistory();
+        }
+    }, [
+        isOpen,
+        sessionId,
+        historyLoaded
+    ]);
+    // Fetch chat history from /history endpoint
+    const fetchHistory = async ()=>{
+        const apiGatewayUrl = sessionStorage.getItem("api_gateway_url");
+        if (!apiGatewayUrl || !sessionId) {
+            console.log("⏭️ Skipping history fetch - no API Gateway URL or session ID");
+            return;
+        }
+        try {
+            console.log("📥 Fetching chat history...");
+            const response = await fetch(`${apiGatewayUrl}/history?sessionId=${sessionId}`, {
+                method: "GET",
+                headers: {
+                    "Content-Type": "application/json"
+                }
+            });
+            if (!response.ok) {
+                throw new Error(`History fetch failed: ${response.status}`);
+            }
+            const data = await response.json();
+            console.log("📜 History loaded:", data.count, "messages");
+            // Convert history to message format
+            if (data.history && data.history.length > 0) {
+                const loadedMessages = data.history.map((item)=>({
+                        id: item.eventId,
+                        text: item.content,
+                        isUser: item.role.toLowerCase() === "user"
+                    }));
+                setMessages(loadedMessages);
+            }
+            setHistoryLoaded(true);
+        } catch (error) {
+            console.error("❌ Error fetching history:", error);
+            setHistoryLoaded(true); // Mark as loaded to prevent retry loops
+        }
+    };
+    // Mesajlar değiştiğinde en alta scroll
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$flight$2d$dashboard$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useEffect"])(()=>{
         messagesEndRef.current?.scrollIntoView({
             behavior: "smooth"
@@ -730,7 +779,7 @@ function Chatbot() {
         }
         setIsLoading(true);
         try {
-            const response = await fetch(`${apiGatewayUrl}`, {
+            const response = await fetch(`${apiGatewayUrl}/chat`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
@@ -813,7 +862,7 @@ function Chatbot() {
                                             size: 22
                                         }, void 0, false, {
                                             fileName: "[project]/flight-dashboard/src/components/Chatbot.tsx",
-                                            lineNumber: 138,
+                                            lineNumber: 192,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$flight$2d$dashboard$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("h3", {
@@ -821,13 +870,13 @@ function Chatbot() {
                                             children: "Flight Assistant"
                                         }, void 0, false, {
                                             fileName: "[project]/flight-dashboard/src/components/Chatbot.tsx",
-                                            lineNumber: 139,
+                                            lineNumber: 193,
                                             columnNumber: 17
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/flight-dashboard/src/components/Chatbot.tsx",
-                                    lineNumber: 137,
+                                    lineNumber: 191,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$flight$2d$dashboard$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -837,18 +886,18 @@ function Chatbot() {
                                         size: 20
                                     }, void 0, false, {
                                         fileName: "[project]/flight-dashboard/src/components/Chatbot.tsx",
-                                        lineNumber: 145,
+                                        lineNumber: 199,
                                         columnNumber: 17
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "[project]/flight-dashboard/src/components/Chatbot.tsx",
-                                    lineNumber: 141,
+                                    lineNumber: 195,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/flight-dashboard/src/components/Chatbot.tsx",
-                            lineNumber: 136,
+                            lineNumber: 190,
                             columnNumber: 13
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$flight$2d$dashboard$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -871,7 +920,7 @@ function Chatbot() {
                                             size: 36
                                         }, void 0, false, {
                                             fileName: "[project]/flight-dashboard/src/components/Chatbot.tsx",
-                                            lineNumber: 166,
+                                            lineNumber: 220,
                                             columnNumber: 19
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$flight$2d$dashboard$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -879,7 +928,7 @@ function Chatbot() {
                                             children: "Hi! I'm your flight data assistant."
                                         }, void 0, false, {
                                             fileName: "[project]/flight-dashboard/src/components/Chatbot.tsx",
-                                            lineNumber: 170,
+                                            lineNumber: 224,
                                             columnNumber: 19
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$flight$2d$dashboard$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -887,7 +936,7 @@ function Chatbot() {
                                             children: "Ask me about flight patterns, delays, or weather impacts!"
                                         }, void 0, false, {
                                             fileName: "[project]/flight-dashboard/src/components/Chatbot.tsx",
-                                            lineNumber: 171,
+                                            lineNumber: 225,
                                             columnNumber: 19
                                         }, this),
                                         sessionId && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$flight$2d$dashboard$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -899,13 +948,13 @@ function Chatbot() {
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/flight-dashboard/src/components/Chatbot.tsx",
-                                            lineNumber: 175,
+                                            lineNumber: 229,
                                             columnNumber: 21
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/flight-dashboard/src/components/Chatbot.tsx",
-                                    lineNumber: 165,
+                                    lineNumber: 219,
                                     columnNumber: 17
                                 }, this),
                                 messages.map((message)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$flight$2d$dashboard$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$flight$2d$dashboard$2f$node_modules$2f$framer$2d$motion$2f$dist$2f$es$2f$render$2f$components$2f$motion$2f$proxy$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["motion"].div, {
@@ -923,12 +972,12 @@ function Chatbot() {
                                             children: message.text
                                         }, void 0, false, {
                                             fileName: "[project]/flight-dashboard/src/components/Chatbot.tsx",
-                                            lineNumber: 191,
+                                            lineNumber: 245,
                                             columnNumber: 19
                                         }, this)
                                     }, message.id, false, {
                                         fileName: "[project]/flight-dashboard/src/components/Chatbot.tsx",
-                                        lineNumber: 183,
+                                        lineNumber: 237,
                                         columnNumber: 17
                                     }, this)),
                                 isLoading && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$flight$2d$dashboard$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$flight$2d$dashboard$2f$node_modules$2f$framer$2d$motion$2f$dist$2f$es$2f$render$2f$components$2f$motion$2f$proxy$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["motion"].div, {
@@ -951,7 +1000,7 @@ function Chatbot() {
                                                     className: "jsx-4443d8c1010b725b" + " " + "w-2 h-2 bg-gray-400 rounded-full animate-bounce"
                                                 }, void 0, false, {
                                                     fileName: "[project]/flight-dashboard/src/components/Chatbot.tsx",
-                                                    lineNumber: 211,
+                                                    lineNumber: 265,
                                                     columnNumber: 23
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$flight$2d$dashboard$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -961,7 +1010,7 @@ function Chatbot() {
                                                     className: "jsx-4443d8c1010b725b" + " " + "w-2 h-2 bg-gray-400 rounded-full animate-bounce"
                                                 }, void 0, false, {
                                                     fileName: "[project]/flight-dashboard/src/components/Chatbot.tsx",
-                                                    lineNumber: 215,
+                                                    lineNumber: 269,
                                                     columnNumber: 23
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$flight$2d$dashboard$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -971,23 +1020,23 @@ function Chatbot() {
                                                     className: "jsx-4443d8c1010b725b" + " " + "w-2 h-2 bg-gray-400 rounded-full animate-bounce"
                                                 }, void 0, false, {
                                                     fileName: "[project]/flight-dashboard/src/components/Chatbot.tsx",
-                                                    lineNumber: 219,
+                                                    lineNumber: 273,
                                                     columnNumber: 23
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/flight-dashboard/src/components/Chatbot.tsx",
-                                            lineNumber: 210,
+                                            lineNumber: 264,
                                             columnNumber: 21
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "[project]/flight-dashboard/src/components/Chatbot.tsx",
-                                        lineNumber: 209,
+                                        lineNumber: 263,
                                         columnNumber: 19
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "[project]/flight-dashboard/src/components/Chatbot.tsx",
-                                    lineNumber: 204,
+                                    lineNumber: 258,
                                     columnNumber: 17
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$flight$2d$dashboard$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -995,13 +1044,13 @@ function Chatbot() {
                                     className: "jsx-4443d8c1010b725b"
                                 }, void 0, false, {
                                     fileName: "[project]/flight-dashboard/src/components/Chatbot.tsx",
-                                    lineNumber: 229,
+                                    lineNumber: 283,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/flight-dashboard/src/components/Chatbot.tsx",
-                            lineNumber: 150,
+                            lineNumber: 204,
                             columnNumber: 13
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$flight$2d$dashboard$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1019,7 +1068,7 @@ function Chatbot() {
                                         className: "flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-base bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                                     }, void 0, false, {
                                         fileName: "[project]/flight-dashboard/src/components/Chatbot.tsx",
-                                        lineNumber: 235,
+                                        lineNumber: 289,
                                         columnNumber: 17
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$flight$2d$dashboard$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -1030,34 +1079,34 @@ function Chatbot() {
                                             size: 18
                                         }, void 0, false, {
                                             fileName: "[project]/flight-dashboard/src/components/Chatbot.tsx",
-                                            lineNumber: 249,
+                                            lineNumber: 303,
                                             columnNumber: 19
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "[project]/flight-dashboard/src/components/Chatbot.tsx",
-                                        lineNumber: 244,
+                                        lineNumber: 298,
                                         columnNumber: 17
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/flight-dashboard/src/components/Chatbot.tsx",
-                                lineNumber: 234,
+                                lineNumber: 288,
                                 columnNumber: 15
                             }, this)
                         }, void 0, false, {
                             fileName: "[project]/flight-dashboard/src/components/Chatbot.tsx",
-                            lineNumber: 233,
+                            lineNumber: 287,
                             columnNumber: 13
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/flight-dashboard/src/components/Chatbot.tsx",
-                    lineNumber: 122,
+                    lineNumber: 176,
                     columnNumber: 11
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/flight-dashboard/src/components/Chatbot.tsx",
-                lineNumber: 120,
+                lineNumber: 174,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$flight$2d$dashboard$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$flight$2d$dashboard$2f$node_modules$2f$framer$2d$motion$2f$dist$2f$es$2f$render$2f$components$2f$motion$2f$proxy$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["motion"].button, {
@@ -1091,12 +1140,12 @@ function Chatbot() {
                             size: 24
                         }, void 0, false, {
                             fileName: "[project]/flight-dashboard/src/components/Chatbot.tsx",
-                            lineNumber: 273,
+                            lineNumber: 327,
                             columnNumber: 15
                         }, this)
                     }, "close", false, {
                         fileName: "[project]/flight-dashboard/src/components/Chatbot.tsx",
-                        lineNumber: 266,
+                        lineNumber: 320,
                         columnNumber: 13
                     }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$flight$2d$dashboard$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$flight$2d$dashboard$2f$node_modules$2f$framer$2d$motion$2f$dist$2f$es$2f$render$2f$components$2f$motion$2f$proxy$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["motion"].div, {
                         initial: {
@@ -1118,28 +1167,28 @@ function Chatbot() {
                             size: 24
                         }, void 0, false, {
                             fileName: "[project]/flight-dashboard/src/components/Chatbot.tsx",
-                            lineNumber: 283,
+                            lineNumber: 337,
                             columnNumber: 15
                         }, this)
                     }, "open", false, {
                         fileName: "[project]/flight-dashboard/src/components/Chatbot.tsx",
-                        lineNumber: 276,
+                        lineNumber: 330,
                         columnNumber: 13
                     }, this)
                 }, void 0, false, {
                     fileName: "[project]/flight-dashboard/src/components/Chatbot.tsx",
-                    lineNumber: 264,
+                    lineNumber: 318,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/flight-dashboard/src/components/Chatbot.tsx",
-                lineNumber: 258,
+                lineNumber: 312,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/flight-dashboard/src/components/Chatbot.tsx",
-        lineNumber: 119,
+        lineNumber: 173,
         columnNumber: 5
     }, this);
 }
