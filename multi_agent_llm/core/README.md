@@ -20,16 +20,6 @@ curl -X POST http://localhost:8080/invocations \
   -d '{"prompt": "Hello, What is the longest delay? And Which airline?"}'
 ```
 
-```bash
-╰─$ curl -X POST http://localhost:8080/invocations \
-  -H "Content-Type: application/json" \
-  -d '{
-        "prompt":"i want to stay in hotel in houston please",
-        "sessionId": "my_custom_session_123"
-      }'
-
-```
-
 The `app.run()` command launches a local HTTP server (by default most frameworks use something like `localhost:8080`).
 
 ## Deploy To AWS
