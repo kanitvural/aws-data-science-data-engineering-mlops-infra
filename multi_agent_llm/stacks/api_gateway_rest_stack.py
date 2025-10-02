@@ -32,7 +32,7 @@ class ApiGatewayRestStack(Stack):
         
         agent_memory_get_lambda = _lambda.Function(
             self,
-            "MultiAgentInvokeLambda",
+            "MultiAgentGetLambda",
             runtime=_lambda.Runtime.PYTHON_3_9,
             handler="index.lambda_handler",
             code=_lambda.Code.from_asset("multi_agent_llm/lambda_funcs/agent_memory_get_lambda"),
