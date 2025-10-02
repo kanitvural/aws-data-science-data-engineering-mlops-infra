@@ -1,7 +1,12 @@
-boto3
-openai-agents
+strands-agents
+strands-agents[openai]
+strands-agents-tools
 bedrock-agentcore
 bedrock-agentcore-starter-toolkit
-python-dotenv
-strands-agents
+boto3
+botocore
 pandas
+python-dotenv
+
+openai
+openai-agents

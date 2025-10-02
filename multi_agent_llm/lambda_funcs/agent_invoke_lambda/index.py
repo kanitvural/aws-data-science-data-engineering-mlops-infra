@@ -3,7 +3,7 @@ import logging
 import boto3
 import json
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 logging.basicConfig(
     level=logging.INFO,
@@ -102,7 +102,7 @@ Remember to use the context from previous conversation when answering."""
             memoryId=MEMORY_ID,
             actorId=ACTOR_ID,
             sessionId=session_id,
-            eventTimestamp=datetime.utcnow(),
+            eventTimestamp=datetime.now(timezone.utc),
             payload=[{
                 'conversational': {
                     'role': 'USER',
@@ -139,7 +139,7 @@ Remember to use the context from previous conversation when answering."""
             memoryId=MEMORY_ID,
             actorId=ACTOR_ID,
             sessionId=session_id,
-            eventTimestamp=datetime.utcnow(),
+            eventTimestamp=datetime.now(timezone.utc),
             payload=[{
                 'conversational': {
                     'role': 'ASSISTANT',
