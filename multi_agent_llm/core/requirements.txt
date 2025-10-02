@@ -1,0 +1,12 @@
+strands-agents
+strands-agents[openai]
+strands-agents-tools
+bedrock-agentcore
+bedrock-agentcore-starter-toolkit
+boto3
+botocore
+pandas
+python-dotenv
+
+openai
+openai-agents

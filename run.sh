@@ -8,7 +8,7 @@ check_env_param() {
   local env=$1
   if [[ -z "$env" ]]; then
     echo "❌ Missing environment parameter!"
-    echo "Usage: make <bootstrap|deploy|destroy> env=<ds|de|mlops|app>"
+    echo "Usage: make <bootstrap|deploy|destroy> env=<ds|de|mlops|app|llm>"
     exit 1
   fi
 }
@@ -46,8 +46,15 @@ bootstrap() {
       --toolkit-stack-name CDKToolkit-APP \
       aws://$ACCOUNT_ID/$REGION
 
+  elif [[ "$env" == "llm" ]]; then
+    cdk bootstrap \
+      --context @aws-cdk/core:bootstrapQualifier=llm \
+      --qualifier llm \
+      --toolkit-stack-name CDKToolkit-LLM \
+      aws://$ACCOUNT_ID/$REGION
+
   else
-    echo "❌ Invalid environment! Use: ds, de, mlops, or app"
+    echo "❌ Invalid environment! Use: ds, de, mlops, app, or llm"
     exit 1
   fi
 }
@@ -77,8 +84,13 @@ deploy() {
       --context @aws-cdk/core:bootstrapQualifier=app \
       --require-approval never
 
+  elif [[ "$env" == "llm" ]]; then
+    cdk deploy CDKLLMPipelineStack \
+      --context @aws-cdk/core:bootstrapQualifier=llm \
+      --require-approval never
+
   else
-    echo "❌ Invalid environment! Use: ds, de, mlops, or app"
+    echo "❌ Invalid environment! Use: ds, de, mlops, app, or llm"
     exit 1
   fi
 }
@@ -108,8 +120,13 @@ destroy() {
       --context @aws-cdk/core:bootstrapQualifier=app \
       --force
 
+  elif [[ "$env" == "llm" ]]; then
+    cdk destroy \
+      --context @aws-cdk/core:bootstrapQualifier=llm \
+      --force
+
   else
-    echo "❌ Invalid environment! Use: ds, de, mlops, or app"
+    echo "❌ Invalid environment! Use: ds, de, mlops, app, or llm"
     exit 1
   fi
 }
