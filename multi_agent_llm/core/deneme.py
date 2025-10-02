@@ -1,20 +1,26 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# 
-# # Data Agent — Agents SDK + Vector Stores + Built‑in WebSearchTool + Guardrails
-# 
-# This notebook implements a core "Data" agent that has Data's script lines in an OpenAI vector store to refer to. "Data" can also use the Agents SDK's built-in WebSearchTool to access current events. Instead of a tool within the "Data" agent, we've implemented a calculator function as its own separate agent that Data can hand off to. Finally, we illustrate setting up a Guardrail to prevent any input related to Tasha Yar (Data had a fling with her in the show we'd rather not get into!)
-# 
-
-# ## Configure client and create Vector Store
-
-import os, re
-from pathlib import Path
+import os
+from pydantic import BaseModel
+from typing import List, Union
+from agents import (
+    Agent,
+    ModelSettings,
+    GuardrailFunctionOutput,
+    InputGuardrailTripwireTriggered,
+    RunContextWrapper,
+    Runner,
+    TResponseInputItem,
+    input_guardrail,
+)
 from openai import OpenAI
-from agents import set_default_openai_key, Agent, Runner, function_tool, ModelSettings, RunConfig
-from agents.tool import WebSearchTool, FileSearchTool
+from agents import set_default_openai_key, Agent, Runner, ModelSettings
+from agents.tool import FileSearchTool
 from agents.extensions.handoff_prompt import RECOMMENDED_PROMPT_PREFIX
+from bedrock_agentcore.runtime import BedrockAgentCoreApp
+
+
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -40,29 +46,6 @@ def get_vector_store_id_by_name(name: str) -> str:
         cursor = page.last_id
     raise RuntimeError(f"Vector store named '{name}' not found")
 
-
-# ## Build the Data Agent (with WebSearch & FileSearch) and enable Handoff to Calculator
-
-# ## Guardrail (as an Agent): Block any discussion of **Tasha Yar**
-# 
-# This implements the guardrail **as its own Agent**, following the Agents SDK guide.  
-# The guardrail agent classifies the user input and triggers a tripwire if it detects *Tasha Yar* is mentioned.
-# 
-
-from pydantic import BaseModel
-from typing import List, Union
-import re
-
-from agents import (
-    Agent,
-    ModelSettings,
-    GuardrailFunctionOutput,
-    InputGuardrailTripwireTriggered,
-    RunContextWrapper,
-    Runner,
-    TResponseInputItem,
-    input_guardrail,
-)
 
 class GuardOutput(BaseModel):
     is_blocked: bool
@@ -95,13 +78,11 @@ async def kanit_guardrail(ctx: RunContextWrapper[None], agent: Agent, input: Uni
         tripwire_triggered=bool(result.final_output.is_blocked),
     )
 
-
-
 vs_id = get_vector_store_id_by_name(name="Readme Vector Store")
 file_search = FileSearchTool(vector_store_ids=[vs_id], max_num_results=3)
 
-data_agent = Agent(
-    name="Flight Chatbot",
+flight_project_information_agent = Agent(
+    name="Flight Information Agent",
     instructions=(
         f"{RECOMMENDED_PROMPT_PREFIX}\n"
         "You are flight project chatbot. Be precise and concise (≤3 sentences).\n"
@@ -116,17 +97,15 @@ data_agent = Agent(
     ),
 )
 
-# Integration with Bedrock AgentCore
-from bedrock_agentcore.runtime import BedrockAgentCoreApp
-app = BedrockAgentCoreApp()
 
+app = BedrockAgentCoreApp()
 
 @app.entrypoint
 async def invoke(payload):
     user_message = payload.get("prompt", "")
     output = ''
     try:
-        result = await Runner.run(data_agent, user_message)
+        result = await Runner.run(flight_project_information_agent, user_message)
         output = result.final_output
     except InputGuardrailTripwireTriggered:
         output = "I'd really rather not talk about Kanıt. You can visit https://www.kanitvural.com to learn more about him."
