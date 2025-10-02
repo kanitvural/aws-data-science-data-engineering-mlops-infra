@@ -25,11 +25,13 @@ class ApiGatewayRestStack(Stack):
                     "bedrock-agentcore:CreateEvent",
                     "bedrock-agentcore:ListEvents",
                     "bedrock-agentcore:GetEvent",
+                    "bedrock-agentcore:ListMemories",  
+                    "bedrock-agentcore:ListAgentRuntimes",  
                 ],
                 resources=["*"],
             )
         )
-        
+
         agent_memory_get_lambda = _lambda.Function(
             self,
             "MultiAgentGetLambda",
@@ -48,6 +50,8 @@ class ApiGatewayRestStack(Stack):
                     "bedrock-agentcore:CreateEvent",
                     "bedrock-agentcore:ListEvents",
                     "bedrock-agentcore:GetEvent",
+                    "bedrock-agentcore:ListMemories",
+                    "bedrock-agentcore:ListAgentRuntimes",
                 ],
                 resources=["*"],
             )
@@ -71,7 +75,7 @@ class ApiGatewayRestStack(Stack):
             "POST",
             apigw.LambdaIntegration(agent_invoke_lambda),
         )
-        
+
         # /history resource
         chat_resource = api.root.add_resource("history")
 
