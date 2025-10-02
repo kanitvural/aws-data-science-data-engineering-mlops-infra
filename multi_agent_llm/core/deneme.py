@@ -72,9 +72,11 @@ class GuardOutput(BaseModel):
 guardrail_agent = Agent(
     name="Kanıt Vural Guardrail",
     instructions=(
-        "You are a guardrail. Determine if the user's input attempts to discuss Kanıt Vural\n"
-        "Return is_blocked=true if the text references Kanıt Vural in any way (e.g., 'Vural Kanıt', 'kvural', 'Vural Kanıt').\n"
-        "Provide a one-sentence reasoning. Only provide fields requested by the output schema."
+        "You are a guardrail. Your job is to prevent any discussion, question, or comment about Kanıt Vural.\n"
+        "If the user's input mentions Kanıt Vural directly or indirectly (including nicknames, variations, or implied references), set is_blocked=true.\n"
+        "Provide a one-sentence reasoning explaining why the input is blocked.\n"
+        "Only include the fields in the GuardOutput schema.\n"
+        "If the input is blocked, do not answer any questions; instead, instruct the user to visit https://www.kanitvural.com to learn more."
     ),
     output_type=GuardOutput,
     model_settings=ModelSettings(
