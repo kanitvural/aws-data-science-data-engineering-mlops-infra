@@ -12,9 +12,39 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+def get_memory_id(control_client):
+    response = control_client.list_memories(maxResults=50)
+    memories = response.get("memories", [])
+    if not memories:
+        raise ValueError("No memories found in Bedrock AgentCore.")
+
+    for mem in memories:
+        if mem.get("status") == "ACTIVE":
+            return mem["id"]
+    
+    raise ValueError("No ACTIVE memory found.")
+
+
+def get_agent_runtime_arn(control_client):
+    response = control_client.list_agent_runtimes(maxResults=50)
+    runtimes = response.get("agentRuntimes", [])
+    if not runtimes:
+        raise ValueError("No agent runtimes found.")
+
+    for rt in runtimes:
+        if rt.get("status") == "READY":
+            return rt["agentRuntimeArn"]
+    
+    raise ValueError("No READY agent runtime found.")
+
+
+
 region = os.environ["REGION"]
-MEMORY_ID = "flight_multi_agent_mem-v624VP5DN0"
 ACTOR_ID = "app/user-1234"
+client = boto3.client('bedrock-agentcore', region_name=region)
+control_client = boto3.client('bedrock-agentcore-control', region_name=region)
+memory_id = get_memory_id(control_client)
+agent_runtime_arn = get_agent_runtime_arn(control_client)
 
 def lambda_handler(event, context):
     logger.info("Received event: %s", json.dumps(event))
@@ -45,14 +75,13 @@ def lambda_handler(event, context):
                 }
             }
 
-        client = boto3.client('bedrock-agentcore', region_name=region)
         
         # 1. FETCH CONVERSATION HISTORY
         enhanced_prompt = prompt
         try:
             logger.info("Fetching conversation history from memory")
             history_response = client.list_events(
-                memoryId=MEMORY_ID,
+                memoryId=memory_id,
                 actorId=ACTOR_ID,
                 sessionId=session_id,
                 includePayloads=True,
@@ -99,7 +128,7 @@ Remember to use the context from previous conversation when answering."""
         # 2. SAVE USER MESSAGE TO THE MEMORY
         logger.info("Creating user message event in memory")
         user_event_response = client.create_event(
-            memoryId=MEMORY_ID,
+            memoryId=memory_id,
             actorId=ACTOR_ID,
             sessionId=session_id,
             eventTimestamp=datetime.now(timezone.utc),
@@ -121,7 +150,7 @@ Remember to use the context from previous conversation when answering."""
         logger.info("Invoking AgentCore runtime with enhanced prompt")
 
         response = client.invoke_agent_runtime(
-            agentRuntimeArn='arn:aws:bedrock-agentcore:eu-central-1:058264126563:runtime/flight_multi_agent-0fbFPQFDfe',
+            agentRuntimeArn=agent_runtime_arn,
             runtimeSessionId=session_id,
             payload=payload_str,
             qualifier="DEFAULT"
@@ -136,7 +165,7 @@ Remember to use the context from previous conversation when answering."""
         # 4. SAVE ASSISTANT RESPONSE TO THE MEMORY
         logger.info("Creating assistant message event in memory")
         assistant_event_response = client.create_event(
-            memoryId=MEMORY_ID,
+            memoryId=memory_id,
             actorId=ACTOR_ID,
             sessionId=session_id,
             eventTimestamp=datetime.now(timezone.utc),

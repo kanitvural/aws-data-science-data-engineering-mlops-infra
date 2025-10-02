@@ -1,12 +1,43 @@
+import os
 import boto3
 import json
+import logging
 from datetime import datetime
 
-MEMORY_ID = "flight_multi_agent_mem-v624VP5DN0"
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[logging.StreamHandler()]
+)
+logger = logging.getLogger(__name__)
+
+def get_memory_id(control_client):
+    response = control_client.list_memories(maxResults=50)
+    memories = response.get("memories", [])
+    if not memories:
+        logger.error("No memories found in Bedrock AgentCore.")
+        raise ValueError("No memories found in Bedrock AgentCore.")
+
+    for mem in memories:
+        if mem.get("status") == "ACTIVE":
+            memory_id = mem["id"]
+            logger.info("Found ACTIVE memory: %s", memory_id)
+            return memory_id
+    raise ValueError("No ACTIVE memory found.")
+
+
+region = os.environ["REGION"]
 ACTOR_ID = "app/user-1234"
+client = boto3.client('bedrock-agentcore', region_name=region)
+control_client = boto3.client('bedrock-agentcore-control', region_name=region)
+
+memory_id = get_memory_id(control_client)
 
 def lambda_handler(event, context):
+    logger.info("Received event: %s", json.dumps(event))
+
     if event.get("httpMethod") == "OPTIONS":
+        logger.info("OPTIONS request - returning CORS headers")
         return {
             "statusCode": 200,
             "headers": {
@@ -22,6 +53,7 @@ def lambda_handler(event, context):
         session_id = query_params.get("sessionId")
         
         if not session_id:
+            logger.warning("'sessionId' query parameter is missing")
             return {
                 "statusCode": 400,
                 "body": json.dumps({"message": "'sessionId' query parameter is required."}),
@@ -30,13 +62,10 @@ def lambda_handler(event, context):
                     "Access-Control-Allow-Origin": "*"
                 }
             }
-
-        # bedrock-agentcore client
-        client = boto3.client('bedrock-agentcore', region_name='eu-central-1')
         
-        # ListEvents API
+        logger.info("Fetching events for sessionId: %s", session_id)
         response = client.list_events(
-            memoryId=MEMORY_ID,
+            memoryId=memory_id,
             actorId=ACTOR_ID,
             sessionId=session_id,
             includePayloads=True,
@@ -44,6 +73,7 @@ def lambda_handler(event, context):
         )
         
         events = response.get('events', [])
+        logger.info("Retrieved %d events", len(events))
         history = []
         
         for event_item in events:
@@ -69,6 +99,7 @@ def lambda_handler(event, context):
                             "content": text
                         })
         
+        logger.info("Returning %d messages in history", len(history))
         return {
             "statusCode": 200,
             "body": json.dumps({
@@ -83,7 +114,7 @@ def lambda_handler(event, context):
         }
 
     except Exception as e:
-        print(f"Error: {str(e)}")
+        logger.exception("Error processing the request")
         return {
             "statusCode": 500,
             "body": json.dumps({"message": f"Internal server error: {str(e)}"}),
