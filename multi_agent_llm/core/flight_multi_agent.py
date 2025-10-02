@@ -19,6 +19,7 @@ from agents.extensions.handoff_prompt import RECOMMENDED_PROMPT_PREFIX
 from dotenv import load_dotenv
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
 
+
 load_dotenv()
 api_key = os.getenv("OPENAI_API_KEY")
 if not api_key:
