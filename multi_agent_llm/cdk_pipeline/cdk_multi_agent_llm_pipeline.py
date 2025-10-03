@@ -181,42 +181,15 @@ class CDKLLMPipelineStack(Stack):
                         "logs:CreateLogStream",
                         "logs:PutLogEvents",
                     ],
-                    resources=[
-                        f"arn:aws:logs:{self.region}:{self.account}:log-group:/aws/lambda/flight_multi_agent*",
-                        f"arn:aws:logs:{self.region}:{self.account}:log-group:/aws/codebuild/*",
-                    ],
-                ),
-                # Bedrock Agent
-                iam.PolicyStatement(
-                    actions=[
-                        "bedrock:CreateAgent",
-                        "bedrock:UpdateAgent",
-                        "bedrock:GetAgent",
-                        "bedrock:DeleteAgent",
-                        "bedrock:ListAgents",
-                        "bedrock:InvokeAgent",
-                        "bedrock:CreateAgentAlias",
-                        "bedrock:UpdateAgentAlias",
-                        "bedrock:GetAgentAlias",
-                        "bedrock:DeleteAgentAlias",
-                    ],
                     resources=["*"],
                 ),
-                # Bedrock AgentCore
                 iam.PolicyStatement(
-                    actions=[
-                        "bedrock-agentcore:CreateMemory",
-                        "bedrock-agentcore:GetMemory",
-                        "bedrock-agentcore:UpdateMemory",
-                        "bedrock-agentcore:DeleteMemory",
-                        "bedrock-agentcore:ListMemories",
-                        "bedrock-agentcore:CreateRuntime",
-                        "bedrock-agentcore:UpdateRuntime",
-                        "bedrock-agentcore:GetRuntime",
-                        "bedrock-agentcore:DeleteRuntime",
-                        "bedrock-agentcore:InvokeAgentRuntime",
-                        "bedrock-agentcore:ListRuntimes",
-                    ],
+                    actions=["bedrock:*"],
+                    resources=["*"],
+                ),
+                # Bedrock AgentCore - FULL 
+                iam.PolicyStatement(
+                    actions=["bedrock-agentcore:*"],
                     resources=["*"],
                 ),
             ],
