@@ -14,6 +14,7 @@ class CDKLLMPipelineStack(Stack):
 
         project_name = self.node.try_get_context("project_name") or "multi-agent-llm"
         pipeline_name = f"{project_name}-pipeline-{self.account}"
+        notification_email = self.node.try_get_context("notification_email")
 
         # ENV VARIABLES
         openai_api_key_param_name = f"/{project_name}/openai-api-key"
@@ -55,9 +56,7 @@ class CDKLLMPipelineStack(Stack):
         )
 
         multi_agent_llm_infra_stage = MultiAgentLLMStage(
-            self,
-            id="MultiAgentLLMInfraStage",
-            project_name=project_name,
+            self, id="MultiAgentLLMInfraStage", project_name=project_name, notification_email=notification_email
         )
 
         create_bedrock_agent_core_endpoint = pipelines_.CodeBuildStep(
@@ -94,6 +93,56 @@ class CDKLLMPipelineStack(Stack):
                 "echo '🔨 Launching AgentCore agent...'",
                 "agentcore launch --env OPENAI_API_KEY=$OPENAI_API_KEY",
                 "echo '✅ AgentCore deployment completed successfully!'",
+                "echo '📧 Preparing deployment notification...'",
+               
+                "export MEMORY_ID=$(aws bedrock-agentcore-control list-memories --region $REGION --query 'memories[?status==`ACTIVE`].id | [0]' --output text)",
+                "export RUNTIME_ARN=$(aws bedrock-agentcore-control list-agent-runtimes --region $REGION --query 'agentRuntimes[?status==`READY`].agentRuntimeArn | [0]' --output text)",
+                f"export API_URL=$(aws cloudformation describe-stacks --stack-name {project_name}-MultiAgentLLMInfraStage --region $REGION --query 'Stacks[0].Outputs[?OutputKey==`RestApiUrl`].OutputValue' --output text)",
+                f"export SNS_TOPIC_ARN=$(aws cloudformation describe-stacks --stack-name {project_name}-SNSStack --region $REGION --query 'Stacks[0].Outputs[?OutputKey==`SNSNotificationTopicArn`].OutputValue' --output text)",
+                
+                """aws sns publish \\
+            --topic-arn $SNS_TOPIC_ARN \\
+            --subject "🚀 Flight Multi-Agent Deployed Successfully!" \\
+            --message "$(cat <<EOF
+        🎉 FLIGHT MULTI-AGENT DEPLOYMENT SUCCESSFUL
+        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+        ✅ Status: DEPLOYED
+        📅 Time: $(date)
+        🌍 Region: $REGION
+
+        🔗 API ENDPOINTS:
+        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+        POST ${API_URL:-YOUR_API_URL}/chat
+        → Send chat messages to agent
+        Body: {"prompt": "...", "sessionId": "..."}
+
+        POST ${API_URL:-YOUR_API_URL}/history  
+        → Get conversation history
+        Body: {"sessionId": "..."}
+
+        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+        📊 RESOURCE IDs:
+        Memory: ${MEMORY_ID:-N/A}
+        Runtime: ${RUNTIME_ARN:-N/A}
+
+        🧪 QUICK TEST:
+        curl -X POST ${API_URL}/chat \\
+        -H "Content-Type: application/json" \\
+        -d '{"prompt":"Find flights IST to NYC","sessionId":"test-123"}'
+
+        curl -X POST ${API_URL}/history \\
+        -H "Content-Type: application/json" \\
+        -d '{"sessionId":"test-123"}'
+
+        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        🚀 System ready for production!
+        EOF
+        )"
+            """,
+                "echo '📧 Notification sent successfully!'",
             ],
             env={
                 "REGION": self.region,
@@ -187,7 +236,7 @@ class CDKLLMPipelineStack(Stack):
                     actions=["bedrock:*"],
                     resources=["*"],
                 ),
-                # Bedrock AgentCore - FULL 
+                # Bedrock AgentCore - FULL
                 iam.PolicyStatement(
                     actions=["bedrock-agentcore:*"],
                     resources=["*"],

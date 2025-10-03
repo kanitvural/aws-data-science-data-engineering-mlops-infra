@@ -341,14 +341,6 @@ You MUST analyze each user question and immediately hand off to the appropriate 
 - Route information (weather, distance, flight counts on routes)
 - Any question containing: "current", "now", "how many", "which airline", "delays", "weather", "route"
 
-Examples that MUST go to Flight Data Agent:
-- "How many flights are there right now?"
-- "How many flights are currently in the system?"
-- "Which airline has the most delays?"
-- "What's the maximum delay?"
-- "Show me flight statistics"
-- "Weather for SEA-SFO route"
-
 **Route to Project Information Agent** when user asks about:
 - Project architecture, design, or structure
 - Technologies, tools, or frameworks used
@@ -356,12 +348,8 @@ Examples that MUST go to Flight Data Agent:
 - Machine learning model details (training, features, algorithms)
 - Documentation, setup, or installation
 - How the system works technically
-
-Examples that MUST go to Project Information Agent:
-- "What technologies are used?"
-- "Who is the author?"
-- "How does the ML pipeline work?"
-- "What model is used?"
+- Questions about authorship or project ownership
+  (e.g., "Who is the author?", "Who built this project?", "Who made this project??")
 
 **IMPORTANT:**
 - NEVER answer flight data questions yourself - ALWAYS hand off to Flight Data Agent
