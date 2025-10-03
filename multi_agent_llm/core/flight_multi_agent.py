@@ -1,24 +1,29 @@
-#!/usr/bin/env python
-# coding: utf-8
-
 import os
 import json
+from typing import Optional, Union, List
+from utils.load_flight_data import load_flight_data
+import logging
 import boto3
 import pandas as pd
 from io import StringIO
 from openai import OpenAI
+from pydantic import BaseModel
 from agents import (
     set_default_openai_key,
     Agent,
     Runner,
     function_tool,
-    ModelSettings
+    ModelSettings,
+    FileSearchTool,
+    input_guardrail,
+    GuardrailFunctionOutput,
+    RunContextWrapper,
+    InputGuardrailTripwireTriggered,
+    TResponseInputItem
 )
-
 from agents.extensions.handoff_prompt import RECOMMENDED_PROMPT_PREFIX
 from dotenv import load_dotenv
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
-
 
 load_dotenv()
 api_key = os.getenv("OPENAI_API_KEY")
@@ -28,167 +33,376 @@ if not api_key:
 client = OpenAI(api_key=api_key)
 set_default_openai_key(api_key)
 
-# Add s3 permission to bedrock agent core role
-S3_BUCKET = "kntbucket"
-s3_client = boto3.client("s3", region_name="eu-central-1")
+# Setup logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+
+# ---------------------------
+# HELPER FUNCTIONS
+# ---------------------------
+def get_vector_store_id_by_name(name: str) -> str:
+    """Retrieve vector store ID by name."""
+    cursor = None
+    while True:
+        page = client.vector_stores.list(limit=50, after=cursor) if cursor else client.vector_stores.list(limit=50)
+        for vs in page.data:
+            if vs.name == name:
+                return vs.id
+        if not page.has_more:
+            break
+        cursor = page.last_id
+    raise RuntimeError(f"Vector store named '{name}' not found")
+
+
+# ---------------------------
+# GUARDRAIL
+# ---------------------------
+class GuardOutput(BaseModel):
+    is_blocked: bool
+    reasoning: str
+
+guardrail_agent = Agent(
+    name="Kanıt Vural Guardrail",
+    instructions=(
+        "You are a guardrail. Your job is to prevent any discussion, question, or comment about Kanıt Vural.\n"
+        "If the user's input mentions Kanıt Vural directly or indirectly (including nicknames, variations, or implied references), set is_blocked=true.\n"
+        "Provide a one-sentence reasoning explaining why the input is blocked.\n"
+        "Only include the fields in the GuardOutput schema.\n"
+        "If the input is blocked, do not answer any questions; instead, instruct the user to visit https://www.kanitvural.com to learn more."
+    ),
+    output_type=GuardOutput,
+    model_settings=ModelSettings(
+        model_name="gpt-3.5-turbo",
+        temperature=0
+    )
+)
+
+@input_guardrail
+async def kanit_guardrail(ctx: RunContextWrapper[None], agent: Agent, input: Union[str, List[TResponseInputItem]]) -> GuardrailFunctionOutput:
+    """Guardrail to block questions about Kanıt Vural."""
+    result = await Runner.run(guardrail_agent, input, context=ctx.context)
+    
+    return GuardrailFunctionOutput(
+        output_info=result.final_output.model_dump(),
+        tripwire_triggered=bool(result.final_output.is_blocked),
+    )
+
 
 # ---------------------------
 # TOOLS
 # ---------------------------
 @function_tool
-def list_restaurants(city: str, fine_dine: str) -> str:
-    response = s3_client.get_object(Bucket=S3_BUCKET, Key="restaurant.csv")
-    csv_data = response["Body"].read().decode("utf-8")
-    df = pd.read_csv(StringIO(csv_data))
-    df["City"] = df["City"].str.strip().str.lower()
-    df["Fine Dining"] = df["Fine Dining"].str.strip().str.lower()
-    if city:
-        df = df[df["City"] == city.strip().lower()]
-    if fine_dine:
-        df = df[df["Fine Dining"] == fine_dine.strip().lower()]
-    return json.dumps(df.to_dict(orient="records"), default=str)
+def query_flight_data(
+    query_type: str,
+    airline: Optional[str] = None,
+    route: Optional[str] = None
+) -> str:
+    """
+    Query real-time flight data and return statistical insights.
+    
+    Args:
+        query_type: Type of query. Supported values:
+            - "max_delay": Maximum departure delay
+            - "min_delay": Minimum departure delay
+            - "flight_count": Total number of flights
+            - "flights_by_airline": Flight counts by airline
+            - "avg_delay_by_airline": Average delay for a specific airline (requires airline parameter)
+            - "max_delay_airline": Airline with the most delays
+            - "min_delay_airline": Airline with the least delays
+            - "flights_by_route": Flight counts by route
+            - "max_flights_route": Route with the most flights
+            - "min_flights_route": Route with the least flights
+            - "weather_by_route": Weather conditions for a specific route (requires route parameter)
+            - "distance_by_route": Distance for a specific route (requires route parameter)
+        
+        airline: Airline name (e.g., "alaska_airlines_inc", "horizon_air")
+        route: Route name (e.g., "SEA-SFO", "SEA-PHX")
+    
+    Returns:
+        Human-readable result text
+    """
+    
+    logger.info(f"🚀 query_flight_data CALLED with query_type={query_type}, airline={airline}, route={route}")
+    
+    try:
+        # Load data synchronously
+        logger.info("🔄 Loading flight data from S3...")
+        df = load_flight_data()
+        logger.info(f"✅ Data loaded successfully: {len(df)} records")
+        
+        # Process based on query type
+        if query_type == "max_delay":
+            max_delay = df["dep_delay"].max()
+            return f"The maximum departure delay is {max_delay:.2f} minutes."
+        
+        elif query_type == "min_delay":
+            min_delay = df["dep_delay"].min()
+            return f"The minimum departure delay is {min_delay:.2f} minutes."
+        
+        elif query_type == "flight_count":
+            count = len(df)
+            return f"There are currently {count:,} flights in the system."
+        
+        elif query_type == "flights_by_airline":
+            airline_counts = df.groupby("airline").size().sort_values(ascending=False)
+            result = "Flight counts by airline:\n"
+            for airline_name, count in airline_counts.items():
+                result += f"- {airline_name}: {count:,} flights\n"
+            return result.strip()
+        
+        elif query_type == "avg_delay_by_airline":
+            if not airline:
+                return "❌ Error: 'airline' parameter is required. Example: 'alaska_airlines_inc', 'horizon_air'"
+            
+            df_filtered = df[df["airline"].str.lower() == airline.lower()]
+            if len(df_filtered) == 0:
+                return f"❌ No data found for airline '{airline}'."
+            
+            avg_delay = df_filtered["dep_delay"].mean()
+            flight_count = len(df_filtered)
+            return f"{airline} has an average departure delay of {avg_delay:.2f} minutes ({flight_count:,} flights)."
+        
+        elif query_type == "max_delay_airline":
+            avg_delays = df.groupby("airline")["dep_delay"].mean().sort_values(ascending=False)
+            max_airline = avg_delays.index[0]
+            max_delay = avg_delays.iloc[0]
+            return f"The airline with the most delays is {max_airline} with an average delay of {max_delay:.2f} minutes."
+        
+        elif query_type == "min_delay_airline":
+            avg_delays = df.groupby("airline")["dep_delay"].mean().sort_values(ascending=True)
+            min_airline = avg_delays.index[0]
+            min_delay = avg_delays.iloc[0]
+            return f"The airline with the least delays is {min_airline} with an average delay of {min_delay:.2f} minutes."
+        
+        elif query_type == "flights_by_route":
+            route_counts = df.groupby("route").size().sort_values(ascending=False)
+            result = "Flight counts by route (Top 10):\n"
+            for route_name, count in route_counts.head(10).items():
+                result += f"- {route_name}: {count:,} flights\n"
+            return result.strip()
+        
+        elif query_type == "max_flights_route":
+            route_counts = df.groupby("route").size().sort_values(ascending=False)
+            max_route = route_counts.index[0]
+            max_count = route_counts.iloc[0]
+            return f"The route with the most flights is {max_route} with {max_count:,} flights."
+        
+        elif query_type == "min_flights_route":
+            route_counts = df.groupby("route").size().sort_values(ascending=True)
+            min_route = route_counts.index[0]
+            min_count = route_counts.iloc[0]
+            return f"The route with the least flights is {min_route} with {min_count:,} flights."
+        
+        elif query_type == "weather_by_route":
+            if not route:
+                return "❌ Error: 'route' parameter is required. Example: 'SEA-SFO', 'SEA-PHX'"
+            
+            df_filtered = df[df["route"].str.upper() == route.upper()]
+            if len(df_filtered) == 0:
+                return f"❌ No data found for route '{route}'."
+            
+            avg_temp = df_filtered["temp"].mean()
+            avg_pressure = df_filtered["pressure"].mean()
+            avg_wind = df_filtered["wind_speed"].mean()
+            
+            return f"For route {route}, the average temperature is {avg_temp:.1f}°F, wind speed is {avg_wind:.2f} mph, and pressure is {avg_pressure:.1f} hPa."
+        
+        elif query_type == "distance_by_route":
+            if not route:
+                return "❌ Error: 'route' parameter is required. Example: 'SEA-SFO', 'SEA-PHX'"
+            
+            df_filtered = df[df["route"].str.upper() == route.upper()]
+            if len(df_filtered) == 0:
+                return f"❌ No data found for route '{route}'."
+            
+            avg_distance = df_filtered["distance"].mean()
+            return f"The average distance for route {route} is {avg_distance:.1f} miles."
+        
+        else:
+            return f"❌ Error: Unsupported query type '{query_type}'. Please use a valid query_type."
+    
+    except Exception as e:
+        logger.error(f"❌ Query error: {str(e)}")
+        return f"❌ An error occurred during the query: {str(e)}"
 
-@function_tool
-def list_hotels(city: str) -> str:
-    response = s3_client.get_object(Bucket=S3_BUCKET, Key="hotel.csv")
-    csv_data = response["Body"].read().decode("utf-8")
-    df = pd.read_csv(StringIO(csv_data))
-    df["Location"] = df["Location"].str.strip().str.lower()
-    df = df[df["Location"] == city.strip().lower()]
-    return json.dumps(df.to_dict(orient="records"), default=str)
-
-@function_tool
-def list_airbnbs(city: str, pets: str, pool: str, sauna: str) -> str:
-    response = s3_client.get_object(Bucket=S3_BUCKET, Key="airbnb.csv")
-    csv_data = response["Body"].read().decode("utf-8")
-    df = pd.read_csv(StringIO(csv_data))
-    str_cols = df.select_dtypes(include=["object", "string"]).columns
-    df[str_cols] = df[str_cols].apply(lambda col: col.str.strip().str.lower(), axis=0)
-    if city:
-        df = df[df["Location"] == city.strip().lower()]
-    if pets:
-        df = df[df["Pets"] == pets.strip().lower()]
-    if pool:
-        df = df[df["Pool"] == pool.strip().lower()]
-    if sauna:
-        df = df[df["Sauna"] == sauna.strip().lower()]
-    return json.dumps(df.to_dict(orient="records"), default=str)
-
-
-# ---------------------------
-# COLLABORATORS
-# ---------------------------
-restaurant_collaborator = Agent(
-    name="Restaurant Collaborator",
-    instructions="""
-You are the Restaurant Collaborator
-You have access to one function:
-  1. list-restaurants - Returns a list of restaurants for the given parameters such as city and whether the restaurant is a fine dine restaurant or not. 
-
-The Restaurant Agent will tell you:
- - Whether the user wants a fine dining option for the restaurant or not and in which city.
-
-After calling the function, you will receive the result (list of restaurants).
-Return that result to the Restaurant Agent.
-Do not invent your own response; rely on the function call’s output.
-If the request is missing required fields, let the Restaurant Agent know which fields are missing.
-""",
-    tools=[list_restaurants],
-    model_settings=ModelSettings(model_name="gpt-4o-mini", temperature=0)
-)
-
-accommodation_collaborator = Agent(
-    name="Accommodation Collaborator",
-    instructions="""
-You are the Accommodation Collaborator.
-You have access to two functions:
-  1. listHotels(city) - Returns a list of hotels for the specified city.
-  2. listAirbnbs(city, petsAllowed, sauna, pool) - Returns a list of Airbnbs with the specified attributes.
-
-The Accommodation Agent will tell you:
- - Whether the user wants a hotel or an Airbnb.
- - The necessary parameters (city, petsAllowed, sauna, pool, etc.).
-
-Based on that info:
- - If the user wants a hotel, call the "listHotels" function with the "city" parameter.
- - If the user wants an Airbnb, call the "listAirbnbs" function with "city", "petsAllowed", "sauna", and "pool" parameters.
-
-After calling the function, you will receive the result (list of accommodations).
-Return that result to the Accommodation Agent.
-Do not invent your own response; rely on the function call’s output.
-If the request is missing required fields, let the Accommodation Agent know which fields are missing.
-""",
-    tools=[list_hotels, list_airbnbs],
-    model_settings=ModelSettings(model_name="gpt-4o-mini", temperature=0)
-)
 
 # ---------------------------
 # AGENTS
 # ---------------------------
-restaurant_agent = Agent(
-    name="Restaurant Agent",
-    instructions="""
-You are the Restaurant Agent.
-You receive requests from the Main Agent whenever a user wants help finding a restaurant.
+flight_data_agent = Agent(
+    name="Flight Data Agent",
+    instructions=f"""
+
+You are the Flight Data Agent.
+You receive requests from the Supervisor Agent whenever a user wants information about real-time flight data.
 
 Your job:
-1. Determine the city in which the user wants a restaurant.
-2. Determine if the user wants a fine dining experience or not (fineDining = Yes/No). This is important that you must convert the users response to either "Yes" or "No"
-   - If the user doesn't specify, ask them to clarify.
-3. Once you have both "city" and "fineDining," forward these details to the "Restaurant Collaborator."
-4. When the collaborator returns the results, pass them back to the Main Agent (which will respond to the user).
+1. Analyze the user's question and determine the appropriate query_type from the following options:
+   
+   Basic Statistics:
+   - "max_delay" - Maximum departure delay
+   - "min_delay" - Minimum departure delay
+   - "flight_count" - Total number of current flights
+   
+   Airline Queries:
+   - "flights_by_airline" - Show flight counts for all airlines
+   - "avg_delay_by_airline" - Average delay for a specific airline (REQUIRES airline parameter)
+   - "max_delay_airline" - Which airline has the most delays
+   - "min_delay_airline" - Which airline has the least delays
+   
+   Route Queries:
+   - "flights_by_route" - Show flight counts for all routes
+   - "max_flights_route" - Route with the most flights
+   - "min_flights_route" - Route with the least flights
+   - "weather_by_route" - Weather conditions for a specific route (REQUIRES route parameter)
+   - "distance_by_route" - Distance for a specific route (REQUIRES route parameter)
+
+2. Extract required parameters:
+   - For queries like "avg_delay_by_airline": Extract the airline name (e.g., "alaska_airlines_inc", "horizon_air")
+   - For queries like "weather_by_route" or "distance_by_route": Extract the route (e.g., "SEA-SFO", "SEA-PHX")
+   - If the user doesn't provide required information, ask them to clarify.
+
+3. Valid airline names: "alaska_airlines_inc", "horizon_air"
+4. Route format: "ORIGIN-DEST" (e.g., "SEA-SFO", "PDX-LAX")
+
+5. Once you have determined the query_type and any required parameters, forward these details to the "Flight Data Collaborator."
+
+6. When the collaborator returns the results, pass them back to the Supervisor Agent in a clear, user-friendly format.
+
+7. Be helpful and conversational. If results show specific data, present it in an easy-to-understand way.
+
+Examples:
+- User: "How many flights are there right now?" → query_type="flight_count"
+- User: "What's Alaska Airlines' average delay?" → query_type="avg_delay_by_airline", airline="alaska_airlines_inc"
+- User: "Show me weather for SEA-SFO route" → query_type="weather_by_route", route="SEA-SFO"
+- User: "Which airline has the worst delays?" → query_type="max_delay_airline"
 """,
-    handoffs=[restaurant_collaborator],
+    tools=[query_flight_data],
     model_settings=ModelSettings(model_name="gpt-4o-mini", temperature=0)
 )
 
-accommodation_agent = Agent(
-    name="Accommodation Agent",
-    instructions="""
-You are the Accommodation Agent.
-You receive user requests from the Main Agent when they want to find a place to stay.
 
-You need to determine if they want a hotel or an Airbnb:
- - If hotel: you must know the city.
- - If Airbnb: you must know the city, whether pets are allowed, and if a sauna or pool is needed. You must convert all responses of the user to either "Yes" or "No". This is very important.
+# Vector Store setup for Project Information Agent
+vs_id = get_vector_store_id_by_name(name="Readme Vector Store")
+file_search = FileSearchTool(vector_store_ids=[vs_id], max_num_results=3)
 
-Once you have these details, forward them to the "Accommodation Collaborator."
-It will call the right function:
- - "listHotels" for hotels.
- - "listAirbnbs" for Airbnbs.
- 
-When you get the collaborator's response (function result), pass it back to the Main Agent.
-If any details are missing, prompt the user for more info before calling the collaborator.
-""",
-    handoffs=[accommodation_collaborator],
-    model_settings=ModelSettings(model_name="gpt-4o-mini", temperature=0)
-)
-
-supervisor_agent = Agent(
-    name="Supervisor Agent",
-    instructions=f"""
-{RECOMMENDED_PROMPT_PREFIX}
-You are the Supervisor.
-If user asks about restaurants → HAND OFF to Restaurant Agent.
-If user asks about accommodation → HAND OFF to Accommodation Agent.
-Otherwise say: I can't help you, I only handle restaurants and accommodation.
-""",
-    handoffs=[restaurant_agent, accommodation_agent],
-    model_settings=ModelSettings(model_name="gpt-4o-mini", temperature=0),
+project_info_agent = Agent(
+    name="Project Information Agent",
+    instructions=(
+        "You are the Project Information Agent.\n"
+        "You receive requests from the Supervisor Agent whenever a user wants information about the Flight Delay Prediction project.\n\n"
+        
+        "Your responsibilities:\n"
+        "1. Answer questions about the project's architecture, technology stack, features, deployment, and documentation.\n"
+        "2. Use the file_search tool to retrieve relevant information from the project README and documentation.\n"
+        "3. Be precise and concise (≤3 sentences unless more detail is specifically requested).\n"
+        "4. If the information is not available in the documentation, politely inform the user.\n"
+        "5. Focus on technical details, project structure, MLOps pipeline, and implementation specifics.\n\n"
+        
+        "Topics you can help with:\n"
+        "- Project overview and objectives\n"
+        "- Machine learning model details (XGBoost, hyperparameter tuning)\n"
+        "- MLOps pipeline (training, deployment, monitoring)\n"
+        "- Technology stack (AWS services, frameworks, tools)\n"
+        "- Data processing and feature engineering\n"
+        "- Real-time prediction system\n"
+        "- Deployment architecture\n"
+        "- Project setup and installation\n\n"
+        
+        "Always provide accurate, documentation-based answers. Return results to the Supervisor Agent."
+    ),
+    tools=[file_search],
+    model_settings=ModelSettings(
+        model_name="gpt-4o-mini",
+        temperature=0
+    )
 )
 
 
 # ---------------------------
-# AgentCore App
+# SUPERVISOR AGENT
+# ---------------------------
+supervisor_agent = Agent(
+    name="Supervisor Agent",
+    instructions=f"""
+{RECOMMENDED_PROMPT_PREFIX}
+
+You are the Supervisor Agent - the main coordinator of the Flight Delay Prediction Assistant.
+
+CRITICAL ROUTING RULES:
+You MUST analyze each user question and immediately hand off to the appropriate agent. DO NOT try to answer yourself.
+
+**Route to Flight Data Agent** when user asks about:
+- Current/real-time flight data, statistics, or metrics
+- Flight counts, numbers, or totals (e.g., "how many flights")
+- Delays, delay statistics, or delay comparisons
+- Airline performance, comparisons, or statistics
+- Route information (weather, distance, flight counts on routes)
+- Any question containing: "current", "now", "how many", "which airline", "delays", "weather", "route"
+
+Examples that MUST go to Flight Data Agent:
+- "How many flights are there right now?"
+- "How many flights are currently in the system?"
+- "Which airline has the most delays?"
+- "What's the maximum delay?"
+- "Show me flight statistics"
+- "Weather for SEA-SFO route"
+
+**Route to Project Information Agent** when user asks about:
+- Project architecture, design, or structure
+- Technologies, tools, or frameworks used
+- MLOps pipeline, deployment, or infrastructure
+- Machine learning model details (training, features, algorithms)
+- Documentation, setup, or installation
+- How the system works technically
+
+Examples that MUST go to Project Information Agent:
+- "What technologies are used?"
+- "Who is the author?"
+- "How does the ML pipeline work?"
+- "What model is used?"
+
+**IMPORTANT:**
+- NEVER answer flight data questions yourself - ALWAYS hand off to Flight Data Agent
+- NEVER answer project questions yourself - ALWAYS hand off to Project Information Agent
+- If question is completely unrelated to both: "I can only help with real-time flight data or project information."
+
+REMEMBER: Your ONLY job is routing. Always use handoffs. Never answer directly.
+""",
+    handoffs=[flight_data_agent, project_info_agent],
+    input_guardrails=[kanit_guardrail], 
+    model_settings=ModelSettings(model_name="gpt-4o-mini", temperature=0)
+)
+
+
+# ---------------------------
+# APPLICATION ENTRYPOINT
 # ---------------------------
 app = BedrockAgentCoreApp()
 
 @app.entrypoint
 async def invoke(payload):
+    """Main entrypoint for the multi-agent system."""
     user_message = payload.get("prompt", "")
-    result = await Runner.run(supervisor_agent, user_message) 
-    return {"result": result.final_output}
+    logger.info(f"📨 Received request: {user_message}")
+    output = ''
+    
+    try:
+        logger.info("🤖 Starting Runner.run with supervisor_agent...")
+        result = await Runner.run(supervisor_agent, user_message)
+        logger.info(f"✅ Runner completed. Final output: {result.final_output}")
+        output = result.final_output
+    except InputGuardrailTripwireTriggered:
+        logger.warning("🚫 Guardrail triggered")
+        output = "I'd really rather not talk about Kanıt. You can visit https://www.kanitvural.com to learn more about him."
+    except Exception as e:
+        logger.error(f"❌ Error in invoke: {str(e)}", exc_info=True)
+        output = "I apologize, but I encountered an error processing your request. Please try again."
+    
+    logger.info(f"📤 Returning result: {output}")
+    return {"result": output}
+
 
 if __name__ == "__main__":
     app.run()
-

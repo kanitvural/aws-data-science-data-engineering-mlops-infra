@@ -24,7 +24,23 @@ python flight_multi_agent.py
 ```bash
 curl -X POST http://localhost:8080/invocations \
   -H "Content-Type: application/json" \
-  -d '{"prompt": "Hello, What is the longest delay? And Which airline?"}'
+  -d '{"prompt": "How many flights are currently in the system?"}'
+
+curl -X POST http://localhost:8080/invocations \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "What is Alaska Airlines average delay?"}'
+
+curl -X POST http://localhost:8080/invocations \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "Show me weather information for SEA-SFO route"}'
+
+curl -X POST http://localhost:8080/invocations \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "What machine learning model is used in this project?"}'
+
+curl -X POST http://localhost:8080/invocations \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "Tell me about Kanıt Vural"}'
 ```
 
 The `app.run()` command launches a local HTTP server (by default most frameworks use something like `localhost:8080`).

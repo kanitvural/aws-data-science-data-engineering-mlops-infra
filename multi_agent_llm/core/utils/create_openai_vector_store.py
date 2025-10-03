@@ -19,7 +19,7 @@ if not api_key:
 client = OpenAI(api_key=api_key)
 set_default_openai_key(api_key)
 
-# # --- Prepare small sample corpus for Lt. Commander Data ---
+# # # --- Prepare small sample corpus for Lt. Commander Data ---
 CORPUS_PATH = "../data/README.md"
 
 # # --- Create a transient vector store and upload corpus ---
