@@ -82,7 +82,6 @@ class CDKLLMPipelineStack(Stack):
                 "echo '⚙️ Configuring OpenAI Vector Store...'",
                 "python utils/create_openai_vector_store.py",
                 
-                # AgentCore configure
                 "echo '⚙️ Configuring AgentCore agent...'",
                 (
                     "agentcore configure "
@@ -97,7 +96,6 @@ class CDKLLMPipelineStack(Stack):
                     "--non-interactive"
                 ),
                 
-                # AgentCore launch
                 "echo '🔨 Launching AgentCore agent...'",
                 "agentcore launch --env OPENAI_API_KEY=$OPENAI_API_KEY",
                 "echo '✅ AgentCore deployment completed successfully!'",
@@ -115,12 +113,12 @@ class CDKLLMPipelineStack(Stack):
                         f"arn:aws:ssm:{self.region}:{self.account}:parameter{openai_api_key_param_name}"
                     ],
                 ),
-                # ECR - Authorization (global)
+                # ECR - Authorization
                 iam.PolicyStatement(
                     actions=["ecr:GetAuthorizationToken"],
                     resources=["*"],
                 ),
-                # ECR - Repository operations
+                # ECR - Repository
                 iam.PolicyStatement(
                     actions=[
                         "ecr:CreateRepository",
@@ -148,7 +146,7 @@ class CDKLLMPipelineStack(Stack):
                         "codebuild:DeleteProject",
                     ],
                     resources=[
-                        f"arn:aws:codebuild:{self.region}:{self.account}:project/agentcore-*"
+                        f"arn:aws:codebuild:{self.region}:{self.account}:project/*"
                     ],
                 ),
                 # IAM
@@ -159,9 +157,13 @@ class CDKLLMPipelineStack(Stack):
                         "iam:PassRole",
                         "iam:AttachRolePolicy",
                         "iam:PutRolePolicy",
+                        "iam:DeleteRolePolicy",
+                        "iam:ListAttachedRolePolicies",
+                        "iam:ListRolePolicies",
                     ],
                     resources=[
                         agentcore_execution_role_arn,
+                        f"arn:aws:iam::{self.account}:role/AmazonBedrockAgentCoreSDKCodeBuild-*",
                         f"arn:aws:iam::{self.account}:role/agentcore-*",
                     ],
                 ),
@@ -205,8 +207,41 @@ class CDKLLMPipelineStack(Stack):
                     ],
                     resources=[
                         f"arn:aws:logs:{self.region}:{self.account}:log-group:/aws/lambda/flight_multi_agent*",
-                        f"arn:aws:logs:{self.region}:{self.account}:log-group:/aws/codebuild/agentcore-*",
+                        f"arn:aws:logs:{self.region}:{self.account}:log-group:/aws/codebuild/*",
                     ],
+                ),
+                # Bedrock Agent (standart)
+                iam.PolicyStatement(
+                    actions=[
+                        "bedrock:CreateAgent",
+                        "bedrock:UpdateAgent",
+                        "bedrock:GetAgent",
+                        "bedrock:DeleteAgent",
+                        "bedrock:ListAgents",
+                        "bedrock:InvokeAgent",
+                        "bedrock:CreateAgentAlias",
+                        "bedrock:UpdateAgentAlias",
+                        "bedrock:GetAgentAlias",
+                        "bedrock:DeleteAgentAlias",
+                    ],
+                    resources=["*"],
+                ),
+                # Bedrock AgentCore (özel servis)
+                iam.PolicyStatement(
+                    actions=[
+                        "bedrock-agentcore:CreateMemory",
+                        "bedrock-agentcore:GetMemory",
+                        "bedrock-agentcore:UpdateMemory",
+                        "bedrock-agentcore:DeleteMemory",
+                        "bedrock-agentcore:ListMemories",
+                        "bedrock-agentcore:CreateRuntime",
+                        "bedrock-agentcore:UpdateRuntime",
+                        "bedrock-agentcore:GetRuntime",
+                        "bedrock-agentcore:DeleteRuntime",
+                        "bedrock-agentcore:InvokeAgentRuntime",
+                        "bedrock-agentcore:ListRuntimes",
+                    ],
+                    resources=["*"],
                 ),
             ],
         )
