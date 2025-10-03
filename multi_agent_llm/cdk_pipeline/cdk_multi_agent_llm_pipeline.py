@@ -3,7 +3,6 @@ from aws_cdk import (
     pipelines as pipelines_,
     aws_codebuild as codebuild,
     aws_iam as iam,
-    aws_ssm as ssm,
 )
 from constructs import Construct
 from .multi_agent_llm_stage import MultiAgentLLMStage
@@ -210,7 +209,7 @@ class CDKLLMPipelineStack(Stack):
                         f"arn:aws:logs:{self.region}:{self.account}:log-group:/aws/codebuild/*",
                     ],
                 ),
-                # Bedrock Agent (standart)
+                # Bedrock Agent 
                 iam.PolicyStatement(
                     actions=[
                         "bedrock:CreateAgent",
@@ -226,7 +225,7 @@ class CDKLLMPipelineStack(Stack):
                     ],
                     resources=["*"],
                 ),
-                # Bedrock AgentCore (özel servis)
+                # Bedrock AgentCore 
                 iam.PolicyStatement(
                     actions=[
                         "bedrock-agentcore:CreateMemory",
