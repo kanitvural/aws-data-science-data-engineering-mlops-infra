@@ -56,7 +56,10 @@ class CDKLLMPipelineStack(Stack):
         )
 
         multi_agent_llm_infra_stage = MultiAgentLLMStage(
-            self, id="MultiAgentLLMInfraStage", project_name=project_name, notification_email=notification_email
+            self,
+            id="MultiAgentLLMInfraStage",
+            project_name=project_name,
+            notification_email=notification_email,
         )
 
         create_bedrock_agent_core_endpoint = pipelines_.CodeBuildStep(
@@ -94,12 +97,10 @@ class CDKLLMPipelineStack(Stack):
                 "agentcore launch --env OPENAI_API_KEY=$OPENAI_API_KEY",
                 "echo '✅ AgentCore deployment completed successfully!'",
                 "echo '📧 Preparing deployment notification...'",
-               
                 "export MEMORY_ID=$(aws bedrock-agentcore-control list-memories --region $REGION --query 'memories[?status==`ACTIVE`].id | [0]' --output text)",
                 "export RUNTIME_ARN=$(aws bedrock-agentcore-control list-agent-runtimes --region $REGION --query 'agentRuntimes[?status==`READY`].agentRuntimeArn | [0]' --output text)",
                 f"export API_URL=$(aws cloudformation describe-stacks --stack-name {project_name}-MultiAgentLLMInfraStage --region $REGION --query 'Stacks[0].Outputs[?OutputKey==`RestApiUrl`].OutputValue' --output text)",
                 f"export SNS_TOPIC_ARN=$(aws cloudformation describe-stacks --stack-name {project_name}-SNSStack --region $REGION --query 'Stacks[0].Outputs[?OutputKey==`SNSNotificationTopicArn`].OutputValue' --output text)",
-                
                 """aws sns publish \\
             --topic-arn $SNS_TOPIC_ARN \\
             --subject "🚀 Flight Multi-Agent Deployed Successfully!" \\
@@ -236,9 +237,23 @@ class CDKLLMPipelineStack(Stack):
                     actions=["bedrock:*"],
                     resources=["*"],
                 ),
-                # Bedrock AgentCore - FULL
                 iam.PolicyStatement(
                     actions=["bedrock-agentcore:*"],
+                    resources=["*"],
+                ),
+                iam.PolicyStatement(
+                    actions=[
+                        "sns:Publish",
+                        "sns:GetTopicAttributes",
+                    ],
+                    resources=["*"],
+                ),
+                iam.PolicyStatement(
+                    actions=[
+                        "cloudformation:DescribeStacks",
+                        "cloudformation:ListStacks",
+                        "cloudformation:GetTemplate",
+                    ],
                     resources=["*"],
                 ),
             ],

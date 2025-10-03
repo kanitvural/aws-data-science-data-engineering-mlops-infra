@@ -13,7 +13,7 @@ class MultiAgentLLMStage(Stage):
         
         sns_stack = SNSStack(
             self,
-            id="MLOpsNotificationStack",
+            id="MultiAgentNotificationStack",
             project_name=project_name,
             notification_email=notification_email,
         )
