@@ -4,7 +4,6 @@ from aws_cdk import (
     aws_codebuild as codebuild,
     aws_iam as iam,
     aws_ssm as ssm,
-    Fn,
 )
 from constructs import Construct
 from .multi_agent_llm_stage import MultiAgentLLMStage
@@ -17,6 +16,15 @@ class CDKLLMPipelineStack(Stack):
         project_name = self.node.try_get_context("project_name") or "multi-agent-llm"
         pipeline_name = f"{project_name}-pipeline-{self.account}"
 
+        # ENV VARIABLES
+        openai_api_key_param_name = f"/{project_name}/openai-api-key"
+        
+        ecr_repository_name = f"{project_name}-repository-{self.account}"
+        ecr_image_uri = f"{self.account}.dkr.ecr.{self.region}.amazonaws.com/{ecr_repository_name}"
+        
+        agentcore_execution_role_arn = (
+            f"arn:aws:iam::{self.account}:role/AgentCoreExecutionRole-{project_name}-{self.account}"
+        )
 
         # GitHub connections information
         github_repo = "kanitvural/aws-data-science-data-engineering-mlops-infra"
@@ -53,5 +61,148 @@ class CDKLLMPipelineStack(Stack):
             project_name=project_name,
         )
 
-        pipeline.add_stage(multi_agent_llm_infra_stage)
-      
+        create_bedrock_agent_core_endpoint = pipelines_.CodeBuildStep(
+            "CreateBedrockAgentCoreEndpoint",
+            input=source,
+            build_environment=codebuild.BuildEnvironment(
+                compute_type=codebuild.ComputeType.SMALL,
+                build_image=codebuild.LinuxBuildImage.STANDARD_7_0,
+                privileged=True,
+            ),
+            commands=[
+                "echo '🚀 Setting up Bedrock AgentCore deployment...'",
+                "echo '📦 Installing required packages...'",
+                "cd multi_agent_llm/core",
+                "pip install --upgrade pip",
+                "pip install boto3 openai-agents bedrock-agentcore bedrock-agentcore-starter-toolkit python-dotenv pandas",
+                "echo '⚙️ Configuring OpenAI Vector Store...'",
+                "python utils/create_openai_vector_store.py",
+                "echo '⚙️ Configuring AgentCore agent...'",
+                (
+                    "agentcore configure "
+                    "--entrypoint flight_multi_agent.py "
+                    "--name flight_multi_agent "
+                    "--execution-role $AGENTCORE_EXECUTION_ROLE_ARN "
+                    "--ecr $ECR_REPOSITORY "
+                    "--requirements-file requirements.txt "
+                    "--authorizer-config 'null' "
+                    "--request-header-allowlist '' "
+                    "--region $REGION "
+                    "--non-interactive"
+                ),
+                "echo '🔨 Launching AgentCore agent...'",
+                f"export OPENAI_API_KEY=$(aws ssm get-parameter --name {openai_api_key_param_name} --with-decryption --query Parameter.Value --output text)",
+                "agentcore launch --env OPENAI_API_KEY=$OPENAI_API_KEY",
+                "echo '✅ AgentCore deployment completed successfully!'",
+            ],
+            env={
+                "REGION": self.region,
+                "ECR_REPOSITORY": ecr_image_uri,
+                "AGENTCORE_EXECUTION_ROLE_ARN": agentcore_execution_role_arn,
+            },
+            role_policy_statements=[
+                # SSM
+                iam.PolicyStatement(
+                    actions=["ssm:GetParameter"],
+                    resources=[
+                        f"arn:aws:ssm:{self.region}:{self.account}:parameter{openai_api_key_param_name}"
+                    ],
+                ),
+                # ECR - Authorization (global)
+                iam.PolicyStatement(
+                    actions=["ecr:GetAuthorizationToken"],
+                    resources=["*"],
+                ),
+                # ECR - Repository operations
+                iam.PolicyStatement(
+                    actions=[
+                        "ecr:CreateRepository",
+                        "ecr:DescribeRepositories",
+                        "ecr:BatchCheckLayerAvailability",
+                        "ecr:GetDownloadUrlForLayer",
+                        "ecr:BatchGetImage",
+                        "ecr:PutImage",
+                        "ecr:InitiateLayerUpload",
+                        "ecr:UploadLayerPart",
+                        "ecr:CompleteLayerUpload",
+                    ],
+                    resources=[
+                        f"arn:aws:ecr:{self.region}:{self.account}:repository/{ecr_repository_name}"
+                    ],
+                ),
+                # CodeBuild
+                iam.PolicyStatement(
+                    actions=[
+                        "codebuild:CreateProject",
+                        "codebuild:UpdateProject",
+                        "codebuild:BatchGetProjects",
+                        "codebuild:StartBuild",
+                        "codebuild:BatchGetBuilds",
+                        "codebuild:DeleteProject",
+                    ],
+                    resources=[
+                        f"arn:aws:codebuild:{self.region}:{self.account}:project/agentcore-*"
+                    ],
+                ),
+                # IAM
+                iam.PolicyStatement(
+                    actions=[
+                        "iam:CreateRole",
+                        "iam:GetRole",
+                        "iam:PassRole",
+                        "iam:AttachRolePolicy",
+                        "iam:PutRolePolicy",
+                    ],
+                    resources=[
+                        agentcore_execution_role_arn,
+                        f"arn:aws:iam::{self.account}:role/agentcore-*",
+                    ],
+                ),
+                # Lambda
+                iam.PolicyStatement(
+                    actions=[
+                        "lambda:CreateFunction",
+                        "lambda:UpdateFunctionCode",
+                        "lambda:UpdateFunctionConfiguration",
+                        "lambda:GetFunction",
+                        "lambda:InvokeFunction",
+                        "lambda:DeleteFunction",
+                        "lambda:AddPermission",
+                        "lambda:RemovePermission",
+                    ],
+                    resources=[
+                        f"arn:aws:lambda:{self.region}:{self.account}:function:flight_multi_agent*"
+                    ],
+                ),
+                # S3
+                iam.PolicyStatement(
+                    actions=[
+                        "s3:GetObject",
+                        "s3:PutObject",
+                        "s3:ListBucket",
+                        "s3:CreateBucket",
+                    ],
+                    resources=[
+                        f"arn:aws:s3:::agentcore-*",
+                        f"arn:aws:s3:::agentcore-*/*",
+                        f"arn:aws:s3:::{project_name}-*",
+                        f"arn:aws:s3:::{project_name}-*/*",
+                    ],
+                ),
+                # CloudWatch Logs
+                iam.PolicyStatement(
+                    actions=[
+                        "logs:CreateLogGroup",
+                        "logs:CreateLogStream",
+                        "logs:PutLogEvents",
+                    ],
+                    resources=[
+                        f"arn:aws:logs:{self.region}:{self.account}:log-group:/aws/lambda/flight_multi_agent*",
+                        f"arn:aws:logs:{self.region}:{self.account}:log-group:/aws/codebuild/agentcore-*",
+                    ],
+                ),
+            ],
+        )
+
+        multi_agent_llm_infra_deploy = pipeline.add_stage(multi_agent_llm_infra_stage)
+        multi_agent_llm_infra_deploy.add_post(create_bedrock_agent_core_endpoint)

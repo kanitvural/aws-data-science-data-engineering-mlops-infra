@@ -7,7 +7,7 @@ from aws_cdk import (
     Fn,
 )
 from constructs import Construct
-from .multi_agent_llm_stage import MultiAgentLLMStage
+from ..multi_agent_llm_stage import MultiAgentLLMStage
 
 
 class CDKLLMPipelineStack(Stack):
