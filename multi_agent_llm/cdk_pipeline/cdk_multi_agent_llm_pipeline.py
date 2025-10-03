@@ -75,8 +75,14 @@ class CDKLLMPipelineStack(Stack):
                 "cd multi_agent_llm/core",
                 "pip install --upgrade pip",
                 "pip install boto3 openai-agents bedrock-agentcore bedrock-agentcore-starter-toolkit python-dotenv pandas",
+                
+                "echo '🔑 Fetching OpenAI API Key from SSM...'",
+                f"export OPENAI_API_KEY=$(aws ssm get-parameter --name {openai_api_key_param_name} --with-decryption --query Parameter.Value --output text)",
+                
                 "echo '⚙️ Configuring OpenAI Vector Store...'",
                 "python utils/create_openai_vector_store.py",
+                
+                # AgentCore configure
                 "echo '⚙️ Configuring AgentCore agent...'",
                 (
                     "agentcore configure "
@@ -90,8 +96,9 @@ class CDKLLMPipelineStack(Stack):
                     "--region $REGION "
                     "--non-interactive"
                 ),
+                
+                # AgentCore launch
                 "echo '🔨 Launching AgentCore agent...'",
-                f"export OPENAI_API_KEY=$(aws ssm get-parameter --name {openai_api_key_param_name} --with-decryption --query Parameter.Value --output text)",
                 "agentcore launch --env OPENAI_API_KEY=$OPENAI_API_KEY",
                 "echo '✅ AgentCore deployment completed successfully!'",
             ],
