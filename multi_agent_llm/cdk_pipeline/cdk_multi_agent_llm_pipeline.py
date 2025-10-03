@@ -99,8 +99,8 @@ class CDKLLMPipelineStack(Stack):
                 "echo '📧 Preparing deployment notification...'",
                 "export MEMORY_ID=$(aws bedrock-agentcore-control list-memories --region $REGION --query 'memories[?status==`ACTIVE`].id | [0]' --output text)",
                 "export RUNTIME_ARN=$(aws bedrock-agentcore-control list-agent-runtimes --region $REGION --query 'agentRuntimes[?status==`READY`].agentRuntimeArn | [0]' --output text)",
-                f"export API_URL=$(aws cloudformation describe-stacks --stack-name {project_name}-MultiAgentLLMInfraStage --region $REGION --query 'Stacks[0].Outputs[?OutputKey==`RestApiUrl`].OutputValue' --output text)",
-                f"export SNS_TOPIC_ARN=$(aws cloudformation describe-stacks --stack-name {project_name}-SNSStack --region $REGION --query 'Stacks[0].Outputs[?OutputKey==`SNSNotificationTopicArn`].OutputValue' --output text)",
+                f"export API_URL=$(aws cloudformation describe-stacks --stack-name MultiAgentLLMInfraStage-RESTAPIInfrastructure --region $REGION --query 'Stacks[0].Outputs[?OutputKey==`RestApiUrl`].OutputValue' --output text)",
+                f"export SNS_TOPIC_ARN=$(aws cloudformation describe-stacks --stack-name MultiAgentLLMInfraStage-MultiAgentNotificationStack --region $REGION --query 'Stacks[0].Outputs[?OutputKey==`SNSNotificationTopicArn`].OutputValue' --output text)",
                 """aws sns publish \\
             --topic-arn $SNS_TOPIC_ARN \\
             --subject "🚀 Flight Multi-Agent Deployed Successfully!" \\
