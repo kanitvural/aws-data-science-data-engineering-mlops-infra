@@ -17,10 +17,10 @@ class CDKLLMPipelineStack(Stack):
 
         # ENV VARIABLES
         openai_api_key_param_name = f"/{project_name}/openai-api-key"
-        
+
         ecr_repository_name = f"{project_name}-repository-{self.account}"
         ecr_image_uri = f"{self.account}.dkr.ecr.{self.region}.amazonaws.com/{ecr_repository_name}"
-        
+
         agentcore_execution_role_arn = (
             f"arn:aws:iam::{self.account}:role/AgentCoreExecutionRole-{project_name}-{self.account}"
         )
@@ -74,13 +74,10 @@ class CDKLLMPipelineStack(Stack):
                 "cd multi_agent_llm/core",
                 "pip install --upgrade pip",
                 "pip install boto3 openai-agents bedrock-agentcore bedrock-agentcore-starter-toolkit python-dotenv pandas",
-                
                 "echo '🔑 Fetching OpenAI API Key from SSM...'",
                 f"export OPENAI_API_KEY=$(aws ssm get-parameter --name {openai_api_key_param_name} --with-decryption --query Parameter.Value --output text)",
-                
                 "echo '⚙️ Configuring OpenAI Vector Store...'",
                 "python utils/create_openai_vector_store.py",
-                
                 "echo '⚙️ Configuring AgentCore agent...'",
                 (
                     "agentcore configure "
@@ -94,7 +91,6 @@ class CDKLLMPipelineStack(Stack):
                     "--region $REGION "
                     "--non-interactive"
                 ),
-                
                 "echo '🔨 Launching AgentCore agent...'",
                 "agentcore launch --env OPENAI_API_KEY=$OPENAI_API_KEY",
                 "echo '✅ AgentCore deployment completed successfully!'",
@@ -108,9 +104,7 @@ class CDKLLMPipelineStack(Stack):
                 # SSM
                 iam.PolicyStatement(
                     actions=["ssm:GetParameter"],
-                    resources=[
-                        f"arn:aws:ssm:{self.region}:{self.account}:parameter{openai_api_key_param_name}"
-                    ],
+                    resources=[f"arn:aws:ssm:{self.region}:{self.account}:parameter{openai_api_key_param_name}"],
                 ),
                 # ECR - Authorization
                 iam.PolicyStatement(
@@ -130,9 +124,7 @@ class CDKLLMPipelineStack(Stack):
                         "ecr:UploadLayerPart",
                         "ecr:CompleteLayerUpload",
                     ],
-                    resources=[
-                        f"arn:aws:ecr:{self.region}:{self.account}:repository/{ecr_repository_name}"
-                    ],
+                    resources=[f"arn:aws:ecr:{self.region}:{self.account}:repository/{ecr_repository_name}"],
                 ),
                 # CodeBuild
                 iam.PolicyStatement(
@@ -144,9 +136,7 @@ class CDKLLMPipelineStack(Stack):
                         "codebuild:BatchGetBuilds",
                         "codebuild:DeleteProject",
                     ],
-                    resources=[
-                        f"arn:aws:codebuild:{self.region}:{self.account}:project/*"
-                    ],
+                    resources=[f"arn:aws:codebuild:{self.region}:{self.account}:project/*"],
                 ),
                 # IAM
                 iam.PolicyStatement(
@@ -178,21 +168,23 @@ class CDKLLMPipelineStack(Stack):
                         "lambda:AddPermission",
                         "lambda:RemovePermission",
                     ],
-                    resources=[
-                        f"arn:aws:lambda:{self.region}:{self.account}:function:flight_multi_agent*"
-                    ],
+                    resources=[f"arn:aws:lambda:{self.region}:{self.account}:function:flight_multi_agent*"],
                 ),
-                # S3
                 iam.PolicyStatement(
                     actions=[
                         "s3:GetObject",
                         "s3:PutObject",
                         "s3:ListBucket",
                         "s3:CreateBucket",
+                        "s3:DeleteBucket",
+                        "s3:PutBucketPolicy",
+                        "s3:GetBucketLocation",
                     ],
                     resources=[
-                        f"arn:aws:s3:::agentcore-*",
-                        f"arn:aws:s3:::agentcore-*/*",
+                        "arn:aws:s3:::agentcore-*",
+                        "arn:aws:s3:::agentcore-*/*",
+                        "arn:aws:s3:::bedrock-agentcore-*",
+                        "arn:aws:s3:::bedrock-agentcore-*/*",
                         f"arn:aws:s3:::{project_name}-*",
                         f"arn:aws:s3:::{project_name}-*/*",
                     ],
@@ -209,7 +201,7 @@ class CDKLLMPipelineStack(Stack):
                         f"arn:aws:logs:{self.region}:{self.account}:log-group:/aws/codebuild/*",
                     ],
                 ),
-                # Bedrock Agent 
+                # Bedrock Agent
                 iam.PolicyStatement(
                     actions=[
                         "bedrock:CreateAgent",
@@ -225,7 +217,7 @@ class CDKLLMPipelineStack(Stack):
                     ],
                     resources=["*"],
                 ),
-                # Bedrock AgentCore 
+                # Bedrock AgentCore
                 iam.PolicyStatement(
                     actions=[
                         "bedrock-agentcore:CreateMemory",
