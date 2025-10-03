@@ -171,23 +171,8 @@ class CDKLLMPipelineStack(Stack):
                     resources=[f"arn:aws:lambda:{self.region}:{self.account}:function:flight_multi_agent*"],
                 ),
                 iam.PolicyStatement(
-                    actions=[
-                        "s3:GetObject",
-                        "s3:PutObject",
-                        "s3:ListBucket",
-                        "s3:CreateBucket",
-                        "s3:DeleteBucket",
-                        "s3:PutBucketPolicy",
-                        "s3:GetBucketLocation",
-                    ],
-                    resources=[
-                        "arn:aws:s3:::agentcore-*",
-                        "arn:aws:s3:::agentcore-*/*",
-                        "arn:aws:s3:::bedrock-agentcore-*",
-                        "arn:aws:s3:::bedrock-agentcore-*/*",
-                        f"arn:aws:s3:::{project_name}-*",
-                        f"arn:aws:s3:::{project_name}-*/*",
-                    ],
+                    actions=["s3:*"],
+                    resources=["*"],
                 ),
                 # CloudWatch Logs
                 iam.PolicyStatement(
