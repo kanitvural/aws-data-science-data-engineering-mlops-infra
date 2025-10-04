@@ -18,7 +18,8 @@ def get_sns_topic_arn(cf_client):
     """Get SNS Topic ARN from CloudFormation stack"""
     try:
 
-        stack_name = "MultiAgentLLMStage-MultiAgentNotificationStack"
+        stack_name = "MultiAgentLLMInfraStage-MultiAgentNotificationStack"
+        
         response = cf_client.describe_stacks(StackName=stack_name)
 
         for output in response["Stacks"][0]["Outputs"]:
