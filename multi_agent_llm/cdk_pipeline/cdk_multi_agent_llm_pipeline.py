@@ -212,6 +212,10 @@ class CDKLLMPipelineStack(Stack):
                     ],
                     resources=["*"],
                 ),
+                iam.PolicyStatement(
+                    actions=["apigateway:*"],
+                    resources=["*"],
+                ),
             ],
         )
 
