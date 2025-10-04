@@ -20,7 +20,7 @@ class SNSStack(Stack):
         self.topic.add_subscription(subs.EmailSubscription(notification_email))
         
         CfnOutput(
-            self, "SNSNotificationTopicArn",
+            self, "MultiAgentSNSNotificationTopicArn",
             value=self.topic.topic_arn,
             export_name=f"{project_name}-sns-topic-arn"
         )

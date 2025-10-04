@@ -96,57 +96,13 @@ class CDKLLMPipelineStack(Stack):
                 "echo '🔨 Launching AgentCore agent...'",
                 "agentcore launch --env OPENAI_API_KEY=$OPENAI_API_KEY",
                 "echo '✅ AgentCore deployment completed successfully!'",
-                "echo '📧 Preparing deployment notification...'",
-                "export MEMORY_ID=$(aws bedrock-agentcore-control list-memories --region $REGION --query 'memories[?status==`ACTIVE`].id | [0]' --output text)",
-                "export RUNTIME_ARN=$(aws bedrock-agentcore-control list-agent-runtimes --region $REGION --query 'agentRuntimes[?status==`READY`].agentRuntimeArn | [0]' --output text)",
-                f"export API_URL=$(aws cloudformation describe-stacks --stack-name MultiAgentLLMInfraStage-RESTAPIInfrastructure --region $REGION --query 'Stacks[0].Outputs[?OutputKey==`RestApiUrl`].OutputValue' --output text)",
-                f"export SNS_TOPIC_ARN=$(aws cloudformation describe-stacks --stack-name MultiAgentLLMInfraStage-MultiAgentNotificationStack --region $REGION --query 'Stacks[0].Outputs[?OutputKey==`SNSNotificationTopicArn`].OutputValue' --output text)",
-                """aws sns publish \\
-            --topic-arn $SNS_TOPIC_ARN \\
-            --subject "🚀 Flight Multi-Agent Deployed Successfully!" \\
-            --message "$(cat <<EOF
-        🎉 FLIGHT MULTI-AGENT DEPLOYMENT SUCCESSFUL
-        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-        ✅ Status: DEPLOYED
-        📅 Time: $(date)
-        🌍 Region: $REGION
-
-        🔗 API ENDPOINTS:
-        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-        POST ${API_URL:-YOUR_API_URL}/chat
-        → Send chat messages to agent
-        Body: {"prompt": "...", "sessionId": "..."}
-
-        POST ${API_URL:-YOUR_API_URL}/history  
-        → Get conversation history
-        Body: {"sessionId": "..."}
-
-        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-        📊 RESOURCE IDs:
-        Memory: ${MEMORY_ID:-N/A}
-        Runtime: ${RUNTIME_ARN:-N/A}
-
-        🧪 QUICK TEST:
-        curl -X POST ${API_URL}/chat \\
-        -H "Content-Type: application/json" \\
-        -d '{"prompt":"Find flights IST to NYC","sessionId":"test-123"}'
-
-        curl -X POST ${API_URL}/history \\
-        -H "Content-Type: application/json" \\
-        -d '{"sessionId":"test-123"}'
-
-        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        🚀 System ready for production!
-        EOF
-        )"
-            """,
-                "echo '📧 Notification sent successfully!'",
+                "echo '📧 Sending deployment notification...'",
+                "python ../scripts/send_prod_deployment_notification.py",
+                "echo '🎉 Deployment and notification complete!'",
             ],
             env={
                 "REGION": self.region,
+                "PROJECT_NAME": project_name,
                 "ECR_REPOSITORY": ecr_image_uri,
                 "AGENTCORE_EXECUTION_ROLE_ARN": agentcore_execution_role_arn,
             },
