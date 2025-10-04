@@ -3,8 +3,6 @@ from aws_cdk import (
     pipelines as pipelines_,
     aws_codebuild as codebuild,
     aws_iam as iam,
-    aws_ssm as ssm,
-    Fn,
 )
 from constructs import Construct
 from .multi_agent_llm_stage import MultiAgentLLMStage
@@ -16,7 +14,17 @@ class CDKLLMPipelineStack(Stack):
 
         project_name = self.node.try_get_context("project_name") or "multi-agent-llm"
         pipeline_name = f"{project_name}-pipeline-{self.account}"
+        notification_email = self.node.try_get_context("notification_email")
 
+        # ENV VARIABLES
+        openai_api_key_param_name = f"/{project_name}/openai-api-key"
+
+        ecr_repository_name = f"{project_name}-repository-{self.account}"
+        ecr_image_uri = f"{self.account}.dkr.ecr.{self.region}.amazonaws.com/{ecr_repository_name}"
+
+        agentcore_execution_role_arn = (
+            f"arn:aws:iam::{self.account}:role/AgentCoreExecutionRole-{project_name}-{self.account}"
+        )
 
         # GitHub connections information
         github_repo = "kanitvural/aws-data-science-data-engineering-mlops-infra"
@@ -51,7 +59,165 @@ class CDKLLMPipelineStack(Stack):
             self,
             id="MultiAgentLLMInfraStage",
             project_name=project_name,
+            notification_email=notification_email,
         )
 
-        pipeline.add_stage(multi_agent_llm_infra_stage)
-      
+        create_bedrock_agent_core_endpoint = pipelines_.CodeBuildStep(
+            "CreateBedrockAgentCoreEndpoint",
+            input=source,
+            build_environment=codebuild.BuildEnvironment(
+                compute_type=codebuild.ComputeType.SMALL,
+                build_image=codebuild.LinuxBuildImage.STANDARD_7_0,
+                privileged=True,
+            ),
+            commands=[
+                "echo '🚀 Setting up Bedrock AgentCore deployment...'",
+                "echo '📦 Installing required packages...'",
+                "cd multi_agent_llm/core",
+                "pip install --upgrade pip",
+                "pip install boto3 openai-agents bedrock-agentcore bedrock-agentcore-starter-toolkit python-dotenv pandas",
+                "echo '🔑 Fetching OpenAI API Key from SSM...'",
+                f"export OPENAI_API_KEY=$(aws ssm get-parameter --name {openai_api_key_param_name} --with-decryption --query Parameter.Value --output text)",
+                "echo '⚙️ Configuring OpenAI Vector Store...'",
+                "python utils/create_openai_vector_store.py",
+                "echo '⚙️ Configuring AgentCore agent...'",
+                (
+                    "agentcore configure "
+                    "--entrypoint flight_multi_agent.py "
+                    "--name flight_multi_agent "
+                    "--execution-role $AGENTCORE_EXECUTION_ROLE_ARN "
+                    "--ecr $ECR_REPOSITORY "
+                    "--requirements-file requirements.txt "
+                    "--authorizer-config 'null' "
+                    "--request-header-allowlist '' "
+                    "--region $REGION "
+                    "--non-interactive"
+                ),
+                "echo '🔨 Launching AgentCore agent...'",
+                "agentcore launch --env OPENAI_API_KEY=$OPENAI_API_KEY",
+                "echo '✅ AgentCore deployment completed successfully!'",
+                "echo '📧 Sending deployment notification...'",
+                "python ../scripts/send_prod_deployment_notification.py",
+                "echo '🎉 Deployment and notification complete!'",
+            ],
+            env={
+                "REGION": self.region,
+                "PROJECT_NAME": project_name,
+                "ECR_REPOSITORY": ecr_image_uri,
+                "AGENTCORE_EXECUTION_ROLE_ARN": agentcore_execution_role_arn,
+            },
+            role_policy_statements=[
+                # SSM
+                iam.PolicyStatement(
+                    actions=["ssm:GetParameter"],
+                    resources=[f"arn:aws:ssm:{self.region}:{self.account}:parameter{openai_api_key_param_name}"],
+                ),
+                # ECR - Authorization
+                iam.PolicyStatement(
+                    actions=["ecr:GetAuthorizationToken"],
+                    resources=["*"],
+                ),
+                # ECR - Repository
+                iam.PolicyStatement(
+                    actions=[
+                        "ecr:CreateRepository",
+                        "ecr:DescribeRepositories",
+                        "ecr:BatchCheckLayerAvailability",
+                        "ecr:GetDownloadUrlForLayer",
+                        "ecr:BatchGetImage",
+                        "ecr:PutImage",
+                        "ecr:InitiateLayerUpload",
+                        "ecr:UploadLayerPart",
+                        "ecr:CompleteLayerUpload",
+                    ],
+                    resources=[f"arn:aws:ecr:{self.region}:{self.account}:repository/{ecr_repository_name}"],
+                ),
+                # CodeBuild
+                iam.PolicyStatement(
+                    actions=[
+                        "codebuild:CreateProject",
+                        "codebuild:UpdateProject",
+                        "codebuild:BatchGetProjects",
+                        "codebuild:StartBuild",
+                        "codebuild:BatchGetBuilds",
+                        "codebuild:DeleteProject",
+                    ],
+                    resources=[f"arn:aws:codebuild:{self.region}:{self.account}:project/*"],
+                ),
+                # IAM
+                iam.PolicyStatement(
+                    actions=[
+                        "iam:CreateRole",
+                        "iam:GetRole",
+                        "iam:PassRole",
+                        "iam:AttachRolePolicy",
+                        "iam:PutRolePolicy",
+                        "iam:DeleteRolePolicy",
+                        "iam:ListAttachedRolePolicies",
+                        "iam:ListRolePolicies",
+                    ],
+                    resources=[
+                        agentcore_execution_role_arn,
+                        f"arn:aws:iam::{self.account}:role/AmazonBedrockAgentCoreSDKCodeBuild-*",
+                        f"arn:aws:iam::{self.account}:role/agentcore-*",
+                    ],
+                ),
+                # Lambda
+                iam.PolicyStatement(
+                    actions=[
+                        "lambda:CreateFunction",
+                        "lambda:UpdateFunctionCode",
+                        "lambda:UpdateFunctionConfiguration",
+                        "lambda:GetFunction",
+                        "lambda:InvokeFunction",
+                        "lambda:DeleteFunction",
+                        "lambda:AddPermission",
+                        "lambda:RemovePermission",
+                    ],
+                    resources=[f"arn:aws:lambda:{self.region}:{self.account}:function:flight_multi_agent*"],
+                ),
+                iam.PolicyStatement(
+                    actions=["s3:*"],
+                    resources=["*"],
+                ),
+                # CloudWatch Logs
+                iam.PolicyStatement(
+                    actions=[
+                        "logs:CreateLogGroup",
+                        "logs:CreateLogStream",
+                        "logs:PutLogEvents",
+                    ],
+                    resources=["*"],
+                ),
+                iam.PolicyStatement(
+                    actions=["bedrock:*"],
+                    resources=["*"],
+                ),
+                iam.PolicyStatement(
+                    actions=["bedrock-agentcore:*"],
+                    resources=["*"],
+                ),
+                iam.PolicyStatement(
+                    actions=[
+                        "sns:Publish",
+                        "sns:GetTopicAttributes",
+                    ],
+                    resources=["*"],
+                ),
+                iam.PolicyStatement(
+                    actions=[
+                        "cloudformation:DescribeStacks",
+                        "cloudformation:ListStacks",
+                        "cloudformation:GetTemplate",
+                    ],
+                    resources=["*"],
+                ),
+                iam.PolicyStatement(
+                    actions=["apigateway:*"],
+                    resources=["*"],
+                ),
+            ],
+        )
+
+        multi_agent_llm_infra_deploy = pipeline.add_stage(multi_agent_llm_infra_stage)
+        multi_agent_llm_infra_deploy.add_post(create_bedrock_agent_core_endpoint)
