@@ -127,6 +127,8 @@ def main():
     Region: {region}
 
     API ENDPOINTS:
+    
+    MAIN {api_url}
 
     POST {api_url}/chat
     Send chat messages to agent
