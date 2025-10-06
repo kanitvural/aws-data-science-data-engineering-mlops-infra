@@ -49,7 +49,7 @@ if __name__ == "__main__":
     env_lines = [
         f"NEXT_PUBLIC_WEBSOCKET_URL={get_websocket_url('FlightAIWebSocketAPI')}",
         f"NEXT_PUBLIC_APIGATEWAY_CHATBOT_URL={get_api_gateway_url('FlightAIMultiAgentLLMApi')}",
-        f"NEXT_PUBLIC_API_GATEWAY_AUTH_URL={get_api_gateway_url('flightai-auth-api')}",
+        f"NEXT_PUBLIC_API_GATEWAY_AUTH_URL={get_api_gateway_url('FlightAIAuthAPI')}",
     ]
 
     with open(output_file, "w") as f:
