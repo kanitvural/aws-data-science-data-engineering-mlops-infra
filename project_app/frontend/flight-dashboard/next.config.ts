@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: 'export',
-  trailingSlash: true,
+  trailingSlash: false, // Next.js + CloudFront + S3 config
   images: {
     unoptimized: true,
   },

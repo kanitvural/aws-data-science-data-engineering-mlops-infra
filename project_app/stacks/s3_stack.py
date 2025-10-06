@@ -5,6 +5,7 @@ from aws_cdk import (
     aws_cloudfront_origins as origins,
     RemovalPolicy,
     CfnOutput,
+    Duration
 )
 from constructs import Construct
 
@@ -47,6 +48,21 @@ class S3Stack(Stack):
                 cache_policy=cloudfront.CachePolicy.CACHING_OPTIMIZED,
             ),
             default_root_object="index.html",  # CloudFront root object
+            
+            error_responses=[
+                cloudfront.ErrorResponse(
+                    http_status=403,
+                    response_http_status=200,
+                    response_page_path="/index.html",
+                    ttl=Duration.seconds(0),
+                ),
+                cloudfront.ErrorResponse(
+                    http_status=404,
+                    response_http_status=200,
+                    response_page_path="/index.html",
+                    ttl=Duration.seconds(0),
+                ),
+            ],
             price_class=cloudfront.PriceClass.PRICE_CLASS_100  # NA & EU
         )
 
