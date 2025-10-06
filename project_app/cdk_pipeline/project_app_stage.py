@@ -21,7 +21,6 @@ class AppPipelineStage(Stage):
         cognito_stack = CognitoStack(
             self,
             id="CognitoInfrastructure",
-            project_name=project_name
         )
 
         api_gateway_auth_stack = ApiGatewayAuthRestStack(
