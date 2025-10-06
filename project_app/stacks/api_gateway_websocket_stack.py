@@ -84,7 +84,7 @@ class ApiGatewayWebSocketStack(Stack):
         ws_api = apigwv2.WebSocketApi(
             self,
             "FlightsWebSocketApi",
-            api_name="FlightsWebSocketAPI",
+            api_name="FlightAIWebSocketAPI",
             route_selection_expression="request.body.action",
             connect_route_options=apigwv2.WebSocketRouteOptions(
                 integration=apigw_integrations.WebSocketLambdaIntegration(
