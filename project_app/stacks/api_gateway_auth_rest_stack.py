@@ -83,10 +83,7 @@ class ApiGatewayAuthRestStack(Stack):
             self,
             "FlightAIAuthApi",
             rest_api_name="FlightAIAuthAPI",
-            default_cors_preflight_options=apigw.CorsOptions(
-                allow_origins=apigw.Cors.ALL_ORIGINS,
-                allow_methods=apigw.Cors.ALL_METHODS,
-            ),
+            default_cors_preflight_options=None
         )
 
         # /auth resource
