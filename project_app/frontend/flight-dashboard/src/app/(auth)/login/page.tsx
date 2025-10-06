@@ -7,7 +7,6 @@ import {
   Plane,
   Mail,
   Lock,
-  User,
   ArrowRight,
   Loader2,
   CheckCircle2,
@@ -16,35 +15,32 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { AuthService } from "@/services/authService";
-import { useAuthRedirect } from "@/hooks/useAuthRedirect";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { isLoading: isCheckingAuth } = useAuthRedirect(false); // Auth check
-
-  const [mode, setMode] = useState<"signin" | "signup" | "verify">("signin");
+  const [mode, setMode] = useState<
+    "signin" | "signup" | "verify" | "forgot" | "reset"
+  >("signin");
   const [formData, setFormData] = useState({
     email: "",
     password: "",
-    name: "",
+    firstName: "",
+    lastName: "",
+    gender: "",
     verificationCode: "",
   });
-  const [isLoading, setIsLoading] = useState(false); // Form submit loading
+
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
-  // Auth check yapılırken loading göster
-  if (isCheckingAuth) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
+  function capitalize(word: string): string {
+    if (!word) return "";
+    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
-    console.log("🔥 FORM SUBMITTED!")
     e.preventDefault();
     setError("");
     setSuccess("");
@@ -52,23 +48,40 @@ export default function LoginPage() {
 
     try {
       if (mode === "signin") {
-        console.log("🔑 Calling login with:", formData.email);
-        const result = await AuthService.login({
+        await AuthService.login({
           username: formData.email,
           password: formData.password,
         });
-        console.log("✅ Login response:", result);
+
+        // ✅ Retrieve user name and save it to the session storage
+        type CognitoAttr = { Name: string; Value?: string };
+        type GetUserResponse = { user?: { UserAttributes?: CognitoAttr[] } };
+
+        const userResp =
+          (await AuthService.getCurrentUser()) as GetUserResponse;
+        const attrs: CognitoAttr[] = userResp.user?.UserAttributes ?? [];
+
+        const findValue = (name: string) =>
+          attrs.find((a) => a.Name === name)?.Value;
+        const firstName =
+          findValue("given_name") ?? findValue("first_name") ?? "";
+
+        if (firstName) {
+          sessionStorage.setItem("userFirstName", firstName);
+        } else {
+          console.warn("firstName bulunamadı, attrs:", attrs);
+        }
+
         setSuccess("Successfully signed in! Redirecting...");
-
-        // window.location.href = "/"; //  hard redirect instead of router.push 
-        router.push('/')
-
-
+        setTimeout(() => router.push("/"), 1000);
       } else if (mode === "signup") {
         await AuthService.signup({
           username: formData.email,
           password: formData.password,
           email: formData.email,
+          firstName: capitalize(formData.firstName),
+          lastName: capitalize(formData.lastName),
+          gender: formData.gender,
         });
         setSuccess(
           "Account created! Please check your email for verification code."
@@ -84,6 +97,18 @@ export default function LoginPage() {
           setMode("signin");
           setFormData({ ...formData, verificationCode: "" });
         }, 2000);
+      } else if (mode === "forgot") {
+        await AuthService.forgotPassword(formData.email);
+        setSuccess("Reset code sent to your email!");
+        setMode("reset");
+      } else if (mode === "reset") {
+        await AuthService.confirmForgotPassword({
+          username: formData.email,
+          code: formData.verificationCode,
+          newPassword: formData.password,
+        });
+        setSuccess("Password reset successful! You can now sign in.");
+        setMode("signin");
       }
     } catch (err: any) {
       setError(err.message || "An error occurred. Please try again.");
@@ -91,6 +116,13 @@ export default function LoginPage() {
       setIsLoading(false);
     }
   };
+
+  const features = [
+    { icon: "🚀", text: "Real-time ML predictions with AWS SageMaker Endpoint" },
+    { icon: "💬", text: "AI-powered chatbot with AWS Bedrock-Agentcore" },
+    { icon: "🔐", text: "Secure authentication with AWS Cognito" },
+    { icon: "📊", text: "Live dashboard with WebSocket streaming" },
+  ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-4 relative overflow-hidden">
@@ -106,28 +138,8 @@ export default function LoginPage() {
           transition={{ duration: 25, repeat: Infinity }}
           className="absolute -bottom-40 -left-40 w-96 h-96 bg-indigo-400/10 rounded-full blur-3xl"
         />
-
-        {[...Array(3)].map((_, i) => (
-          <motion.div
-            key={i}
-            initial={{ x: -100, y: 100 + i * 150 }}
-            animate={{
-              x: ["0%", "100%"],
-              y: [100 + i * 150, 50 + i * 150, 100 + i * 150],
-            }}
-            transition={{
-              duration: 15 + i * 5,
-              repeat: Infinity,
-              ease: "linear",
-            }}
-            className="absolute opacity-5"
-          >
-            <Plane size={40} className="text-blue-600" />
-          </motion.div>
-        ))}
       </div>
 
-      {/* Main Container */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -139,46 +151,33 @@ export default function LoginPage() {
           initial={{ opacity: 0, x: -50 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.2, duration: 0.6 }}
-          className="hidden lg:block space-y-8 p-8"
+          className="space-y-8 p-8"
         >
-          <div className="space-y-4">
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: 0.4, type: "spring", stiffness: 200 }}
-              className="flex items-center space-x-3"
-            >
-              <div className="p-3 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl shadow-lg">
-                <Plane size={40} className="text-white" />
-              </div>
-              <h1 className="text-4xl font-bold text-gray-900 dark:text-white">
-                FlightAI
-              </h1>
-            </motion.div>
-
-            <h2 className="text-5xl font-bold text-gray-900 dark:text-white leading-tight">
-              Real-Time Flight
-              <span className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
-                Delay Prediction
-              </span>
-            </h2>
-
-            <p className="text-xl text-gray-600 dark:text-gray-400">
-              AWS SageMaker ML Pipeline • DynamoDB Stream • WebSocket Live • AWS
-              Bedrock AI Assistant
-            </p>
+          {/* Logo */}
+          <div className="flex items-center space-x-3">
+            <div className="p-3 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl shadow-lg">
+              <Plane size={40} className="text-white" />
+            </div>
+            <h1 className="text-4xl font-bold text-gray-900 dark:text-white">
+              FlightAI
+            </h1>
           </div>
 
+          {/* Titles */}
+          <h2 className="text-5xl font-bold text-gray-900 dark:text-white leading-tight">
+            Real-Time Flight
+            <span className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
+              Delay Prediction
+            </span>
+          </h2>
+
+          <p className="text-xl text-gray-600 dark:text-gray-400">
+            Ultimate AWS AI Project ✈️ Data Engineering • Data Science • MLOps • Multi-Agent-Chatbot • Real-Time Web App
+          </p>
+
+          {/* Features */}
           <div className="space-y-4">
-            {[
-              {
-                icon: "🚀",
-                text: "Real-time ML predictions with AWS SageMaker",
-              },
-              { icon: "💬", text: "AI-powered chatbot with AWS Bedrock" },
-              { icon: "🔐", text: "Secure authentication with AWS Cognito" },
-              { icon: "📊", text: "Live dashboard with WebSocket streaming" },
-            ].map((feature, i) => (
+            {features.map((feature, i) => (
               <motion.div
                 key={i}
                 initial={{ opacity: 0, x: -20 }}
@@ -239,18 +238,22 @@ export default function LoginPage() {
               </div>
             )}
 
-            {/* Title */}
+            {/* Title & Subtitle */}
             <div className="mb-6">
               <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
                 {mode === "signin" && "Welcome back"}
                 {mode === "signup" && "Create your account"}
                 {mode === "verify" && "Verify your email"}
+                {mode === "forgot" && "Forgot Password"}
+                {mode === "reset" && "Reset Password"}
               </h3>
               <p className="text-gray-600 dark:text-gray-400 mt-1">
                 {mode === "signin" && "Sign in to access your flight dashboard"}
                 {mode === "signup" &&
                   "Join us to start predicting flight delays"}
                 {mode === "verify" && "Enter the code sent to your email"}
+                {mode === "forgot" && "Enter your email to reset your password"}
+                {mode === "reset" && "Enter the reset code and new password"}
               </p>
             </div>
 
@@ -269,7 +272,6 @@ export default function LoginPage() {
                   </span>
                 </motion.div>
               )}
-
               {success && (
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
@@ -285,10 +287,14 @@ export default function LoginPage() {
               )}
             </AnimatePresence>
 
-            {/* Form Fields */}
+            {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-4">
               <AnimatePresence mode="wait">
-                {mode !== "verify" && (
+                {/* Email */}
+                {(mode === "signin" ||
+                  mode === "signup" ||
+                  mode === "forgot" ||
+                  mode === "reset") && (
                   <motion.div key="email">
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Email Address
@@ -312,7 +318,8 @@ export default function LoginPage() {
                   </motion.div>
                 )}
 
-                {mode !== "verify" && (
+                {/* Password for Sign In / Sign Up only */}
+                {(mode === "signin" || mode === "signup") && (
                   <motion.div key="password">
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Password
@@ -343,6 +350,69 @@ export default function LoginPage() {
                   </motion.div>
                 )}
 
+                {/* First Name */}
+                {mode === "signup" && (
+                  <motion.div key="firstName">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      First Name
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.firstName}
+                      onChange={(e) =>
+                        setFormData({ ...formData, firstName: e.target.value })
+                      }
+                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      placeholder="John"
+                    />
+                  </motion.div>
+                )}
+
+                {/* Last Name */}
+                {mode === "signup" && (
+                  <motion.div key="lastName">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Last Name
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.lastName}
+                      onChange={(e) =>
+                        setFormData({ ...formData, lastName: e.target.value })
+                      }
+                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      placeholder="Doe"
+                    />
+                  </motion.div>
+                )}
+
+                {/* Gender */}
+                {mode === "signup" && (
+                  <motion.div key="gender">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Gender
+                    </label>
+                    <select
+                      required
+                      value={formData.gender}
+                      onChange={(e) =>
+                        setFormData({ ...formData, gender: e.target.value })
+                      }
+                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    >
+                      <option value="" disabled>
+                        Select gender
+                      </option>
+                      <option value="male">Male</option>
+                      <option value="female">Female</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </motion.div>
+                )}
+
+                {/* Verification Code for Verify */}
                 {mode === "verify" && (
                   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -364,8 +434,65 @@ export default function LoginPage() {
                     />
                   </motion.div>
                 )}
+
+                {/* Reset Password Mode */}
+                {mode === "reset" && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    key="reset-code"
+                  >
+                    {/* Reset Code */}
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Reset Code
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.verificationCode}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          verificationCode: e.target.value,
+                        })
+                      }
+                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-center text-2xl tracking-widest"
+                      placeholder="123456"
+                      maxLength={6}
+                    />
+
+                    {/* New Password */}
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 mt-4">
+                      New Password
+                    </label>
+                    <div className="relative">
+                      <Lock
+                        className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"
+                        size={20}
+                      />
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        required
+                        value={formData.password}
+                        onChange={(e) =>
+                          setFormData({ ...formData, password: e.target.value })
+                        }
+                        className="w-full pl-12 pr-12 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        placeholder="••••••••"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        {showPassword ? "👁️" : "👁️‍🗨️"}
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
               </AnimatePresence>
 
+              {/* Forgot password link */}
               {mode === "signin" && (
                 <div className="flex items-center justify-between text-sm">
                   <label className="flex items-center text-gray-600 dark:text-gray-400">
@@ -374,6 +501,7 @@ export default function LoginPage() {
                   </label>
                   <button
                     type="button"
+                    onClick={() => setMode("forgot")}
                     className="text-blue-600 hover:text-blue-700 font-medium"
                   >
                     Forgot password?
@@ -381,6 +509,7 @@ export default function LoginPage() {
                 </div>
               )}
 
+              {/* Submit Button */}
               <button
                 type="submit"
                 disabled={isLoading}
@@ -397,50 +526,50 @@ export default function LoginPage() {
                       {mode === "signin" && "Sign In"}
                       {mode === "signup" && "Create Account"}
                       {mode === "verify" && "Verify Email"}
+                      {mode === "forgot" && "Send Reset Code"}
+                      {mode === "reset" && "Reset Password"}
                     </span>
                     <ArrowRight size={20} />
                   </>
                 )}
               </button>
             </form>
-
-            {/* Google Sign In */}
-            {mode !== "verify" && (
-              <>
-                <div className="relative my-6">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-gray-300 dark:border-gray-600"></div>
-                  </div>
-                  <div className="relative flex justify-center text-sm">
-                    <span className="px-4 bg-white dark:bg-gray-800 text-gray-500">
-                      Or continue with
-                    </span>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  className="w-full border-2 border-gray-300 dark:border-gray-600 hover:border-gray-400 text-gray-700 dark:text-gray-300 font-medium py-3 px-6 rounded-xl transition-all hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center justify-center space-x-2"
-                >
-                  <Chrome size={20} className="text-blue-600" />
-                  <span>Sign in with Google</span>
-                </button>
-              </>
-            )}
           </div>
 
           <p className="text-center text-sm text-gray-600 dark:text-gray-400 mt-6">
-            {mode === "signin"
-              ? "Don't have an account? "
-              : mode === "verify"
-              ? "Back to "
-              : "Already have an account? "}
-            <button
-              onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
-              className="text-blue-600 hover:text-blue-700 font-semibold"
-            >
-              {mode === "signin" ? "Sign up" : "Sign in"}
-            </button>
+            {mode === "signin" && (
+              <>
+                Don't have an account?{" "}
+                <button
+                  onClick={() => setMode("signup")}
+                  className="text-blue-600 hover:text-blue-700 font-semibold"
+                >
+                  Sign up
+                </button>
+              </>
+            )}
+            {mode === "signup" && (
+              <>
+                Already have an account?{" "}
+                <button
+                  onClick={() => setMode("signin")}
+                  className="text-blue-600 hover:text-blue-700 font-semibold"
+                >
+                  Sign in
+                </button>
+              </>
+            )}
+            {(mode === "verify" || mode === "forgot" || mode === "reset") && (
+              <>
+                Back to{" "}
+                <button
+                  onClick={() => setMode("signin")}
+                  className="text-blue-600 hover:text-blue-700 font-semibold"
+                >
+                  Sign in
+                </button>
+              </>
+            )}
           </p>
         </motion.div>
       </motion.div>

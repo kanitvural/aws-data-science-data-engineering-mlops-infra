@@ -25,11 +25,15 @@ export default function Chatbot() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const apiGatewayChatbotUrl =
+    process.env.NEXT_PUBLIC_APIGATEWAY_CHATBOT_URL || "";
+
+  console.log("apiGatewayChatbotUrl");
+
   // Initialize or retrieve sessionId from sessionStorage
   useEffect(() => {
     let storedSessionId = sessionStorage.getItem("chatbot_session_id");
     if (!storedSessionId) {
-      // Use the same session ID as in your Python code
       storedSessionId = generateUUID();
       sessionStorage.setItem("chatbot_session_id", storedSessionId);
       console.log("🆔 Session ID set to:", storedSessionId);
@@ -39,61 +43,51 @@ export default function Chatbot() {
     setSessionId(storedSessionId);
   }, []);
 
-  // Fetch history when chatbot opens and conditions are met
+  // Fetch history when chatbot opens
   useEffect(() => {
-    const apiGatewayUrl = sessionStorage.getItem("api_gateway_url");
-    
-    if (isOpen && sessionId && apiGatewayUrl && !historyLoaded) {
+    if (isOpen && sessionId && apiGatewayChatbotUrl && !historyLoaded) {
       console.log("🔄 Chatbot opened, fetching history...");
       fetchHistory();
     }
   }, [isOpen, sessionId, historyLoaded]);
 
-  // Fetch chat history from /history endpoint
   const fetchHistory = async () => {
-    const apiGatewayUrl = sessionStorage.getItem("api_gateway_url");
-    
-    if (!apiGatewayUrl || !sessionId) {
-      console.log("⏭️ Skipping history fetch - no API Gateway URL or session ID");
+    if (!apiGatewayChatbotUrl || !sessionId) {
+      console.log(
+        "⏭️ Skipping history fetch - no API Gateway URL or session ID"
+      );
       return;
     }
 
     try {
       console.log("📥 Fetching chat history...");
       const response = await fetch(
-        `${apiGatewayUrl}/history?sessionId=${sessionId}`,
-        {
-          method: "GET",
-          headers: { "Content-Type": "application/json" },
-        }
+        `${apiGatewayChatbotUrl}/history?sessionId=${sessionId}`,
+        { method: "GET", headers: { "Content-Type": "application/json" } }
       );
 
-      if (!response.ok) {
+      if (!response.ok)
         throw new Error(`History fetch failed: ${response.status}`);
-      }
 
       const data = await response.json();
       console.log("📜 History loaded:", data.count, "messages");
 
-      // Convert history to message format
       if (data.history && data.history.length > 0) {
         const loadedMessages = data.history.map((item: any) => ({
           id: item.eventId,
           text: item.content,
           isUser: item.role.toLowerCase() === "user",
         }));
-
         setMessages(loadedMessages);
       }
 
       setHistoryLoaded(true);
     } catch (error) {
       console.error("❌ Error fetching history:", error);
-      setHistoryLoaded(true); // Mark as loaded to prevent retry loops
+      setHistoryLoaded(true);
     }
   };
 
-  // Mesajlar değiştiğinde en alta scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isLoading]);
@@ -110,53 +104,53 @@ export default function Chatbot() {
     setMessages((prev) => [...prev, userMessage]);
     setInputValue("");
 
-    const apiGatewayUrl = sessionStorage.getItem("api_gateway_url");
-
-    if (!apiGatewayUrl) {
+    if (!apiGatewayChatbotUrl) {
       setTimeout(() => {
-        const botMessage = {
-          id: Date.now().toString() + "_bot",
-          text: "API Gateway is not connected. Please connect to the API Gateway URL first using the Connect button.",
-          isUser: false,
-        };
-        setMessages((prev) => [...prev, botMessage]);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: Date.now().toString() + "_bot",
+            text: "API Gateway is not connected. Please check your environment variable.",
+            isUser: false,
+          },
+        ]);
       }, 500);
       return;
     }
 
     setIsLoading(true);
     try {
-      const response = await fetch(`${apiGatewayUrl}/chat`, {
+      const response = await fetch(`${apiGatewayChatbotUrl}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prompt: userMessage.text,
-          sessionId: sessionId,
-        }),
+        body: JSON.stringify({ prompt: userMessage.text, sessionId }),
       });
 
       if (!response.ok)
         throw new Error(`API request failed: ${response.status}`);
 
       const data = await response.json();
-      const botMessage = {
-        id: Date.now().toString() + "_bot",
-        text: data.response || "Response received from AWS Bedrock.",
-        isUser: false,
-      };
-
-      setMessages((prev) => [...prev, botMessage]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now().toString() + "_bot",
+          text: data.response || "Response received from AWS Bedrock.",
+          isUser: false,
+        },
+      ]);
     } catch (error) {
       console.error("Error calling API Gateway:", error);
-      const errorMessage = {
-        id: Date.now().toString() + "_bot",
-        text: `Error connecting to API Gateway. Please check your connection. (Session: ${sessionId.substring(
-          0,
-          8
-        )}...)`,
-        isUser: false,
-      };
-      setMessages((prev) => [...prev, errorMessage]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now().toString() + "_bot",
+          text: `Error connecting to API Gateway. (Session: ${sessionId.substring(
+            0,
+            8
+          )}...)`,
+          isUser: false,
+        },
+      ]);
     } finally {
       setIsLoading(false);
     }
@@ -214,7 +208,6 @@ export default function Chatbot() {
                   display: none;
                 }
               `}</style>
-
               {messages.length === 0 && (
                 <div className="text-center text-gray-500 dark:text-gray-400">
                   <Bot
@@ -223,7 +216,18 @@ export default function Chatbot() {
                   />
                   <p>Hi! I&apos;m your flight data assistant.</p>
                   <p className="text-sm mt-1">
-                    Ask me about flight patterns, delays, or weather impacts!
+                    Ask me about live flights statistics, delays, airlines or
+                    about this project!
+                  </p>
+                  <p className="text-sm mt-2">Examples:</p>
+                  <p className="text-sm mt-1">
+                    What is Alaska Airlines average delay?
+                  </p>
+                  <p className="text-sm mt-1">
+                    How many flights are currently in the system?
+                  </p>
+                  <p className="text-sm mt-1">
+                    Could you explain the MLOps pipeline in detail?
                   </p>
                   {sessionId && (
                     <p className="text-xs mt-2 text-gray-400">
@@ -232,7 +236,6 @@ export default function Chatbot() {
                   )}
                 </div>
               )}
-
               {messages.map((message) => (
                 <motion.div
                   key={message.id}
@@ -253,7 +256,6 @@ export default function Chatbot() {
                   </div>
                 </motion.div>
               ))}
-
               {isLoading && (
                 <motion.div
                   initial={{ opacity: 0 }}
@@ -278,8 +280,6 @@ export default function Chatbot() {
                   </div>
                 </motion.div>
               )}
-
-              {/* Scroll helper div */}
               <div ref={messagesEndRef} />
             </div>
 

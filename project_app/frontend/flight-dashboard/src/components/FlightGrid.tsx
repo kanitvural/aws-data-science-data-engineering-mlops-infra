@@ -51,7 +51,7 @@ export default function FlightGrid({ data }: FlightGridProps) {
       <div className="px-6 py-4 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-700 dark:to-blue-800 text-white">
         <h2 className="text-2xl font-bold">Real-Time Flights Dashboard</h2>
         <p className="text-blue-100 dark:text-blue-200 mt-1">
-          Ultimate End-to-End AWS AI Project ✈️ Data Engineering • Data Science
+          Ultimate AWS AI Project ✈️ Data Engineering • Data Science
           • MLOps • LLM • Real-Time Web App
         </p>
       </div>

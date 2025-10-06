@@ -12,6 +12,7 @@
     "@aws-sdk/client-dynamodb": "^3.890.0",
     "@aws-sdk/lib-dynamodb": "^3.890.0",
     "@aws-sdk/util-dynamodb": "^3.890.0",
+    "@headlessui/react": "^2.2.9",
     "aws-sdk": "^2.1692.0",
     "date-fns": "^4.1.0",
     "framer-motion": "^12.23.13",
