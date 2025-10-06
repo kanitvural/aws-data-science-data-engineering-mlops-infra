@@ -83,56 +83,59 @@ class ApiGatewayAuthRestStack(Stack):
             self,
             "FlightAIAuthApi",
             rest_api_name="FlightAIAuthAPI",
+            endpoint_configuration=apigw.EndpointConfiguration(
+                types=[apigw.EndpointType.REGIONAL]
+            ),
             default_cors_preflight_options=None
         )
 
         # /auth resource
         auth_res = api.root.add_resource("auth")
-        auth_res.add_method("OPTIONS", apigw.LambdaIntegration(flightai_auth_lambda))
+        auth_res.add_method("OPTIONS", apigw.MockIntegration())
 
         # /auth/login
         auth_login = auth_res.add_resource("login")
-        auth_login.add_method("OPTIONS", apigw.LambdaIntegration(flightai_auth_lambda))
-        auth_login.add_method("POST", apigw.LambdaIntegration(flightai_auth_lambda))
+        auth_login.add_method("OPTIONS", apigw.LambdaIntegration(flightai_auth_lambda, proxy=True))
+        auth_login.add_method("POST", apigw.LambdaIntegration(flightai_auth_lambda, proxy=True))
 
         # /auth/logout
         auth_logout = auth_res.add_resource("logout")
-        auth_logout.add_method("OPTIONS", apigw.LambdaIntegration(flightai_auth_lambda))
-        auth_logout.add_method("POST", apigw.LambdaIntegration(flightai_auth_lambda))
+        auth_logout.add_method("OPTIONS", apigw.LambdaIntegration(flightai_auth_lambda, proxy=True))
+        auth_logout.add_method("POST", apigw.LambdaIntegration(flightai_auth_lambda, proxy=True))
 
         # /auth/me
         auth_me = auth_res.add_resource("me")
-        auth_me.add_method("OPTIONS", apigw.LambdaIntegration(flightai_auth_lambda))
-        auth_me.add_method("GET", apigw.LambdaIntegration(flightai_auth_lambda))
+        auth_me.add_method("OPTIONS", apigw.LambdaIntegration(flightai_auth_lambda, proxy=True))
+        auth_me.add_method("GET", apigw.LambdaIntegration(flightai_auth_lambda, proxy=True))
 
         # /auth/refresh
         auth_refresh = auth_res.add_resource("refresh")
-        auth_refresh.add_method("OPTIONS", apigw.LambdaIntegration(flightai_auth_lambda))
-        auth_refresh.add_method("POST", apigw.LambdaIntegration(flightai_auth_lambda))
+        auth_refresh.add_method("OPTIONS", apigw.LambdaIntegration(flightai_auth_lambda, proxy=True))
+        auth_refresh.add_method("POST", apigw.LambdaIntegration(flightai_auth_lambda, proxy=True))
 
         # /user resource
         user_res = api.root.add_resource("user")
-        user_res.add_method("OPTIONS", apigw.LambdaIntegration(flightai_user_lambda))
+        user_res.add_method("OPTIONS", apigw.MockIntegration())
 
         # /user/confirm
         user_confirm = user_res.add_resource("confirm")
-        user_confirm.add_method("OPTIONS", apigw.LambdaIntegration(flightai_user_lambda))
-        user_confirm.add_method("POST", apigw.LambdaIntegration(flightai_user_lambda))
+        user_confirm.add_method("OPTIONS", apigw.LambdaIntegration(flightai_user_lambda, proxy=True))
+        user_confirm.add_method("POST", apigw.LambdaIntegration(flightai_user_lambda, proxy=True))
 
         # /user/confirm-forgot-password
         user_confirm_forgot = user_res.add_resource("confirm-forgot-password")
-        user_confirm_forgot.add_method("OPTIONS", apigw.LambdaIntegration(flightai_user_lambda))
-        user_confirm_forgot.add_method("POST", apigw.LambdaIntegration(flightai_user_lambda))
+        user_confirm_forgot.add_method("OPTIONS", apigw.LambdaIntegration(flightai_user_lambda, proxy=True))
+        user_confirm_forgot.add_method("POST", apigw.LambdaIntegration(flightai_user_lambda, proxy=True))
 
         # /user/forgot-password
         user_forgot = user_res.add_resource("forgot-password")
-        user_forgot.add_method("OPTIONS", apigw.LambdaIntegration(flightai_user_lambda))
-        user_forgot.add_method("POST", apigw.LambdaIntegration(flightai_user_lambda))
+        user_forgot.add_method("OPTIONS", apigw.LambdaIntegration(flightai_user_lambda, proxy=True))
+        user_forgot.add_method("POST", apigw.LambdaIntegration(flightai_user_lambda, proxy=True))
 
         # /user/signup
         user_signup = user_res.add_resource("signup")
-        user_signup.add_method("OPTIONS", apigw.LambdaIntegration(flightai_user_lambda))
-        user_signup.add_method("POST", apigw.LambdaIntegration(flightai_user_lambda))
+        user_signup.add_method("OPTIONS", apigw.LambdaIntegration(flightai_user_lambda, proxy=True))
+        user_signup.add_method("POST", apigw.LambdaIntegration(flightai_user_lambda, proxy=True))
 
         # API URL output
         CfnOutput(

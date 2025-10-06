@@ -13,7 +13,7 @@ class S3Stack(Stack):
         super().__init__(scope, id, **kwargs)
 
         # ----------------------------------------------------------------------
-        # Private S3 Bucket (static website hosting)
+        # Private S3 Bucket (statik dosyalar için)
         # ----------------------------------------------------------------------
         bucket = s3.Bucket(
             self,
@@ -22,9 +22,7 @@ class S3Stack(Stack):
             versioned=True,
             removal_policy=RemovalPolicy.DESTROY,
             auto_delete_objects=True,
-            block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
-            website_index_document="index.html",
-            website_error_document="error.html"
+            block_public_access=s3.BlockPublicAccess.BLOCK_ALL,  # private
         )
 
         # ----------------------------------------------------------------------
@@ -36,6 +34,7 @@ class S3Stack(Stack):
             comment="OAI for private S3 access"
         )
 
+        # Bucket'a CloudFront erişimi ver
         bucket.grant_read(oai)
 
         distribution = cloudfront.Distribution(
@@ -44,9 +43,10 @@ class S3Stack(Stack):
             default_behavior=cloudfront.BehaviorOptions(
                 origin=origins.S3Origin(bucket, origin_access_identity=oai),
                 viewer_protocol_policy=cloudfront.ViewerProtocolPolicy.HTTPS_ONLY,
+                allowed_methods=cloudfront.AllowedMethods.ALLOW_GET_HEAD,  # for static files
                 cache_policy=cloudfront.CachePolicy.CACHING_OPTIMIZED,
-                allowed_methods=cloudfront.AllowedMethods.ALLOW_ALL,
             ),
+            default_root_object="index.html",  # CloudFront root object
             price_class=cloudfront.PriceClass.PRICE_CLASS_100  # NA & EU
         )
 

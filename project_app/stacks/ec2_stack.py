@@ -22,7 +22,7 @@ class EC2Stack(Stack):
         data_bucket_key = "raw_test_data_for_model_drift.csv"
         dynamodb_table_name = Fn.import_value(f"{project_name}-raw-flights-table-name")
         raw_kinesis_stream_name = Fn.import_value(f"{project_name}-KinesisRawName")
-        website_url = Fn.import_value("ProjectAppWebsiteURL")
+        website_url = Fn.import_value("ProjectAppCloudFrontURL")
         sns_topic_arn = Fn.import_value(f"{project_name}-sns-topic-arn")
         
         vpc_id = Fn.import_value("flight-project-vpc-id")

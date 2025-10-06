@@ -18,6 +18,7 @@ region = os.getenv("REGION", "eu-central-1")
 output_file = os.path.join(os.getcwd(), ".env.local")
 
 apigw_client = boto3.client("apigateway", region_name=region)
+apigw_v2_client = boto3.client("apigatewayv2", region_name=region)
 
 def get_api_gateway_url(api_name_substring):
     try:
@@ -34,10 +35,10 @@ def get_api_gateway_url(api_name_substring):
 
 def get_websocket_url(api_name_substring):
     try:
-        response = apigw_client.get_rest_apis()
-        for api in response.get("items", []):
-            if api_name_substring.lower() in api["name"].lower():
-                api_id = api["id"]
+        response = apigw_v2_client.get_apis()  # REST yerine WebSocket & HTTP API
+        for api in response.get("Items", []):
+            if api_name_substring.lower() in api["Name"].lower() and api["ProtocolType"] == "WEBSOCKET":
+                api_id = api["ApiId"]
                 return f"wss://{api_id}.execute-api.{region}.amazonaws.com/prod"
         logger.warning(f"{api_name_substring} WebSocket API not found")
         return "CHECK_WS_URL"
