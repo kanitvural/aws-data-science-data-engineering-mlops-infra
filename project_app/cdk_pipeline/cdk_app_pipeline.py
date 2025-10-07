@@ -11,6 +11,7 @@ class CDKAppPipelineStack(Stack):
         project_name = self.node.try_get_context("project_name") or "project-app"
         pipeline_name = f"{project_name}-pipeline-{self.account}"
         notification_email = self.node.try_get_context("notification_email")
+        bucket_name = f"{project_name}-bucket-{self.account}"
 
         # GitHub connections information
         github_repo = "kanitvural/aws-data-science-data-engineering-mlops-infra"
@@ -73,19 +74,15 @@ class CDKAppPipelineStack(Stack):
                 "echo '📤 Syncing out/ folder to S3...'",
                 f"aws s3 rm s3://{project_name}-bucket-{self.account} --recursive",
                 f"aws s3 cp out/ s3://{project_name}-bucket-{self.account} --recursive",
-                "echo '☁️ Fetching CloudFront Distribution ID dynamically...'",
-                f"export CLOUDFRONT_DIST_ID=$(aws cloudfront list-distributions --query \"DistributionList.Items[?Origins.Items[0].DomainName=='{project_name}-bucket-{self.account}.s3.amazonaws.com'].Id\" --output text)",
                 "echo '☁️ Creating CloudFront invalidation...'",
-                "aws cloudfront create-invalidation --distribution-id $CLOUDFRONT_DIST_ID --paths '/*'",
+                "python ../../scripts/cloudfront_cache_invalidation.py",
             ],
             build_environment=codebuild.BuildEnvironment(
                 compute_type=codebuild.ComputeType.SMALL,
                 build_image=codebuild.LinuxBuildImage.STANDARD_7_0,
                 privileged=True,
             ),
-            env={
-                "REGION": self.region,
-            },
+            env={"REGION": self.region, "BUCKET_NAME": bucket_name},
             role_policy_statements=[
                 iam.PolicyStatement(
                     actions=[
