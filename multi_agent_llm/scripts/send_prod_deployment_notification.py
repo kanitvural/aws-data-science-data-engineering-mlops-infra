@@ -13,11 +13,23 @@ from datetime import datetime
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
+# Get environment variables
+region = os.getenv("REGION", "eu-central-1")
+ecr_repository = os.environ["ECR_REPOSITORY"]
+execution_role_arn = os.environ["AGENTCORE_EXECUTION_ROLE_ARN"]
+
+# Initialize AWS clients
+sns_client = boto3.client("sns", region_name=region)
+cf_client = boto3.client("cloudformation", region_name=region)
+apigw_client = boto3.client("apigateway", region_name=region)
+apigw_v2_client = boto3.client("apigatewayv2", region_name=region)
+control_client = boto3.client("bedrock-agentcore-control", region_name=region)
+cloudfront_client = boto3.client("cloudfront", region_name=region)
+
 
 def get_sns_topic_arn(cf_client):
     """Get SNS Topic ARN from CloudFormation stack"""
     try:
-
         stack_name = "MultiAgentLLMInfraStage-MultiAgentNotificationStack"
         
         response = cf_client.describe_stacks(StackName=stack_name)
@@ -33,20 +45,51 @@ def get_sns_topic_arn(cf_client):
         return None
 
 
-def get_api_gateway_url(apigw_client, project_name, region):
-    """Get API Gateway URL for the agent"""
+def get_api_gateway_url(api_name_substring):
     try:
         response = apigw_client.get_rest_apis()
         for api in response.get("items", []):
-            if f"{project_name}-api" in api["name"].lower():
+            if api_name_substring.lower() in api["name"].lower():
                 api_id = api["id"]
                 return f"https://{api_id}.execute-api.{region}.amazonaws.com/prod"
-
-        logger.warning("API Gateway URL not found, will use placeholder")
-        return "Check AWS Console for API URL"
+        logger.warning(f"{api_name_substring} API not found")
+        return "CHECK_API_URL"
     except Exception as e:
         logger.warning(f"Failed to get API Gateway URL: {e}")
-        return "Check AWS Console for API URL"
+        return "CHECK_API_URL"
+
+
+def get_websocket_url(api_name_substring):
+    try:
+        response = apigw_v2_client.get_apis()
+        for api in response.get("Items", []):
+            if api_name_substring.lower() in api["Name"].lower() and api["ProtocolType"] == "WEBSOCKET":
+                api_id = api["ApiId"]
+                return f"wss://{api_id}.execute-api.{region}.amazonaws.com/prod"
+        logger.warning(f"{api_name_substring} WebSocket API not found")
+        return "CHECK_WS_URL"
+    except Exception as e:
+        logger.warning(f"Failed to get WebSocket URL: {e}")
+        return "CHECK_WS_URL"
+
+
+def get_cloudfront_url(distribution_comment_substring):
+    """Get CloudFront distribution URL by comment/description"""
+    try:
+        response = cloudfront_client.list_distributions()
+        
+        if "DistributionList" in response and "Items" in response["DistributionList"]:
+            for dist in response["DistributionList"]["Items"]:
+                comment = dist.get("Comment", "")
+                if distribution_comment_substring.lower() in comment.lower():
+                    domain = dist["DomainName"]
+                    return f"https://{domain}"
+        
+        logger.warning(f"CloudFront distribution with comment containing '{distribution_comment_substring}' not found")
+        return "CHECK_CLOUDFRONT_URL"
+    except Exception as e:
+        logger.warning(f"Failed to get CloudFront URL: {e}")
+        return "CHECK_CLOUDFRONT_URL"
 
 
 def get_memory_id(control_client):
@@ -84,23 +127,11 @@ def get_agent_runtime_arn(control_client):
 
 
 def main():
-    # Get environment variables
-    region = os.environ["REGION"]
-    ecr_repository = os.environ["ECR_REPOSITORY"]
-    execution_role_arn = os.environ["AGENTCORE_EXECUTION_ROLE_ARN"]
-    project_name = os.environ["PROJECT_NAME"]
-
     if not region:
         logger.error("REGION environment variable is required")
         sys.exit(1)
 
     logger.info("Preparing deployment notification...")
-
-    # Initialize AWS clients
-    sns_client = boto3.client("sns", region_name=region)
-    cf_client = boto3.client("cloudformation", region_name=region)
-    apigw_client = boto3.client("apigateway", region_name=region)
-    control_client = boto3.client("bedrock-agentcore-control", region_name=region)
 
     # Gather deployment information
     logger.info("Gathering deployment information...")
@@ -110,7 +141,10 @@ def main():
         logger.error("Could not retrieve SNS Topic ARN")
         sys.exit(1)
 
-    api_url = get_api_gateway_url(apigw_client, project_name, region)
+    api_chatbot_url = get_api_gateway_url("FlightAIMultiAgentLLMApi")
+    api_auth_url = get_api_gateway_url("FlightAIAuthAPI")
+    api_websocket_url = get_websocket_url("FlightAIWebSocketAPI")
+    cloudfront_url = get_cloudfront_url("FlightAI")
     memory_id = get_memory_id(control_client)
     agent_runtime_arn = get_agent_runtime_arn(control_client)
 
@@ -128,13 +162,18 @@ def main():
 
     API ENDPOINTS:
     
-    MAIN {api_url}
+    CLOUDFRONT: {cloudfront_url}
+    CHATBOT API: {api_chatbot_url}
+    AUTH API: {api_auth_url}
+    WEBSOCKET API: {api_websocket_url}
 
-    POST {api_url}/chat
+    CHATBOT API USAGE:
+
+    POST {api_chatbot_url}/chat
     Send chat messages to agent
     Body: {{"prompt": "...", "sessionId": "..."}}
 
-    GET {api_url}/history?sessionId=YOUR_SESSION_ID
+    GET {api_chatbot_url}/history?sessionId=YOUR_SESSION_ID
     Get conversation history
 
     RESOURCE DETAILS:
@@ -146,7 +185,7 @@ def main():
     POSTMAN EXAMPLES:
 
     1. Send a chat message (POST):
-    URL: {api_url}/chat
+    URL: {api_chatbot_url}/chat
     Method: POST
     Headers: Content-Type: application/json
     Body (raw JSON):
@@ -156,7 +195,7 @@ def main():
     }}
 
     2. Get conversation history (GET):
-    URL: {api_url}/history?sessionId=dfmeoagmreaklgmrkleafremoigrmtesogmtrskhmtkrlshmtvural
+    URL: {api_chatbot_url}/history?sessionId=dfmeoagmreaklgmrkleafremoigrmtesogmtrskhmtkrlshmtvural
     Method: GET
 
     MONITORING:
