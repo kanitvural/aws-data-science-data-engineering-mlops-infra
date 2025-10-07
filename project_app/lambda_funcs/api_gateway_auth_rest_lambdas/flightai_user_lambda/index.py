@@ -4,6 +4,7 @@ import boto3
 
 app_client_id = os.environ["APP_CLIENT_ID"]
 region = os.environ["REGION"]
+cloudfront_url = os.environ["CLOUDFRONT_URL"]
 cognito_client = boto3.client("cognito-idp", region_name=region)
 
 
@@ -11,7 +12,7 @@ def make_response(status, body, cookie_headers=None, event=None):
     # Allowed origins
     allowed_origins = [
         "http://localhost:3000",
-        "https://d2bj0it0stfal5.cloudfront.net",
+        cloudfront_url,
     ]
 
     # Default origin

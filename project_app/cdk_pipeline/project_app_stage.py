@@ -80,6 +80,7 @@ class AppPipelineStage(Stage):
         )
 
         # --- Dependencies ---
+        cognito_stack.add_dependency(s3_stack)
         api_gateway_auth_stack.add_dependency(cognito_stack)
         api_gateway_chatbot_rest_stack.add_dependency(api_gateway_auth_stack)
         sns_stack.add_dependency(api_gateway_chatbot_rest_stack)
@@ -89,4 +90,3 @@ class AppPipelineStage(Stage):
         raw_dynamodb_stack.add_dependency(api_gateway_websocket_stack)  
         kinesis_stack.add_dependency(raw_dynamodb_stack)
         lambda_stack.add_dependency(kinesis_stack)
-        s3_stack.add_dependency(lambda_stack)

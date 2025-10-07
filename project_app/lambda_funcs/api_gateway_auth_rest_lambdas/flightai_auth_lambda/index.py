@@ -5,12 +5,13 @@ from http import cookies
 
 app_client_id = os.environ["APP_CLIENT_ID"]
 region = os.environ["REGION"]
+cloudfront_url = os.environ["CLOUDFRONT_URL"]
 cognito_client = boto3.client("cognito-idp", region_name=region)
 
 # Prod-ready allowed origins
 ALLOWED_ORIGINS = [
     "http://localhost:3000",
-    "https://d2bj0it0stfal5.cloudfront.net",
+    cloudfront_url,
 ]
 
 def get_origin(event):
