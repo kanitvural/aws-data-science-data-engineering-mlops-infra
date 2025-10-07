@@ -102,7 +102,6 @@ class CDKLLMPipelineStack(Stack):
             ],
             env={
                 "REGION": self.region,
-                "PROJECT_NAME": project_name,
                 "ECR_REPOSITORY": ecr_image_uri,
                 "AGENTCORE_EXECUTION_ROLE_ARN": agentcore_execution_role_arn,
             },
