@@ -90,5 +90,5 @@ class ApiGatewayChatbotRestStack(Stack):
             "MultiAgentLLMApiUrl",
             value=api.url,
             description="Base URL of the Multi Agent API",
-            export_name=f"{project_name}-flights-api-url",
+            export_name=f"{project_name}-chatbot-api-url",
         )
