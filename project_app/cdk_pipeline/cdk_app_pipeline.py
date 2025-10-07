@@ -73,6 +73,10 @@ class CDKAppPipelineStack(Stack):
                 "echo '📤 Syncing out/ folder to S3...'",
                 f"aws s3 rm s3://{project_name}-bucket-{self.account} --recursive",
                 f"aws s3 cp out/ s3://{project_name}-bucket-{self.account} --recursive",
+                "echo '☁️ Fetching CloudFront Distribution ID dynamically...'",
+                f"export CLOUDFRONT_DIST_ID=$(aws cloudfront list-distributions --query \"DistributionList.Items[?Origins.Items[0].DomainName=='{project_name}-bucket-{self.account}.s3.amazonaws.com'].Id\" --output text)",
+                "echo '☁️ Creating CloudFront invalidation...'",
+                "aws cloudfront create-invalidation --distribution-id $CLOUDFRONT_DIST_ID --paths '/*'",
             ],
             build_environment=codebuild.BuildEnvironment(
                 compute_type=codebuild.ComputeType.SMALL,
@@ -122,6 +126,10 @@ class CDKAppPipelineStack(Stack):
                 ),
                 iam.PolicyStatement(
                     actions=["sts:GetCallerIdentity"],
+                    resources=["*"],
+                ),
+                iam.PolicyStatement(
+                    actions=["cloudfront:*"],
                     resources=["*"],
                 ),
             ],

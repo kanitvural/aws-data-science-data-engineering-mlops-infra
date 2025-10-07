@@ -60,6 +60,8 @@ export default function LoginPage() {
         const userResp =
           (await AuthService.getCurrentUser()) as GetUserResponse;
         const attrs: CognitoAttr[] = userResp.user?.UserAttributes ?? [];
+        console.log(userResp);
+        
 
         const findValue = (name: string) =>
           attrs.find((a) => a.Name === name)?.Value;
