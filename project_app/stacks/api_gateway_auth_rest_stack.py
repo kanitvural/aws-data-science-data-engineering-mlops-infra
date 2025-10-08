@@ -15,6 +15,7 @@ class ApiGatewayAuthRestStack(Stack):
 
         # Cognito APP_CLIENT_ID import
         app_client_id = Fn.import_value("FlightAIUserPoolClientId")
+        cloudfront_url = Fn.import_value("ProjectAppCloudFrontURL")
 
         # Lambdaları oluştur
         flightai_auth_lambda = _lambda.Function(
@@ -28,6 +29,7 @@ class ApiGatewayAuthRestStack(Stack):
             environment={
                 "REGION": self.region,
                 "APP_CLIENT_ID": app_client_id,
+                "CLOUDFRONT_URL":cloudfront_url
             },
         )
 
@@ -42,6 +44,7 @@ class ApiGatewayAuthRestStack(Stack):
             environment={
                 "REGION": self.region,
                 "APP_CLIENT_ID": app_client_id,
+                "CLOUDFRONT_URL":cloudfront_url
             },
         )
 

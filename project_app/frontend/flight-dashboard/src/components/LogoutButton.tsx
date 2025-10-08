@@ -4,8 +4,10 @@ import { useState, Fragment } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { LogOut, Loader2 } from 'lucide-react';
 import { AuthService } from '@/services/authService';
+import { useRouter } from "next/navigation";
 
 export default function LogoutButton() {
+  const router = useRouter()
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -13,10 +15,10 @@ export default function LogoutButton() {
     setIsLoading(true);
     try {
       await AuthService.logout();
-      window.location.href = '/login';
+      router.replace("/login/");
     } catch (error) {
       console.error('Logout failed:', error);
-      window.location.href = '/login';
+      router.replace("/login/");
     } finally {
       setIsLoading(false);
       setIsOpen(false);

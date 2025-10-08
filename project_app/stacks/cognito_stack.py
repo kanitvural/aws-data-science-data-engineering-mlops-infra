@@ -31,10 +31,18 @@ class CognitoStack(Stack):
             auth_flows=cognito.AuthFlow(user_password=True, admin_user_password=True),
         )
 
+        # Export UserPoolId
+        CfnOutput(
+            self,
+            "UserPoolId",
+            value=user_pool.user_pool_id,
+            export_name="FlightAIUserPoolId",
+        )
+
+        # Export UserPoolClientId
         CfnOutput(
             self,
             "UserPoolClientId",
             value=user_pool_client.user_pool_client_id,
-            description="Cognito User Pool Client ID",
             export_name="FlightAIUserPoolClientId",
         )

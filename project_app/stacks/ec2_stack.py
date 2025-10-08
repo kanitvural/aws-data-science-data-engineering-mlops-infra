@@ -7,6 +7,7 @@ from aws_cdk import (
 )
 from constructs import Construct
 
+
 class EC2Stack(Stack):
     def __init__(
         self,
@@ -22,15 +23,18 @@ class EC2Stack(Stack):
         data_bucket_key = "raw_test_data_for_model_drift.csv"
         dynamodb_table_name = Fn.import_value(f"{project_name}-raw-flights-table-name")
         raw_kinesis_stream_name = Fn.import_value(f"{project_name}-KinesisRawName")
-        website_url = Fn.import_value("ProjectAppCloudFrontURL")
+        cloudfront_url = Fn.import_value("ProjectAppCloudFrontURL")
         sns_topic_arn = Fn.import_value(f"{project_name}-sns-topic-arn")
-        
+        api_chatbot_url = Fn.import_value(f"{project_name}-chatbot-api-url")
+        api_auth_url = Fn.import_value(f"{project_name}-auth-api-url")
+        api_websocket_url = Fn.import_value(f"{project_name}-websocket-api-url")
+
         vpc_id = Fn.import_value("flight-project-vpc-id")
 
         public_subnet_ids = [
-            Fn.import_value("flight-project-subnet-a"),  
-            Fn.import_value("flight-project-subnet-b"), 
-            Fn.import_value("flight-project-subnet-c")  
+            Fn.import_value("flight-project-subnet-a"),
+            Fn.import_value("flight-project-subnet-b"),
+            Fn.import_value("flight-project-subnet-c"),
         ]
 
         vpc = ec2.Vpc.from_vpc_attributes(
@@ -38,7 +42,7 @@ class EC2Stack(Stack):
             "ImportedVPC",
             vpc_id=vpc_id,
             availability_zones=["eu-central-1a", "eu-central-1b", "eu-central-1c"],
-            public_subnet_ids=public_subnet_ids
+            public_subnet_ids=public_subnet_ids,
         )
 
         # Security Group
@@ -115,7 +119,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 class DataSimulator:
-    def __init__(self, kinesis_stream_name, dynamodb_table_name, csv_path, sns_topic_arn, website_url):
+    def __init__(self, kinesis_stream_name, dynamodb_table_name, csv_path, sns_topic_arn, 
+                 cloudfront_url, api_chatbot_url, api_auth_url, api_websocket_url):
         self.kinesis_client = boto3.client('kinesis', region_name='eu-central-1')
         self.stream_name = kinesis_stream_name
         self.dynamodb = boto3.resource('dynamodb', region_name='eu-central-1')
@@ -124,14 +129,31 @@ class DataSimulator:
         self.current_index = 0
         self.sns_client = boto3.client("sns", region_name="eu-central-1")
         self.sns_topic_arn = sns_topic_arn
-        self.website_url = website_url
+        self.cloudfront_url = cloudfront_url
+        self.api_chatbot_url = api_chatbot_url
+        self.api_auth_url = api_auth_url
+        self.api_websocket_url = api_websocket_url
 
     def notify_start(self):
-        message = "🚀 Data Generator has started streaming!\\n\\nProject app live here: " + self.website_url
+        message = (
+    "🚀 DATA GENERATOR STARTED STREAMING!\\n\\n"
+    "Status: ACTIVE\\n"
+    "Time: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC") + "\\n\\n"
+    "APPLICATION ENDPOINTS:\\n\\n"
+    "WEBSITE (CloudFront): " + self.cloudfront_url + "\\n\\n"
+    "API ENDPOINTS:\\n"
+    "- Chatbot API: " + self.api_chatbot_url + "\\n"
+    "- Auth API: " + self.api_auth_url + "\\n"
+    "- WebSocket API: " + self.api_websocket_url + "\\n\\n"
+    "Access the web interface:\\n"
+    + self.cloudfront_url + "\\n\\n"
+    "The data streaming is now active and flights are being processed in real-time!"
+    )
+
         try:
             self.sns_client.publish(
                 TopicArn=self.sns_topic_arn,
-                Subject="Data Simulator Started",
+                Subject="🚀 Data Generator Started - System Live",
                 Message=message
             )
             logger.info("SNS notification sent successfully")
@@ -221,7 +243,10 @@ if __name__ == "__main__":
         "{dynamodb_table_name}",
         "{data_bucket_key}",
         "{sns_topic_arn}",
-        "{website_url}"
+        "{cloudfront_url}",
+        "{api_chatbot_url}",
+        "{api_auth_url}",
+        "{api_websocket_url}"
     )
     simulator.start_streaming(events_per_second=2)
 EOF

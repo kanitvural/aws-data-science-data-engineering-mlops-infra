@@ -117,7 +117,7 @@ class ApiGatewayWebSocketStack(Stack):
             "FlightsWebSocketEndpoint",
             value=ws_api.api_endpoint,
             description="WebSocket API Endpoint",
-            export_name=f"{project_name}-FlightsWebSocketEndpoint",
+            export_name=f"{project_name}-websocket-api-url",
         )
 
         CfnOutput(
