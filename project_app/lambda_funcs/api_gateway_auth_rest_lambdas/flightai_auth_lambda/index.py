@@ -20,7 +20,6 @@ ALLOWED_ORIGINS = [
 ]
 
 def get_origin(event):
-    """Event'ten gelen origin'i kontrol et ve allowed listede varsa kullan"""
     default_origin = ALLOWED_ORIGINS[0]
     if event and "headers" in event:
         request_origin = event["headers"].get("origin") or event["headers"].get("Origin")
