@@ -22,7 +22,7 @@ client = OpenAI(api_key=api_key)
 set_default_openai_key(api_key)
 
 # # # --- Prepare small sample corpus for flights project README.md ---
-CORPUS_PATH = "../../data/README.md"
+CORPUS_PATH = os.path.join(os.path.dirname(__file__), "../../data/README.md")
 
 # # --- Create a transient vector store and upload corpus ---
 vs = client.vector_stores.create(name="Readme Vector Store")

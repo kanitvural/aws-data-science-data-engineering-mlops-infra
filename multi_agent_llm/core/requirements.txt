@@ -1,6 +1,3 @@
-strands-agents
-strands-agents[openai]
-strands-agents-tools
 bedrock-agentcore
 bedrock-agentcore-starter-toolkit
 boto3
