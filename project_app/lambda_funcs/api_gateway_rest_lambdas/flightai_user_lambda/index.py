@@ -15,12 +15,23 @@ if not logger.handlers:
 
 app_client_id = os.environ["APP_CLIENT_ID"]
 region = os.environ["REGION"]
+CLOUDFRONT_URL = os.environ["CLOUDFRONT_URL"]
 cognito_client = boto3.client("cognito-idp", region_name=region)
 
 
-def make_response(status, body):
+# Get origin from event
+def get_origin(event):
+    return event.get("headers", {}).get("origin", CLOUDFRONT_URL)
+
+
+def make_response(status, body, event):
     return {
         "statusCode": status,
+        "headers": {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": get_origin(event),
+            "Access-Control-Allow-Credentials": "true",
+        },
         "body": json.dumps(body),
     }
 
@@ -45,6 +56,7 @@ def signup(event, context):
             return make_response(
                 400,
                 {"error": "Missing required fields", "message": f"Please provide: {', '.join(missing_fields)}"},
+                event  
             )
 
         username = body["username"]
@@ -60,6 +72,7 @@ def signup(event, context):
             return make_response(
                 400,
                 {"error": "Invalid email", "message": "Please provide a valid email address"},
+                event  
             )
 
         logger.info(f"Signup attempt for username: {username}, email: {email}")
@@ -80,6 +93,7 @@ def signup(event, context):
         return make_response(
             200,
             {"message": "Signup successful. Please check your email for verification code."},
+            event  
         )
 
     except cognito_client.exceptions.UsernameExistsException:
@@ -87,6 +101,7 @@ def signup(event, context):
         return make_response(
             400,
             {"error": "User already exists", "message": "This username is already taken. Please choose another one."},
+            event  
         )
 
     except cognito_client.exceptions.InvalidPasswordException as e:
@@ -94,6 +109,7 @@ def signup(event, context):
         return make_response(
             400,
             {"error": "Invalid password", "message": str(e)},
+            event  
         )
 
     except Exception as e:
@@ -101,6 +117,7 @@ def signup(event, context):
         return make_response(
             400,
             {"error": "Signup failed", "message": str(e)},
+            event  
         )
 
 
@@ -116,6 +133,7 @@ def confirm(event, context):
             return make_response(
                 400,
                 {"error": "Missing required fields", "message": "Username and verification code are required"},
+                event  
             )
 
         logger.info(f"Email confirmation attempt for: {username}")
@@ -130,6 +148,7 @@ def confirm(event, context):
         return make_response(
             200,
             {"message": "Email verified successfully. You can now login."},
+            event  
         )
 
     except cognito_client.exceptions.CodeMismatchException:
@@ -137,6 +156,7 @@ def confirm(event, context):
         return make_response(
             400,
             {"error": "Invalid code", "message": "The verification code you entered is incorrect. Please try again."},
+            event  
         )
 
     except cognito_client.exceptions.ExpiredCodeException:
@@ -144,6 +164,7 @@ def confirm(event, context):
         return make_response(
             400,
             {"error": "Code expired", "message": "Your verification code has expired. Please request a new one."},
+            event  
         )
 
     except cognito_client.exceptions.UserNotFoundException:
@@ -151,6 +172,7 @@ def confirm(event, context):
         return make_response(
             404,
             {"error": "User not found", "message": "No user found with this username."},
+            event  
         )
 
     except Exception as e:
@@ -158,6 +180,7 @@ def confirm(event, context):
         return make_response(
             400,
             {"error": "Confirmation failed", "message": str(e)},
+            event  
         )
 
 
@@ -171,6 +194,7 @@ def forgot_password(event, context):
             return make_response(
                 400,
                 {"error": "Missing username", "message": "Username is required"},
+                event  
             )
 
         logger.info(f"Password reset requested for: {username}")
@@ -184,6 +208,7 @@ def forgot_password(event, context):
         return make_response(
             200,
             {"message": "If this user exists, a password reset code has been sent to their email"},
+            event  
         )
 
     except cognito_client.exceptions.UserNotFoundException:
@@ -192,6 +217,7 @@ def forgot_password(event, context):
         return make_response(
             200,
             {"message": "If this user exists, a password reset code has been sent to their email"},
+            event  
         )
 
     except Exception as e:
@@ -199,6 +225,7 @@ def forgot_password(event, context):
         return make_response(
             400,
             {"error": "Password reset request failed", "message": str(e)},
+            event  
         )
 
 
@@ -215,6 +242,7 @@ def confirm_forgot_password(event, context):
             return make_response(
                 400,
                 {"error": "Missing required fields", "message": "Username, code, and new password are required"},
+                event  
             )
 
         logger.info(f"Password reset confirmation for: {username}")
@@ -230,6 +258,7 @@ def confirm_forgot_password(event, context):
         return make_response(
             200,
             {"message": "Password reset successful. You can now login with your new password."},
+            event  
         )
 
     except cognito_client.exceptions.CodeMismatchException:
@@ -237,6 +266,7 @@ def confirm_forgot_password(event, context):
         return make_response(
             400,
             {"error": "Invalid code", "message": "The reset code you entered is incorrect. Please try again."},
+            event  
         )
 
     except cognito_client.exceptions.ExpiredCodeException:
@@ -244,6 +274,7 @@ def confirm_forgot_password(event, context):
         return make_response(
             400,
             {"error": "Code expired", "message": "Your reset code has expired. Please request a new one."},
+            event  
         )
 
     except cognito_client.exceptions.InvalidPasswordException as e:
@@ -251,6 +282,7 @@ def confirm_forgot_password(event, context):
         return make_response(
             400,
             {"error": "Invalid password", "message": str(e)},
+            event  
         )
 
     except cognito_client.exceptions.UserNotFoundException:
@@ -258,6 +290,7 @@ def confirm_forgot_password(event, context):
         return make_response(
             404,
             {"error": "User not found", "message": "No user found with this username."},
+            event  
         )
 
     except Exception as e:
@@ -265,6 +298,7 @@ def confirm_forgot_password(event, context):
         return make_response(
             400,
             {"error": "Password reset failed", "message": str(e)},
+            event  
         )
 
 
@@ -288,55 +322,5 @@ def lambda_handler(event, context):
         return make_response(
             404,
             {"error": "Not found", "message": "Endpoint not found"},
+            event  
         )
-
-
-###########################
-# Improvements if need
-###########################
-
-#  Resend Confirmation Code
-
-# def resend_confirmation(event, context):
-#     try:
-#         body = json.loads(event["body"])
-#         username = body["username"]
-
-#         cognito_client.resend_confirmation_code(
-#             ClientId=app_client_id,
-#             Username=username
-#         )
-
-#         return make_response(200, {
-#             "message": "Verification code resent to your email"
-#         }, )
-
-#     except Exception as e:
-#         logger.error(f"Resend confirmation failed: {str(e)}")
-#         return make_response(400, {"error": str(e)}, )
-
-
-# Input Validation
-
-# def signup(event, context):
-#     try:
-#         body = json.loads(event["body"])
-
-#         # ✅ Required fields kontrolü
-#         required_fields = ["username", "password", "email", "firstName", "lastName", "gender"]
-#         for field in required_fields:
-#             if field not in body or not body[field]:
-#                 return make_response(400, {"error": f"Missing required field: {field}"}, )
-
-#         username = body["username"]
-#         password = body["password"]
-#         email = body["email"]
-#         first_name = body["firstName"]
-#         last_name = body["lastName"]
-#         gender = body["gender"]
-
-#         # ✅ Email format kontrolü (basit)
-#         if "@" not in email:
-#             return make_response(400, {"error": "Invalid email format"}, )
-
-#         # ... rest of code

@@ -8,7 +8,10 @@ class ApiGatewayRestStack(Stack):
 
         # Cognito APP_CLIENT_ID import
         app_client_id = Fn.import_value("FlightAIUserPoolClientId")
+        
+        # Allowed origins
         cloudfront_url = Fn.import_value("ProjectAppCloudFrontURL")
+        localhost_url = "http://localhost:3000"
 
         # ===== AUTH LAMBDAS =====
         flightai_auth_lambda = _lambda.Function(
@@ -20,6 +23,7 @@ class ApiGatewayRestStack(Stack):
             environment={
                 "REGION": self.region,
                 "APP_CLIENT_ID": app_client_id,
+                "CLOUDFRONT_URL": cloudfront_url
             },
         )
 
@@ -32,6 +36,7 @@ class ApiGatewayRestStack(Stack):
             environment={
                 "REGION": self.region,
                 "APP_CLIENT_ID": app_client_id,
+                "CLOUDFRONT_URL": cloudfront_url
             },
         )
 
@@ -77,6 +82,7 @@ class ApiGatewayRestStack(Stack):
             code=_lambda.Code.from_asset("project_app/lambda_funcs/api_gateway_rest_lambdas/agent_chat_lambda"),
             environment={
                 "REGION": self.region,
+                "CLOUDFRONT_URL": cloudfront_url
             },
             timeout=Duration.seconds(120),
         )
@@ -103,6 +109,7 @@ class ApiGatewayRestStack(Stack):
             code=_lambda.Code.from_asset("project_app/lambda_funcs/api_gateway_rest_lambdas/agent_history_lambda"),
             environment={
                 "REGION": self.region,
+                "CLOUDFRONT_URL": cloudfront_url
             },
             timeout=Duration.seconds(120),
         )
@@ -134,7 +141,7 @@ class ApiGatewayRestStack(Stack):
             endpoint_configuration=apigw.EndpointConfiguration(types=[apigw.EndpointType.REGIONAL]),
             description="API for chatbot with Lambda Authorizer",
             default_cors_preflight_options=apigw.CorsOptions(
-                allow_origins=[cloudfront_url, "http://localhost:3000"],
+                allow_origins=[cloudfront_url, localhost_url],
                 allow_methods=["GET", "POST", "OPTIONS"],
                 allow_headers=[
                     "Content-Type",

@@ -1,3 +1,5 @@
+# ==================== CHAT LAMBDA ====================
+
 import os
 import logging
 import boto3
@@ -18,6 +20,7 @@ if not logger.handlers:
 
 # === ENVIRONMENT ===
 region = os.environ["REGION"]
+CLOUDFRONT_URL = os.environ["CLOUDFRONT_URL"]
 client = boto3.client("bedrock-agentcore", region_name=region)
 control_client = boto3.client("bedrock-agentcore-control", region_name=region)
 cognito_client = boto3.client("cognito-idp", region_name=region)
@@ -50,9 +53,18 @@ def get_agent_runtime_arn(control_client):
     raise ValueError("No READY agent runtime found.")
 
 
-def make_response(status, body):
+def get_origin(event):
+    return event.get("headers", {}).get("origin", CLOUDFRONT_URL)
+
+
+def make_response(status, body, event):
     return {
         "statusCode": status,
+        "headers": {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": get_origin(event),
+            "Access-Control-Allow-Credentials": "true",
+        },
         "body": json.dumps(body),
     }
 
@@ -68,13 +80,13 @@ def lambda_handler(event, context):
         # === 1. Extract Access Token from Cookie ===
         cookie_header = event.get("headers", {}).get("cookie", "")
         if not cookie_header:
-            return make_response(401, {"error": "Unauthorized", "message": "Missing cookies"})
+            return make_response(401, {"error": "Unauthorized", "message": "Missing cookies"}, event)
 
         cookie = cookies.SimpleCookie()
         cookie.load(cookie_header)
         access_token = cookie.get("access_token")
         if not access_token:
-            return make_response(401, {"error": "Unauthorized", "message": "Missing access token"})
+            return make_response(401, {"error": "Unauthorized", "message": "Missing access token"}, event)
 
         # === 2. Validate User ===
         try:
@@ -82,7 +94,7 @@ def lambda_handler(event, context):
             user_id = user_info["Username"]
             user_email = next((attr["Value"] for attr in user_info["UserAttributes"] if attr["Name"] == "email"), "")
         except cognito_client.exceptions.NotAuthorizedException:
-            return make_response(401, {"error": "Invalid token", "message": "Session expired"})
+            return make_response(401, {"error": "Invalid token", "message": "Session expired"}, event)
 
         logger.info(f"Authenticated user: {user_id} ({user_email})")
 
@@ -93,11 +105,11 @@ def lambda_handler(event, context):
 
         if not prompt:
             logger.warning("Missing 'prompt' in request")
-            return make_response(400, {"error": "Missing required field", "message": "Prompt is required"})
+            return make_response(400, {"error": "Missing required field", "message": "Prompt is required"}, event)
 
         if not session_id:
             logger.warning("Missing 'sessionId' in request")
-            return make_response(400, {"error": "Missing required field", "message": "SessionId is required"})
+            return make_response(400, {"error": "Missing required field", "message": "SessionId is required"}, event)
 
         # ✅ Create ACTOR_ID with userId from authorizer
         actor_id = f"app/user-{user_id}"
@@ -181,8 +193,8 @@ Remember to use the context from previous conversation when answering."""
         )
         logger.info("Assistant event created: %s", assistant_event_response["event"]["eventId"])
 
-        return make_response(200, {"response": agent_response} )
+        return make_response(200, {"response": agent_response}, event)
 
     except Exception as e:
         logger.error("Exception occurred: %s", str(e), exc_info=True)
-        return make_response(500, {"error": "Internal server error", "message": str(e)})
+        return make_response(500, {"error": "Internal server error", "message": str(e)}, event)

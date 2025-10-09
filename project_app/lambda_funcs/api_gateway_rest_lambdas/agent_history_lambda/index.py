@@ -17,14 +17,13 @@ if not logger.handlers:
 
 # === ENVIRONMENT ===
 region = os.environ["REGION"]
+CLOUDFRONT_URL = os.environ["CLOUDFRONT_URL"]
 client = boto3.client("bedrock-agentcore", region_name=region)
 control_client = boto3.client("bedrock-agentcore-control", region_name=region)
 cognito_client = boto3.client("cognito-idp", region_name=region)
 
 
 # === HELPERS ===
-
-
 def get_memory_id(control_client):
     response = control_client.list_memories(maxResults=50)
     memories = response.get("memories", [])
@@ -38,9 +37,18 @@ def get_memory_id(control_client):
     raise ValueError("No ACTIVE memory found.")
 
 
-def make_response(status, body):
+def get_origin(event):
+    return event.get("headers", {}).get("origin", CLOUDFRONT_URL)
+
+
+def make_response(status, body, event):
     return {
         "statusCode": status,
+        "headers": {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": get_origin(event),
+            "Access-Control-Allow-Credentials": "true",
+        },
         "body": json.dumps(body),
     }
 
@@ -55,20 +63,20 @@ def lambda_handler(event, context):
         # ✅ Extract user from cookie
         cookie_header = event.get("headers", {}).get("cookie", "")
         if not cookie_header:
-            return make_response(401, {"error": "Unauthorized", "message": "Missing cookies"})
+            return make_response(401, {"error": "Unauthorized", "message": "Missing cookies"}, event)
 
         cookie = cookies.SimpleCookie()
         cookie.load(cookie_header)
         access_token = cookie.get("access_token")
         if not access_token:
-            return make_response(401, {"error": "Unauthorized", "message": "Missing access token"})
+            return make_response(401, {"error": "Unauthorized", "message": "Missing access token"}, event)
 
         try:
             user_info = cognito_client.get_user(AccessToken=access_token.value)
             user_id = user_info["Username"]
             user_email = next((attr["Value"] for attr in user_info["UserAttributes"] if attr["Name"] == "email"), "")
         except cognito_client.exceptions.NotAuthorizedException:
-            return make_response(401, {"error": "Invalid token", "message": "Session expired"})
+            return make_response(401, {"error": "Invalid token", "message": "Session expired"}, event)
 
         logger.info(f"Authenticated user: {user_id} ({user_email})")
 
@@ -135,8 +143,9 @@ def lambda_handler(event, context):
                 "history": history,
                 "count": len(history),
             },
+            event
         )
 
     except Exception as e:
         logger.exception("💥 Error processing the request")
-        return make_response(500, {"error": "Internal Server Error", "message": str(e)})
+        return make_response(500, {"error": "Internal Server Error", "message": str(e)}, event)
