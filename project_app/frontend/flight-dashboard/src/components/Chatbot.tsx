@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MessageCircle, X, Send, Bot } from "lucide-react";
+import { RestApiService, type ChatMessage } from "@/services/restApiService";
 
 // UUID v4 generator
 function generateUUID(): string {
@@ -15,20 +16,13 @@ function generateUUID(): string {
 
 export default function Chatbot() {
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<
-    Array<{ text: string; isUser: boolean; id: string }>
-  >([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [sessionId, setSessionId] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   const [historyLoaded, setHistoryLoaded] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  const apiGatewayChatbotUrl =
-    process.env.NEXT_PUBLIC_APIGATEWAY_CHATBOT_URL || "";
-
-  console.log("apiGatewayChatbotUrl");
 
   // Initialize or retrieve sessionId from sessionStorage
   useEffect(() => {
@@ -45,35 +39,25 @@ export default function Chatbot() {
 
   // Fetch history when chatbot opens
   useEffect(() => {
-    if (isOpen && sessionId && apiGatewayChatbotUrl && !historyLoaded) {
+    if (isOpen && sessionId && !historyLoaded) {
       console.log("🔄 Chatbot opened, fetching history...");
       fetchHistory();
     }
   }, [isOpen, sessionId, historyLoaded]);
 
   const fetchHistory = async () => {
-    if (!apiGatewayChatbotUrl || !sessionId) {
-      console.log(
-        "⏭️ Skipping history fetch - no API Gateway URL or session ID"
-      );
+    if (!sessionId) {
+      console.log("⏭️ Skipping history fetch - no session ID");
       return;
     }
 
     try {
       console.log("📥 Fetching chat history...");
-      const response = await fetch(
-        `${apiGatewayChatbotUrl}/history?sessionId=${sessionId}`,
-        { method: "GET", headers: { "Content-Type": "application/json" } }
-      );
-
-      if (!response.ok)
-        throw new Error(`History fetch failed: ${response.status}`);
-
-      const data = await response.json();
+      const data = await RestApiService.getChatHistory(sessionId);
       console.log("📜 History loaded:", data.count, "messages");
 
       if (data.history && data.history.length > 0) {
-        const loadedMessages = data.history.map((item: any) => ({
+        const loadedMessages: ChatMessage[] = data.history.map((item) => ({
           id: item.eventId,
           text: item.content,
           isUser: item.role.toLowerCase() === "user",
@@ -95,41 +79,20 @@ export default function Chatbot() {
   const handleSend = async () => {
     if (!inputValue.trim()) return;
 
-    const userMessage = {
+    const userMessage: ChatMessage = {
       id: Date.now().toString() + "_user",
       text: inputValue,
       isUser: true,
     };
 
     setMessages((prev) => [...prev, userMessage]);
+    const currentInput = inputValue;
     setInputValue("");
-
-    if (!apiGatewayChatbotUrl) {
-      setTimeout(() => {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: Date.now().toString() + "_bot",
-            text: "API Gateway is not connected. Please check your environment variable.",
-            isUser: false,
-          },
-        ]);
-      }, 500);
-      return;
-    }
-
     setIsLoading(true);
+
     try {
-      const response = await fetch(`${apiGatewayChatbotUrl}/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: userMessage.text, sessionId }),
-      });
-
-      if (!response.ok)
-        throw new Error(`API request failed: ${response.status}`);
-
-      const data = await response.json();
+      const data = await RestApiService.sendChatMessage(currentInput, sessionId);
+      
       setMessages((prev) => [
         ...prev,
         {
@@ -140,14 +103,13 @@ export default function Chatbot() {
       ]);
     } catch (error) {
       console.error("Error calling API Gateway:", error);
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      
       setMessages((prev) => [
         ...prev,
         {
           id: Date.now().toString() + "_bot",
-          text: `Error connecting to API Gateway. (Session: ${sessionId.substring(
-            0,
-            8
-          )}...)`,
+          text: `Error: ${errorMessage} (Session: ${sessionId.substring(0, 8)}...)`,
           isUser: false,
         },
       ]);

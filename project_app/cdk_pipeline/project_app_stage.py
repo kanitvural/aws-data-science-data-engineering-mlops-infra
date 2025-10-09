@@ -9,8 +9,7 @@ from project_app.stacks.raw_dynamodb_stack import RawDynamoDBStack
 from project_app.stacks.websocket_dynamodb_stack import WebSocketDynamoDBStack
 from project_app.stacks.api_gateway_websocket_stack import ApiGatewayWebSocketStack
 from project_app.stacks.cognito_stack import CognitoStack
-from project_app.stacks.api_gateway_auth_rest_stack import ApiGatewayAuthRestStack
-from project_app.stacks.api_gateway_chatbot_rest_stack import ApiGatewayChatbotRestStack
+from project_app.stacks.api_gateway_rest_stack import ApiGatewayRestStack
 
 
 class AppPipelineStage(Stage):
@@ -23,17 +22,10 @@ class AppPipelineStage(Stage):
             id="CognitoInfrastructure",
         )
 
-        api_gateway_auth_stack = ApiGatewayAuthRestStack(
+        api_gateway_rest_stack = ApiGatewayRestStack(
             self,
-            id="ApiGatewayAuthRestInfrastructure",
-            project_name=project_name
-        )
-        
-        api_gateway_chatbot_rest_stack = ApiGatewayChatbotRestStack(
-            self,
-            id="ApiGatewayChatbotRestInfrastructure",
-            project_name=project_name
-            
+            id="ApiGatewayRestInfrastructure",
+            project_name=project_name,
         )
 
         s3_stack = S3Stack(
@@ -45,48 +37,47 @@ class AppPipelineStage(Stage):
         kinesis_stack = KinesisStack(
             self,
             id="KinesisInfrastructure",
-            project_name=project_name
+            project_name=project_name,
         )
-        
+
         sns_stack = SNSStack(
             self,
             id="SNSInfrastructure",
             notification_email=notification_email,
-            project_name=project_name
+            project_name=project_name,
         )
-        
+
         websocket_dynamodb_stack = WebSocketDynamoDBStack(
             self,
             id="WebSocketDynamoDBInfrastructure",
-            project_name=project_name  
+            project_name=project_name,
         )
-        
+
         raw_dynamodb_stack = RawDynamoDBStack(
             self,
             id="RawDynamoDBInfrastructure",
-            project_name=project_name  
+            project_name=project_name,
         )
-        
+
         lambda_stack = LambdaStack(
             self,
             id="LambdaInfrastructure",
-            project_name=project_name
+            project_name=project_name,
         )
-    
+
         api_gateway_websocket_stack = ApiGatewayWebSocketStack(
             self,
             id="ApiGatewayWebSocketInfrastructure",
-            project_name=project_name
+            project_name=project_name,
         )
 
         # --- Dependencies ---
         cognito_stack.add_dependency(s3_stack)
-        api_gateway_auth_stack.add_dependency(cognito_stack)
-        api_gateway_chatbot_rest_stack.add_dependency(api_gateway_auth_stack)
-        sns_stack.add_dependency(api_gateway_chatbot_rest_stack)
+        api_gateway_rest_stack.add_dependency(cognito_stack)
+        sns_stack.add_dependency(api_gateway_rest_stack)
         raw_dynamodb_stack.add_dependency(sns_stack)
         websocket_dynamodb_stack.add_dependency(sns_stack)
         api_gateway_websocket_stack.add_dependency(websocket_dynamodb_stack)
-        raw_dynamodb_stack.add_dependency(api_gateway_websocket_stack)  
+        raw_dynamodb_stack.add_dependency(api_gateway_websocket_stack)
         kinesis_stack.add_dependency(raw_dynamodb_stack)
         lambda_stack.add_dependency(kinesis_stack)
