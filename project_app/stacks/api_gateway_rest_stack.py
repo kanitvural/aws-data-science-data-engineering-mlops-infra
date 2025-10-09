@@ -29,7 +29,10 @@ class ApiGatewayRestStack(Stack):
             runtime=_lambda.Runtime.PYTHON_3_9,
             handler="index.lambda_handler",
             code=_lambda.Code.from_asset("project_app/lambda_funcs/api_gateway_rest_lambdas/flightai_user_lambda"),
-            environment={"REGION": self.region, "APP_CLIENT_ID": app_client_id, "CLOUDFRONT_URL": cloudfront_url},
+            environment={
+                "REGION": self.region,
+                "APP_CLIENT_ID": app_client_id,
+            },
         )
 
         flightai_auth_lambda.add_to_role_policy(
@@ -71,9 +74,7 @@ class ApiGatewayRestStack(Stack):
             "MultiAgentChatLambda",
             runtime=_lambda.Runtime.PYTHON_3_9,
             handler="index.lambda_handler",
-            code=_lambda.Code.from_asset(
-                "project_app/lambda_funcs/api_gateway_rest_lambdas/agent_chat_lambda"
-            ),
+            code=_lambda.Code.from_asset("project_app/lambda_funcs/api_gateway_rest_lambdas/agent_chat_lambda"),
             environment={
                 "REGION": self.region,
             },
@@ -99,9 +100,7 @@ class ApiGatewayRestStack(Stack):
             "MultiAgentHistoryLambda",
             runtime=_lambda.Runtime.PYTHON_3_9,
             handler="index.lambda_handler",
-            code=_lambda.Code.from_asset(
-                "project_app/lambda_funcs/api_gateway_rest_lambdas/agent_history_lambda"
-            ),
+            code=_lambda.Code.from_asset("project_app/lambda_funcs/api_gateway_rest_lambdas/agent_history_lambda"),
             environment={
                 "REGION": self.region,
             },
@@ -188,7 +187,7 @@ class ApiGatewayRestStack(Stack):
         user_signup.add_method("POST", apigw.LambdaIntegration(flightai_user_lambda, proxy=True))
 
         # CHATBOT
-        
+
         # /chat endpoint
         chat_resource = api.root.add_resource("chat")
         chat_resource.add_method("POST", apigw.LambdaIntegration(agent_chat_lambda, proxy=True))
