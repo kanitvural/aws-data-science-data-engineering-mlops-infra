@@ -43,9 +43,19 @@ export interface HistoryResponse {
   count: number;
 }
 
+function handleApiError(
+  response: Response,
+  result: any = {},
+  defaultMessage: string
+) {
+  if (!response.ok) {
+    throw new Error(result?.message || result?.error || defaultMessage);
+  }
+}
+
 export class RestApiService {
   // ==================== AUTH METHODS ====================
-  
+
   // Signup
   static async signup(data: SignupData) {
     const response = await fetch(`${apiGatewayRestUrl}/user/signup`, {
@@ -58,10 +68,7 @@ export class RestApiService {
 
     const result = await response.json();
 
-    if (!response.ok) {
-      throw new Error(result.error || "Signup failed");
-    }
-
+    handleApiError(response, result, "Signup failed");
     return result;
   }
 
@@ -77,9 +84,7 @@ export class RestApiService {
 
     const result = await response.json();
 
-    if (!response.ok) {
-      throw new Error(result.error || "Confirmation failed");
-    }
+    handleApiError(response, result, "Confirmation failed");
 
     return result;
   }
@@ -97,9 +102,7 @@ export class RestApiService {
 
     const result = await response.json();
 
-    if (!response.ok) {
-      throw new Error(result.error || "Login failed");
-    }
+    handleApiError(response, result, "Login failed");
 
     return result;
   }
@@ -113,9 +116,7 @@ export class RestApiService {
 
     const result = await response.json();
 
-    if (!response.ok) {
-      throw new Error(result.error || "Logout failed");
-    }
+    handleApiError(response, result, "Logout failed");
 
     return result;
   }
@@ -129,9 +130,7 @@ export class RestApiService {
 
     const result = await response.json();
 
-    if (!response.ok) {
-      throw new Error(result.error || "Failed to get user");
-    }
+    handleApiError(response, result, "Failed to get user");
 
     return result;
   }
@@ -145,31 +144,24 @@ export class RestApiService {
 
     const result = await response.json();
 
-    if (!response.ok) {
-      throw new Error(result.error || "Token refresh failed");
-    }
+    handleApiError(response, result, "Token refresh failed");
 
     return result;
   }
 
   // Forgot password
   static async forgotPassword(username: string) {
-    const response = await fetch(
-      `${apiGatewayRestUrl}/user/forgot-password`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ username }),
-      }
-    );
+    const response = await fetch(`${apiGatewayRestUrl}/user/forgot-password`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ username }),
+    });
 
     const result = await response.json();
 
-    if (!response.ok) {
-      throw new Error(result.error || "Failed to send reset code");
-    }
+    handleApiError(response, result, "Failed to send reset code");
 
     return result;
   }
@@ -197,9 +189,27 @@ export class RestApiService {
 
     const result = await response.json();
 
-    if (!response.ok) {
-      throw new Error(result.error || "Password reset failed");
-    }
+    handleApiError(response, result, "Password reset failed");
+
+    return result;
+  }
+
+  // Resend confirmation code
+  static async resendConfirmation(username: string) {
+    const response = await fetch(
+      `${apiGatewayRestUrl}/user/resend-confirmation`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ username }),
+      }
+    );
+
+    const result = await response.json();
+
+    handleApiError(response, result, "Failed to resend verification code");
 
     return result;
   }
@@ -207,7 +217,10 @@ export class RestApiService {
   // ==================== CHATBOT METHODS ====================
 
   // Send chat message
-  static async sendChatMessage(prompt: string, sessionId: string): Promise<ChatResponse> {
+  static async sendChatMessage(
+    prompt: string,
+    sessionId: string
+  ): Promise<ChatResponse> {
     const response = await fetch(`${apiGatewayRestUrl}/chat`, {
       method: "POST",
       headers: {
@@ -217,11 +230,8 @@ export class RestApiService {
       body: JSON.stringify({ prompt, sessionId }),
     });
 
-    if (!response.ok) {
-      throw new Error(`Chat request failed: ${response.status}`);
-    }
-
     const result = await response.json();
+    handleApiError(response, result, "Chat request failed");
     return result;
   }
 
@@ -238,11 +248,8 @@ export class RestApiService {
       }
     );
 
-    if (!response.ok) {
-      throw new Error(`History fetch failed: ${response.status}`);
-    }
-
     const result = await response.json();
+    handleApiError(response, result, "History fetch failed");
     return result;
   }
 }

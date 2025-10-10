@@ -1,4 +1,3 @@
-// app/(auth)/login/page.tsx
 "use client";
 
 import { useState } from "react";
@@ -12,6 +11,8 @@ import {
   CheckCircle2,
   AlertCircle,
   Chrome,
+  Check,
+  X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { RestApiService } from "@/services/restApiService";
@@ -21,6 +22,7 @@ export default function LoginPage() {
   const [mode, setMode] = useState<
     "signin" | "signup" | "verify" | "forgot" | "reset"
   >("signin");
+
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -30,20 +32,132 @@ export default function LoginPage() {
     verificationCode: "",
   });
 
+  const [passwordValidation, setPasswordValidation] = useState({
+    length: false,
+    uppercase: false,
+    lowercase: false,
+    number: false,
+    symbol: false,
+  });
+
+  const validatePassword = (password: string) => {
+    const validations = {
+      length: password.length >= 8,
+      uppercase: /[A-Z]/.test(password),
+      lowercase: /[a-z]/.test(password),
+      number: /[0-9]/.test(password),
+      symbol: /[^A-Za-z0-9]/.test(password),
+    };
+    setPasswordValidation(validations);
+  };
+
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
+  const [isResendingCode, setIsResendingCode] = useState(false);
+
+  // Name validation states
+  const [nameErrors, setNameErrors] = useState({
+    firstName: "",
+    lastName: "",
+  });
 
   function capitalize(word: string): string {
     if (!word) return "";
     return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
   }
 
+  // Validate names
+  const validateName = (name: string, field: "firstName" | "lastName") => {
+    if (name.length > 0 && name.length < 2) {
+      setNameErrors((prev) => ({
+        ...prev,
+        [field]: "Must be at least 2 characters",
+      }));
+      return false;
+    } else {
+      setNameErrors((prev) => ({
+        ...prev,
+        [field]: "",
+      }));
+      return true;
+    }
+  };
+
+  // Check if all password requirements are met
+  const isPasswordValid = Object.values(passwordValidation).every(
+    (valid) => valid
+  );
+
+  // Check if names are valid
+  const isNamesValid =
+    formData.firstName.length >= 2 && formData.lastName.length >= 2;
+
+  // Check if signup form is valid
+  const isSignupFormValid =
+    mode !== "signup" ||
+    (formData.email &&
+      formData.password &&
+      isPasswordValid &&
+      isNamesValid &&
+      formData.gender);
+
+  // Check if reset form is valid (MADDE 1)
+  const isResetFormValid =
+    mode !== "reset" ||
+    (formData.verificationCode && formData.password && isPasswordValid);
+
+  // Resend verification code
+  const handleResendCode = async () => {
+    if (!formData.email) {
+      setError("Username is required to resend the verification code.");
+      return;
+    }
+
+    setIsResendingCode(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      await RestApiService.resendConfirmation(formData.email);
+
+      setSuccess("Verification code resent! Please check your email.");
+    } catch (err: any) {
+      setError(
+        err.message || "Failed to resend verification code. Please try again."
+      );
+    } finally {
+      setIsResendingCode(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setSuccess("");
+
+    // Additional validation for signup
+    if (mode === "signup") {
+      if (!isPasswordValid) {
+        setError("Please meet all password requirements");
+        return;
+      }
+      if (!isNamesValid) {
+        setError("First and last names must be at least 2 characters");
+        return;
+      }
+    }
+
+    // Additional validation for reset
+    if (mode === "reset") {
+      if (!isPasswordValid) {
+        setError("Please meet all password requirements");
+        return;
+      }
+    }
+
     setIsLoading(true);
 
     try {
@@ -60,7 +174,6 @@ export default function LoginPage() {
         const userResp =
           (await RestApiService.getCurrentUser()) as GetUserResponse;
         const attrs: CognitoAttr[] = userResp.user?.UserAttributes ?? [];
-        // console.log(userResp);
 
         const findValue = (name: string) =>
           attrs.find((a) => a.Name === name)?.Value;
@@ -76,18 +189,57 @@ export default function LoginPage() {
         setSuccess("Successfully signed in! Redirecting...");
         setTimeout(() => router.push("/"), 1000);
       } else if (mode === "signup") {
-        await RestApiService.signup({
-          username: formData.email,
-          password: formData.password,
-          email: formData.email,
-          firstName: capitalize(formData.firstName),
-          lastName: capitalize(formData.lastName),
-          gender: formData.gender,
-        });
-        setSuccess(
-          "Account created! Please check your email for verification code."
-        );
-        setMode("verify");
+        // MADDE 2: Signup with unverified user handling
+        try {
+          await RestApiService.signup({
+            username: formData.email,
+            password: formData.password,
+            email: formData.email,
+            firstName: capitalize(formData.firstName),
+            lastName: capitalize(formData.lastName),
+            gender: formData.gender,
+          });
+          setSuccess(
+            "Account created! Please check your email for verification code."
+          );
+          setMode("verify");
+        } catch (signupError: any) {
+          // MADDE 2: Check if user already exists
+          const errorMessage = signupError.message || "";
+
+          if (
+            errorMessage.includes("already taken") ||
+            errorMessage.includes("UsernameExistsException") ||
+            errorMessage.includes("already exists")
+          ) {
+            // User might be unverified, try to resend confirmation
+            try {
+              await RestApiService.resendConfirmation(formData.email);
+              setSuccess(
+                "This email is already registered but not verified. We've sent you a new verification code."
+              );
+              setMode("verify");
+            } catch (resendError: any) {
+              // If resend fails, user might be already confirmed
+              const resendErrorMessage = resendError.message || "";
+
+              if (
+                resendErrorMessage.includes("already confirmed") ||
+                resendErrorMessage.includes("InvalidParameterException")
+              ) {
+                setError("This email is already registered. Please sign in.");
+              } else {
+                // Other resend errors
+                setError(
+                  "This email is already registered. If you haven't verified your email, please try again or contact support."
+                );
+              }
+            }
+          } else {
+            // Other signup errors
+            throw signupError;
+          }
+        }
       } else if (mode === "verify") {
         await RestApiService.confirmSignup({
           username: formData.email,
@@ -109,7 +261,14 @@ export default function LoginPage() {
           newPassword: formData.password,
         });
         setSuccess("Password reset successful! You can now sign in.");
-        setMode("signin");
+        setTimeout(() => {
+          setMode("signin");
+          setFormData({
+            ...formData,
+            verificationCode: "",
+            password: "",
+          });
+        }, 2000);
       }
     } catch (err: any) {
       setError(err.message || "An error occurred. Please try again.");
@@ -217,11 +376,15 @@ export default function LoginPage() {
               </h1>
             </div>
 
-            {/* Tab Switcher */}
-            {mode !== "verify" && (
+            {/* Tab Switcher - Hidden in verify, forgot, reset modes */}
+            {mode !== "verify" && mode !== "forgot" && mode !== "reset" && (
               <div className="flex space-x-2 mb-6 p-1 bg-gray-100 dark:bg-gray-700 rounded-xl">
                 <button
-                  onClick={() => setMode("signin")}
+                  onClick={() => {
+                    setMode("signin");
+                    setError("");
+                    setSuccess("");
+                  }}
                   className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all ${
                     mode === "signin"
                       ? "bg-white dark:bg-gray-800 text-blue-600 shadow-md"
@@ -231,7 +394,11 @@ export default function LoginPage() {
                   Sign In
                 </button>
                 <button
-                  onClick={() => setMode("signup")}
+                  onClick={() => {
+                    setMode("signup");
+                    setError("");
+                    setSuccess("");
+                  }}
                   className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all ${
                     mode === "signup"
                       ? "bg-white dark:bg-gray-800 text-blue-600 shadow-md"
@@ -338,9 +505,19 @@ export default function LoginPage() {
                         type={showPassword ? "text" : "password"}
                         required
                         value={formData.password}
-                        onChange={(e) =>
-                          setFormData({ ...formData, password: e.target.value })
+                        onFocus={() =>
+                          mode === "signup" && setIsPasswordFocused(true)
                         }
+                        onBlur={() => setIsPasswordFocused(false)}
+                        onChange={(e) => {
+                          setFormData({
+                            ...formData,
+                            password: e.target.value,
+                          });
+                          if (mode === "signup") {
+                            validatePassword(e.target.value);
+                          }
+                        }}
                         className="w-full pl-12 pr-12 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                         placeholder="••••••••"
                       />
@@ -352,6 +529,42 @@ export default function LoginPage() {
                         {showPassword ? "👁️" : "👁️‍🗨️"}
                       </button>
                     </div>
+
+                    {/* Password Requirements - Only show in signup mode when focused */}
+                    {mode === "signup" && isPasswordFocused && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="mt-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600"
+                      >
+                        <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Password must contain:
+                        </p>
+                        <div className="space-y-1">
+                          <PasswordRequirement
+                            met={passwordValidation.length}
+                            text="At least 8 characters"
+                          />
+                          <PasswordRequirement
+                            met={passwordValidation.uppercase}
+                            text="One uppercase letter"
+                          />
+                          <PasswordRequirement
+                            met={passwordValidation.lowercase}
+                            text="One lowercase letter"
+                          />
+                          <PasswordRequirement
+                            met={passwordValidation.number}
+                            text="One number"
+                          />
+                          <PasswordRequirement
+                            met={passwordValidation.symbol}
+                            text="One special character"
+                          />
+                        </div>
+                      </motion.div>
+                    )}
                   </motion.div>
                 )}
 
@@ -365,12 +578,22 @@ export default function LoginPage() {
                       type="text"
                       required
                       value={formData.firstName}
-                      onChange={(e) =>
-                        setFormData({ ...formData, firstName: e.target.value })
-                      }
-                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      onChange={(e) => {
+                        setFormData({ ...formData, firstName: e.target.value });
+                        validateName(e.target.value, "firstName");
+                      }}
+                      className={`w-full px-4 py-3 border ${
+                        nameErrors.firstName
+                          ? "border-red-500 dark:border-red-500"
+                          : "border-gray-300 dark:border-gray-600"
+                      } rounded-xl focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white`}
                       placeholder="John"
                     />
+                    {nameErrors.firstName && (
+                      <p className="mt-1 text-xs text-red-600 dark:text-red-400">
+                        {nameErrors.firstName}
+                      </p>
+                    )}
                   </motion.div>
                 )}
 
@@ -384,12 +607,22 @@ export default function LoginPage() {
                       type="text"
                       required
                       value={formData.lastName}
-                      onChange={(e) =>
-                        setFormData({ ...formData, lastName: e.target.value })
-                      }
-                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      onChange={(e) => {
+                        setFormData({ ...formData, lastName: e.target.value });
+                        validateName(e.target.value, "lastName");
+                      }}
+                      className={`w-full px-4 py-3 border ${
+                        nameErrors.lastName
+                          ? "border-red-500 dark:border-red-500"
+                          : "border-gray-300 dark:border-gray-600"
+                      } rounded-xl focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white`}
                       placeholder="Doe"
                     />
+                    {nameErrors.lastName && (
+                      <p className="mt-1 text-xs text-red-600 dark:text-red-400">
+                        {nameErrors.lastName}
+                      </p>
+                    )}
                   </motion.div>
                 )}
 
@@ -437,6 +670,25 @@ export default function LoginPage() {
                       placeholder="123456"
                       maxLength={6}
                     />
+
+                    {/* Resend Code Button */}
+                    <div className="mt-3 text-center">
+                      <button
+                        type="button"
+                        onClick={handleResendCode}
+                        disabled={isResendingCode}
+                        className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center mx-auto"
+                      >
+                        {isResendingCode ? (
+                          <>
+                            <Loader2 className="animate-spin mr-2" size={14} />
+                            Sending...
+                          </>
+                        ) : (
+                          "Didn't receive code? Resend"
+                        )}
+                      </button>
+                    </div>
                   </motion.div>
                 )}
 
@@ -479,9 +731,15 @@ export default function LoginPage() {
                         type={showPassword ? "text" : "password"}
                         required
                         value={formData.password}
-                        onChange={(e) =>
-                          setFormData({ ...formData, password: e.target.value })
-                        }
+                        onFocus={() => setIsPasswordFocused(true)}
+                        onBlur={() => setIsPasswordFocused(false)}
+                        onChange={(e) => {
+                          setFormData({
+                            ...formData,
+                            password: e.target.value,
+                          });
+                          validatePassword(e.target.value);
+                        }}
                         className="w-full pl-12 pr-12 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                         placeholder="••••••••"
                       />
@@ -493,6 +751,42 @@ export default function LoginPage() {
                         {showPassword ? "👁️" : "👁️‍🗨️"}
                       </button>
                     </div>
+
+                    {/* Password Requirements for Reset Mode */}
+                    {isPasswordFocused && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="mt-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600"
+                      >
+                        <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Password must contain:
+                        </p>
+                        <div className="space-y-1">
+                          <PasswordRequirement
+                            met={passwordValidation.length}
+                            text="At least 8 characters"
+                          />
+                          <PasswordRequirement
+                            met={passwordValidation.uppercase}
+                            text="One uppercase letter"
+                          />
+                          <PasswordRequirement
+                            met={passwordValidation.lowercase}
+                            text="One lowercase letter"
+                          />
+                          <PasswordRequirement
+                            met={passwordValidation.number}
+                            text="One number"
+                          />
+                          <PasswordRequirement
+                            met={passwordValidation.symbol}
+                            text="One special character"
+                          />
+                        </div>
+                      </motion.div>
+                    )}
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -517,7 +811,7 @@ export default function LoginPage() {
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={isLoading}
+                disabled={isLoading || !isSignupFormValid}
                 className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-3 px-6 rounded-xl transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-lg flex items-center justify-center space-x-2"
               >
                 {isLoading ? (
@@ -546,7 +840,11 @@ export default function LoginPage() {
               <>
                 Don't have an account?{" "}
                 <button
-                  onClick={() => setMode("signup")}
+                  onClick={() => {
+                    setMode("signup");
+                    setError("");
+                    setSuccess("");
+                  }}
                   className="text-blue-600 hover:text-blue-700 font-semibold"
                 >
                   Sign up
@@ -557,7 +855,11 @@ export default function LoginPage() {
               <>
                 Already have an account?{" "}
                 <button
-                  onClick={() => setMode("signin")}
+                  onClick={() => {
+                    setMode("signin");
+                    setError("");
+                    setSuccess("");
+                  }}
                   className="text-blue-600 hover:text-blue-700 font-semibold"
                 >
                   Sign in
@@ -568,7 +870,17 @@ export default function LoginPage() {
               <>
                 Back to{" "}
                 <button
-                  onClick={() => setMode("signin")}
+                  onClick={() => {
+                    setMode("signin");
+                    setError("");
+                    setSuccess("");
+                    // Clear verification and reset data
+                    setFormData({
+                      ...formData,
+                      verificationCode: "",
+                      password: mode === "reset" ? "" : formData.password,
+                    });
+                  }}
                   className="text-blue-600 hover:text-blue-700 font-semibold"
                 >
                   Sign in
@@ -578,6 +890,36 @@ export default function LoginPage() {
           </p>
         </motion.div>
       </motion.div>
+    </div>
+  );
+}
+
+// Password Requirement Component
+function PasswordRequirement({ met, text }: { met: boolean; text: string }) {
+  return (
+    <div className="flex items-center space-x-2">
+      <div
+        className={`flex-shrink-0 w-4 h-4 rounded-full flex items-center justify-center ${
+          met
+            ? "bg-green-500 dark:bg-green-600"
+            : "bg-gray-300 dark:bg-gray-600"
+        }`}
+      >
+        {met ? (
+          <Check size={12} className="text-white" />
+        ) : (
+          <X size={12} className="text-gray-500 dark:text-gray-400" />
+        )}
+      </div>
+      <span
+        className={`text-xs ${
+          met
+            ? "text-green-700 dark:text-green-400 font-medium"
+            : "text-gray-600 dark:text-gray-400"
+        }`}
+      >
+        {text}
+      </span>
     </div>
   );
 }

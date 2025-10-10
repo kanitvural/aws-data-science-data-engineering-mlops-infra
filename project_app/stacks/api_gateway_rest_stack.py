@@ -8,7 +8,7 @@ class ApiGatewayRestStack(Stack):
 
         # Cognito APP_CLIENT_ID import
         app_client_id = Fn.import_value("FlightAIUserPoolClientId")
-        
+
         # Allowed origins
         cloudfront_url = Fn.import_value("ProjectAppCloudFrontURL")
         localhost_url = "http://localhost:3000"
@@ -20,11 +20,7 @@ class ApiGatewayRestStack(Stack):
             runtime=_lambda.Runtime.PYTHON_3_9,
             handler="index.lambda_handler",
             code=_lambda.Code.from_asset("project_app/lambda_funcs/api_gateway_rest_lambdas/flightai_auth_lambda"),
-            environment={
-                "REGION": self.region,
-                "APP_CLIENT_ID": app_client_id,
-                "CLOUDFRONT_URL": cloudfront_url
-            },
+            environment={"REGION": self.region, "APP_CLIENT_ID": app_client_id, "CLOUDFRONT_URL": cloudfront_url},
         )
 
         flightai_user_lambda = _lambda.Function(
@@ -33,11 +29,7 @@ class ApiGatewayRestStack(Stack):
             runtime=_lambda.Runtime.PYTHON_3_9,
             handler="index.lambda_handler",
             code=_lambda.Code.from_asset("project_app/lambda_funcs/api_gateway_rest_lambdas/flightai_user_lambda"),
-            environment={
-                "REGION": self.region,
-                "APP_CLIENT_ID": app_client_id,
-                "CLOUDFRONT_URL": cloudfront_url
-            },
+            environment={"REGION": self.region, "APP_CLIENT_ID": app_client_id, "CLOUDFRONT_URL": cloudfront_url},
         )
 
         flightai_auth_lambda.add_to_role_policy(
@@ -80,10 +72,7 @@ class ApiGatewayRestStack(Stack):
             runtime=_lambda.Runtime.PYTHON_3_9,
             handler="index.lambda_handler",
             code=_lambda.Code.from_asset("project_app/lambda_funcs/api_gateway_rest_lambdas/agent_chat_lambda"),
-            environment={
-                "REGION": self.region,
-                "CLOUDFRONT_URL": cloudfront_url
-            },
+            environment={"REGION": self.region, "CLOUDFRONT_URL": cloudfront_url},
             timeout=Duration.seconds(120),
         )
 
@@ -107,10 +96,7 @@ class ApiGatewayRestStack(Stack):
             runtime=_lambda.Runtime.PYTHON_3_9,
             handler="index.lambda_handler",
             code=_lambda.Code.from_asset("project_app/lambda_funcs/api_gateway_rest_lambdas/agent_history_lambda"),
-            environment={
-                "REGION": self.region,
-                "CLOUDFRONT_URL": cloudfront_url
-            },
+            environment={"REGION": self.region, "CLOUDFRONT_URL": cloudfront_url},
             timeout=Duration.seconds(120),
         )
 
@@ -177,6 +163,10 @@ class ApiGatewayRestStack(Stack):
         # /user resource
         user_res = api.root.add_resource("user")
 
+        # /user/signup
+        user_signup = user_res.add_resource("signup")
+        user_signup.add_method("POST", apigw.LambdaIntegration(flightai_user_lambda, proxy=True))
+
         # /user/confirm
         user_confirm = user_res.add_resource("confirm")
         user_confirm.add_method("POST", apigw.LambdaIntegration(flightai_user_lambda, proxy=True))
@@ -189,9 +179,9 @@ class ApiGatewayRestStack(Stack):
         user_forgot = user_res.add_resource("forgot-password")
         user_forgot.add_method("POST", apigw.LambdaIntegration(flightai_user_lambda, proxy=True))
 
-        # /user/signup
-        user_signup = user_res.add_resource("signup")
-        user_signup.add_method("POST", apigw.LambdaIntegration(flightai_user_lambda, proxy=True))
+        # /user/forgot-password
+        user_resend_confirmation = user_res.add_resource("resend-confirmation")
+        user_resend_confirmation.add_method("POST", apigw.LambdaIntegration(flightai_user_lambda, proxy=True))
 
         # CHATBOT
 
