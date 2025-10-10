@@ -103,14 +103,11 @@ export default function LoginPage() {
       isPasswordValid &&
       isNamesValid &&
       formData.gender);
-  
+
   // Check if reset form is valid (MADDE 1)
   const isResetFormValid =
     mode !== "reset" ||
-    (formData.verificationCode &&
-      formData.password &&
-      isPasswordValid);
-
+    (formData.verificationCode && formData.password && isPasswordValid);
 
   // Resend verification code
   const handleResendCode = async () => {
@@ -153,7 +150,7 @@ export default function LoginPage() {
       }
     }
 
-    // Additional validation for reset 
+    // Additional validation for reset
     if (mode === "reset") {
       if (!isPasswordValid) {
         setError("Please meet all password requirements");
@@ -163,7 +160,7 @@ export default function LoginPage() {
 
     setIsLoading(true);
 
-  try {
+    try {
       if (mode === "signin") {
         await RestApiService.login({
           username: formData.email,
@@ -209,7 +206,7 @@ export default function LoginPage() {
         } catch (signupError: any) {
           // MADDE 2: Check if user already exists
           const errorMessage = signupError.message || "";
-          
+
           if (
             errorMessage.includes("already taken") ||
             errorMessage.includes("UsernameExistsException") ||
@@ -225,14 +222,12 @@ export default function LoginPage() {
             } catch (resendError: any) {
               // If resend fails, user might be already confirmed
               const resendErrorMessage = resendError.message || "";
-              
+
               if (
                 resendErrorMessage.includes("already confirmed") ||
                 resendErrorMessage.includes("InvalidParameterException")
               ) {
-                setError(
-                  "This email is already registered. Please sign in."
-                );
+                setError("This email is already registered. Please sign in.");
               } else {
                 // Other resend errors
                 setError(
@@ -739,7 +734,10 @@ export default function LoginPage() {
                         onFocus={() => setIsPasswordFocused(true)}
                         onBlur={() => setIsPasswordFocused(false)}
                         onChange={(e) => {
-                          setFormData({ ...formData, password: e.target.value });
+                          setFormData({
+                            ...formData,
+                            password: e.target.value,
+                          });
                           validatePassword(e.target.value);
                         }}
                         className="w-full pl-12 pr-12 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
@@ -753,6 +751,42 @@ export default function LoginPage() {
                         {showPassword ? "👁️" : "👁️‍🗨️"}
                       </button>
                     </div>
+
+                    {/* Password Requirements for Reset Mode */}
+                    {isPasswordFocused && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="mt-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600"
+                      >
+                        <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Password must contain:
+                        </p>
+                        <div className="space-y-1">
+                          <PasswordRequirement
+                            met={passwordValidation.length}
+                            text="At least 8 characters"
+                          />
+                          <PasswordRequirement
+                            met={passwordValidation.uppercase}
+                            text="One uppercase letter"
+                          />
+                          <PasswordRequirement
+                            met={passwordValidation.lowercase}
+                            text="One lowercase letter"
+                          />
+                          <PasswordRequirement
+                            met={passwordValidation.number}
+                            text="One number"
+                          />
+                          <PasswordRequirement
+                            met={passwordValidation.symbol}
+                            text="One special character"
+                          />
+                        </div>
+                      </motion.div>
+                    )}
                   </motion.div>
                 )}
               </AnimatePresence>
