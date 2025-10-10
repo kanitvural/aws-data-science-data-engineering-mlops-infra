@@ -1,3 +1,4 @@
+# ==================== USER LAMBDA ====================
 import os
 import json
 import logging

@@ -1,3 +1,5 @@
+# ==================== AUTH LAMBDA ====================
+
 import os
 import json
 import logging
