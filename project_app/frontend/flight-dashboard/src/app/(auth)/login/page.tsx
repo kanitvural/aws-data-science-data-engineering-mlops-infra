@@ -103,6 +103,13 @@ export default function LoginPage() {
       isPasswordValid &&
       isNamesValid &&
       formData.gender);
+  
+  // Check if reset form is valid (MADDE 1)
+  const isResetFormValid =
+    mode !== "reset" ||
+    (formData.verificationCode &&
+      formData.password &&
+      isPasswordValid);
 
 
   // Resend verification code
@@ -146,9 +153,17 @@ export default function LoginPage() {
       }
     }
 
+    // Additional validation for reset 
+    if (mode === "reset") {
+      if (!isPasswordValid) {
+        setError("Please meet all password requirements");
+        return;
+      }
+    }
+
     setIsLoading(true);
 
-    try {
+  try {
       if (mode === "signin") {
         await RestApiService.login({
           username: formData.email,
@@ -177,18 +192,59 @@ export default function LoginPage() {
         setSuccess("Successfully signed in! Redirecting...");
         setTimeout(() => router.push("/"), 1000);
       } else if (mode === "signup") {
-        await RestApiService.signup({
-          username: formData.email,
-          password: formData.password,
-          email: formData.email,
-          firstName: capitalize(formData.firstName),
-          lastName: capitalize(formData.lastName),
-          gender: formData.gender,
-        });
-        setSuccess(
-          "Account created! Please check your email for verification code."
-        );
-        setMode("verify");
+        // MADDE 2: Signup with unverified user handling
+        try {
+          await RestApiService.signup({
+            username: formData.email,
+            password: formData.password,
+            email: formData.email,
+            firstName: capitalize(formData.firstName),
+            lastName: capitalize(formData.lastName),
+            gender: formData.gender,
+          });
+          setSuccess(
+            "Account created! Please check your email for verification code."
+          );
+          setMode("verify");
+        } catch (signupError: any) {
+          // MADDE 2: Check if user already exists
+          const errorMessage = signupError.message || "";
+          
+          if (
+            errorMessage.includes("already taken") ||
+            errorMessage.includes("UsernameExistsException") ||
+            errorMessage.includes("already exists")
+          ) {
+            // User might be unverified, try to resend confirmation
+            try {
+              await RestApiService.resendConfirmation(formData.email);
+              setSuccess(
+                "This email is already registered but not verified. We've sent you a new verification code."
+              );
+              setMode("verify");
+            } catch (resendError: any) {
+              // If resend fails, user might be already confirmed
+              const resendErrorMessage = resendError.message || "";
+              
+              if (
+                resendErrorMessage.includes("already confirmed") ||
+                resendErrorMessage.includes("InvalidParameterException")
+              ) {
+                setError(
+                  "This email is already registered. Please sign in."
+                );
+              } else {
+                // Other resend errors
+                setError(
+                  "This email is already registered. If you haven't verified your email, please try again or contact support."
+                );
+              }
+            }
+          } else {
+            // Other signup errors
+            throw signupError;
+          }
+        }
       } else if (mode === "verify") {
         await RestApiService.confirmSignup({
           username: formData.email,
@@ -210,7 +266,14 @@ export default function LoginPage() {
           newPassword: formData.password,
         });
         setSuccess("Password reset successful! You can now sign in.");
-        setMode("signin");
+        setTimeout(() => {
+          setMode("signin");
+          setFormData({
+            ...formData,
+            verificationCode: "",
+            password: "",
+          });
+        }, 2000);
       }
     } catch (err: any) {
       setError(err.message || "An error occurred. Please try again.");
@@ -673,9 +736,12 @@ export default function LoginPage() {
                         type={showPassword ? "text" : "password"}
                         required
                         value={formData.password}
-                        onChange={(e) =>
-                          setFormData({ ...formData, password: e.target.value })
-                        }
+                        onFocus={() => setIsPasswordFocused(true)}
+                        onBlur={() => setIsPasswordFocused(false)}
+                        onChange={(e) => {
+                          setFormData({ ...formData, password: e.target.value });
+                          validatePassword(e.target.value);
+                        }}
                         className="w-full pl-12 pr-12 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                         placeholder="••••••••"
                       />
