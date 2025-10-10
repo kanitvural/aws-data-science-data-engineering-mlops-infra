@@ -57,7 +57,7 @@ def signup(event, context):
             return make_response(
                 400,
                 {"error": "Missing required fields", "message": f"Please provide: {', '.join(missing_fields)}"},
-                event  
+                event,
             )
 
         username = body["username"]
@@ -71,9 +71,7 @@ def signup(event, context):
         if "@" not in email or "." not in email:
             logger.warning(f"Invalid email format: {email}")
             return make_response(
-                400,
-                {"error": "Invalid email", "message": "Please provide a valid email address"},
-                event  
+                400, {"error": "Invalid email", "message": "Please provide a valid email address"}, event
             )
 
         logger.info(f"Signup attempt for username: {username}, email: {email}")
@@ -92,9 +90,7 @@ def signup(event, context):
 
         logger.info(f"Signup successful for: {username}")
         return make_response(
-            200,
-            {"message": "Signup successful. Please check your email for verification code."},
-            event  
+            200, {"message": "Signup successful. Please check your email for verification code."}, event
         )
 
     except cognito_client.exceptions.UsernameExistsException:
@@ -102,24 +98,16 @@ def signup(event, context):
         return make_response(
             400,
             {"error": "User already exists", "message": "This username is already taken. Please choose another one."},
-            event  
+            event,
         )
 
     except cognito_client.exceptions.InvalidPasswordException as e:
         logger.warning(f"Invalid password for user: {body.get('username')}")
-        return make_response(
-            400,
-            {"error": "Invalid password", "message": str(e)},
-            event  
-        )
+        return make_response(400, {"error": "Invalid password", "message": str(e)}, event)
 
     except Exception as e:
         logger.error(f"Signup failed: {type(e).__name__} - {str(e)}")
-        return make_response(
-            400,
-            {"error": "Signup failed", "message": str(e)},
-            event  
-        )
+        return make_response(400, {"error": "Signup failed", "message": str(e)}, event)
 
 
 def confirm(event, context):
@@ -134,7 +122,7 @@ def confirm(event, context):
             return make_response(
                 400,
                 {"error": "Missing required fields", "message": "Username and verification code are required"},
-                event  
+                event,
             )
 
         logger.info(f"Email confirmation attempt for: {username}")
@@ -146,18 +134,14 @@ def confirm(event, context):
         )
 
         logger.info(f"Email confirmed successfully for: {username}")
-        return make_response(
-            200,
-            {"message": "Email verified successfully. You can now login."},
-            event  
-        )
+        return make_response(200, {"message": "Email verified successfully. You can now login."}, event)
 
     except cognito_client.exceptions.CodeMismatchException:
         logger.warning(f"Invalid verification code for: {body.get('username')}")
         return make_response(
             400,
             {"error": "Invalid code", "message": "The verification code you entered is incorrect. Please try again."},
-            event  
+            event,
         )
 
     except cognito_client.exceptions.ExpiredCodeException:
@@ -165,24 +149,16 @@ def confirm(event, context):
         return make_response(
             400,
             {"error": "Code expired", "message": "Your verification code has expired. Please request a new one."},
-            event  
+            event,
         )
 
     except cognito_client.exceptions.UserNotFoundException:
         logger.warning(f"User not found during confirmation: {body.get('username')}")
-        return make_response(
-            404,
-            {"error": "User not found", "message": "No user found with this username."},
-            event  
-        )
+        return make_response(404, {"error": "User not found", "message": "No user found with this username."}, event)
 
     except Exception as e:
         logger.error(f"Confirmation failed: {type(e).__name__} - {str(e)}")
-        return make_response(
-            400,
-            {"error": "Confirmation failed", "message": str(e)},
-            event  
-        )
+        return make_response(400, {"error": "Confirmation failed", "message": str(e)}, event)
 
 
 def forgot_password(event, context):
@@ -192,11 +168,7 @@ def forgot_password(event, context):
 
         if not username:
             logger.warning("Forgot password attempt without username")
-            return make_response(
-                400,
-                {"error": "Missing username", "message": "Username is required"},
-                event  
-            )
+            return make_response(400, {"error": "Missing username", "message": "Username is required"}, event)
 
         logger.info(f"Password reset requested for: {username}")
 
@@ -207,27 +179,19 @@ def forgot_password(event, context):
 
         logger.info(f"Password reset code sent for: {username}")
         return make_response(
-            200,
-            {"message": "If this user exists, a password reset code has been sent to their email"},
-            event  
+            200, {"message": "If this user exists, a password reset code has been sent to their email"}, event
         )
 
     except cognito_client.exceptions.UserNotFoundException:
         # Security: Don't reveal if user exists
         logger.warning(f"Password reset attempted for non-existent user: {body.get('username')}")
         return make_response(
-            200,
-            {"message": "If this user exists, a password reset code has been sent to their email"},
-            event  
+            200, {"message": "If this user exists, a password reset code has been sent to their email"}, event
         )
 
     except Exception as e:
         logger.error(f"Forgot password failed: {type(e).__name__} - {str(e)}")
-        return make_response(
-            400,
-            {"error": "Password reset request failed", "message": str(e)},
-            event  
-        )
+        return make_response(400, {"error": "Password reset request failed", "message": str(e)}, event)
 
 
 def confirm_forgot_password(event, context):
@@ -243,7 +207,7 @@ def confirm_forgot_password(event, context):
             return make_response(
                 400,
                 {"error": "Missing required fields", "message": "Username, code, and new password are required"},
-                event  
+                event,
             )
 
         logger.info(f"Password reset confirmation for: {username}")
@@ -257,9 +221,7 @@ def confirm_forgot_password(event, context):
 
         logger.info(f"Password reset successful for: {username}")
         return make_response(
-            200,
-            {"message": "Password reset successful. You can now login with your new password."},
-            event  
+            200, {"message": "Password reset successful. You can now login with your new password."}, event
         )
 
     except cognito_client.exceptions.CodeMismatchException:
@@ -267,40 +229,56 @@ def confirm_forgot_password(event, context):
         return make_response(
             400,
             {"error": "Invalid code", "message": "The reset code you entered is incorrect. Please try again."},
-            event  
+            event,
         )
 
     except cognito_client.exceptions.ExpiredCodeException:
         logger.warning(f"Expired reset code for: {body.get('username')}")
         return make_response(
-            400,
-            {"error": "Code expired", "message": "Your reset code has expired. Please request a new one."},
-            event  
+            400, {"error": "Code expired", "message": "Your reset code has expired. Please request a new one."}, event
         )
 
     except cognito_client.exceptions.InvalidPasswordException as e:
         logger.warning(f"Invalid new password for: {body.get('username')}")
-        return make_response(
-            400,
-            {"error": "Invalid password", "message": str(e)},
-            event  
-        )
+        return make_response(400, {"error": "Invalid password", "message": str(e)}, event)
 
     except cognito_client.exceptions.UserNotFoundException:
         logger.warning(f"User not found during password reset: {body.get('username')}")
-        return make_response(
-            404,
-            {"error": "User not found", "message": "No user found with this username."},
-            event  
-        )
+        return make_response(404, {"error": "User not found", "message": "No user found with this username."}, event)
 
     except Exception as e:
         logger.error(f"Password reset confirmation failed: {type(e).__name__} - {str(e)}")
+        return make_response(400, {"error": "Password reset failed", "message": str(e)}, event)
+
+
+def resend_confirmation(event, context):
+    try:
+        body = json.loads(event["body"])
+        username = body.get("username")
+
+        if not username:
+            logger.warning("Resend confirmation attempt without username")
+            return make_response(400, {"error": "Missing username", "message": "Username is required"}, event)
+
+        logger.info(f"Resend confirmation requested for: {username}")
+
+        # Try sending the confirmation code again
+        cognito_client.resend_confirmation_code(ClientId=app_client_id, Username=username)
+
+        logger.info(f"Verification code resent successfully for: {username}")
         return make_response(
-            400,
-            {"error": "Password reset failed", "message": str(e)},
-            event  
+            200, {"message": "If this user exists, a verification code has been resent to their email."}, event
         )
+
+    except cognito_client.exceptions.UserNotFoundException:
+        logger.warning(f"Resend attempt for non-existent user: {body.get('username')}")
+        return make_response(
+            200, {"message": "If this user exists, a verification code has been resent to their email."}, event
+        )
+
+    except Exception as e:
+        logger.error(f"Resend confirmation failed: {type(e).__name__} - {str(e)}")
+        return make_response(400, {"error": "Resend failed", "message": str(e)}, event)
 
 
 def lambda_handler(event, context):
@@ -318,10 +296,8 @@ def lambda_handler(event, context):
         return forgot_password(event, context)
     elif path.endswith("/confirm-forgot-password"):
         return confirm_forgot_password(event, context)
+    elif path.endswith("/resend-confirmation"):
+        return resend_confirmation(event, context)
     else:
         logger.warning(f"Unknown endpoint: {path}")
-        return make_response(
-            404,
-            {"error": "Not found", "message": "Endpoint not found"},
-            event  
-        )
+        return make_response(404, {"error": "Not found", "message": "Endpoint not found"}, event)

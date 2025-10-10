@@ -104,10 +104,11 @@ export default function LoginPage() {
       isNamesValid &&
       formData.gender);
 
+
   // Resend verification code
   const handleResendCode = async () => {
     if (!formData.email) {
-      setError("Email address is required to resend code");
+      setError("Username is required to resend the verification code.");
       return;
     }
 
@@ -116,22 +117,13 @@ export default function LoginPage() {
     setSuccess("");
 
     try {
-      await RestApiService.signup({
-        username: formData.email,
-        password: formData.password,
-        email: formData.email,
-        firstName: capitalize(formData.firstName),
-        lastName: capitalize(formData.lastName),
-        gender: formData.gender,
-      });
+      await RestApiService.resendConfirmation(formData.email);
+
       setSuccess("Verification code resent! Please check your email.");
     } catch (err: any) {
-      // If user already exists, that's actually fine for resend
-      if (err.message?.includes("already exists") || err.message?.includes("UsernameExistsException")) {
-        setSuccess("Verification code resent! Please check your email.");
-      } else {
-        setError(err.message || "Failed to resend code. Please try again.");
-      }
+      setError(
+        err.message || "Failed to resend verification code. Please try again."
+      );
     } finally {
       setIsResendingCode(false);
     }
@@ -455,10 +447,15 @@ export default function LoginPage() {
                         type={showPassword ? "text" : "password"}
                         required
                         value={formData.password}
-                        onFocus={() => mode === "signup" && setIsPasswordFocused(true)}
+                        onFocus={() =>
+                          mode === "signup" && setIsPasswordFocused(true)
+                        }
                         onBlur={() => setIsPasswordFocused(false)}
                         onChange={(e) => {
-                          setFormData({ ...formData, password: e.target.value });
+                          setFormData({
+                            ...formData,
+                            password: e.target.value,
+                          });
                           if (mode === "signup") {
                             validatePassword(e.target.value);
                           }
@@ -615,7 +612,7 @@ export default function LoginPage() {
                       placeholder="123456"
                       maxLength={6}
                     />
-                    
+
                     {/* Resend Code Button */}
                     <div className="mt-3 text-center">
                       <button

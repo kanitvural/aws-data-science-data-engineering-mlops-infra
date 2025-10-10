@@ -194,6 +194,26 @@ export class RestApiService {
     return result;
   }
 
+  // Resend confirmation code
+  static async resendConfirmation(username: string) {
+    const response = await fetch(
+      `${apiGatewayRestUrl}/user/resend-confirmation`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ username }),
+      }
+    );
+
+    const result = await response.json();
+
+    handleApiError(response, result, "Failed to resend verification code");
+
+    return result;
+  }
+
   // ==================== CHATBOT METHODS ====================
 
   // Send chat message
