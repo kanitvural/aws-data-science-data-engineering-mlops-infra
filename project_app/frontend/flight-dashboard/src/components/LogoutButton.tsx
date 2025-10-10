@@ -1,23 +1,23 @@
-'use client';
+"use client";
 
-import { useState, Fragment } from 'react';
-import { Dialog, Transition } from '@headlessui/react';
-import { LogOut, Loader2 } from 'lucide-react';
-import { AuthService } from '@/services/authService';
+import { useState, Fragment } from "react";
+import { Dialog, Transition } from "@headlessui/react";
+import { LogOut, Loader2 } from "lucide-react";
+import { RestApiService } from "@/services/restApiService";
 import { useRouter } from "next/navigation";
 
 export default function LogoutButton() {
-  const router = useRouter()
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleLogout = async () => {
     setIsLoading(true);
     try {
-      await AuthService.logout();
+      await RestApiService.logout();
       router.replace("/login/");
     } catch (error) {
-      console.error('Logout failed:', error);
+      console.error("Logout failed:", error);
       router.replace("/login/");
     } finally {
       setIsLoading(false);
@@ -33,11 +33,19 @@ export default function LogoutButton() {
         className="flex items-center justify-center w-10 h-10 bg-red-600 hover:bg-red-700 text-white rounded-full transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
         title="Logout"
       >
-        {isLoading ? <Loader2 className="animate-spin" size={20} /> : <LogOut size={20} />}
+        {isLoading ? (
+          <Loader2 className="animate-spin" size={20} />
+        ) : (
+          <LogOut size={20} />
+        )}
       </button>
 
       <Transition appear show={isOpen} as={Fragment}>
-        <Dialog as="div" className="relative z-10" onClose={() => setIsOpen(false)}>
+        <Dialog
+          as="div"
+          className="relative z-10"
+          onClose={() => setIsOpen(false)}
+        >
           <Transition.Child
             as={Fragment}
             enter="ease-out duration-300"
@@ -79,7 +87,9 @@ export default function LogoutButton() {
                     onClick={handleLogout}
                     className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition flex items-center"
                   >
-                    {isLoading && <Loader2 className="animate-spin mr-2" size={16} />}
+                    {isLoading && (
+                      <Loader2 className="animate-spin mr-2" size={16} />
+                    )}
                     Logout
                   </button>
                 </div>

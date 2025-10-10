@@ -4,14 +4,15 @@ import sys
 import boto3
 import logging
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stdout)
-    ]
-)
-logger = logging.getLogger(__name__)
+# === LAMBDA LOGGER SETUP ===
+logger = logging.getLogger()  
+logger.setLevel(logging.INFO)
+
+if not logger.handlers:
+    stream_handler = logging.StreamHandler()
+    formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
+    stream_handler.setFormatter(formatter)
+    logger.addHandler(stream_handler)
 
 
 region = os.getenv("REGION", "eu-central-1")
@@ -49,8 +50,7 @@ def get_websocket_url(api_name_substring):
 if __name__ == "__main__":
     env_lines = [
         f"NEXT_PUBLIC_WEBSOCKET_URL={get_websocket_url('FlightAIWebSocketAPI')}",
-        f"NEXT_PUBLIC_APIGATEWAY_CHATBOT_URL={get_api_gateway_url('FlightAIMultiAgentLLMApi')}",
-        f"NEXT_PUBLIC_API_GATEWAY_AUTH_URL={get_api_gateway_url('FlightAIAuthAPI')}",
+        f"NEXT_PUBLIC_API_GATEWAY_REST_URL={get_api_gateway_url('FlightAIRestApi')}",
     ]
 
     with open(output_file, "w") as f:

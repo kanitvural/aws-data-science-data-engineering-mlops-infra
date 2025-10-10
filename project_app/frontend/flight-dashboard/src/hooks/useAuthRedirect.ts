@@ -1,9 +1,9 @@
 // src/hooks/useAuthRedirect.ts
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
-import { AuthService } from '@/services/authService';
+import { useEffect, useState } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import { RestApiService } from "@/services/restApiService";
 
 export function useAuthRedirect(requireAuth: boolean = true) {
   const router = useRouter();
@@ -14,19 +14,19 @@ export function useAuthRedirect(requireAuth: boolean = true) {
   useEffect(() => {
     async function checkAuth() {
       try {
-        await AuthService.getCurrentUser();
+        await RestApiService.getCurrentUser();
         setIsAuthenticated(true);
-        
+
         // Route to home if the user has an auth token.
-        if (!requireAuth && pathname === '/login') {
-          router.replace('/');
+        if (!requireAuth && pathname === "/login") {
+          router.replace("/");
         }
       } catch (error) {
         setIsAuthenticated(false);
-        
-        // Route to home if the user has not an auth token.
-        if (requireAuth && pathname !== '/login') {
-          router.replace('/login');
+
+        // Route to login page if the user has not an auth token.
+        if (requireAuth && pathname !== "/login") {
+          router.replace("/login");
         }
       } finally {
         setIsLoading(false);

@@ -131,14 +131,22 @@ class CDKAppPipelineStack(Stack):
                 ),
             ],
         )
-
+        # 1️⃣ Infra stage
         project_app_infra_deploy = pipeline.add_stage(project_app_stage)
         project_app_infra_deploy.add_post(deploy_frontend_app)
 
+        # 2️⃣ Manual Approval EC2 Step
         ec2_stage = EC2Stage(
             self,
             id="ProjetAppEC2Stage",
             project_name=project_name,
         )
 
-        ec2_deploy = pipeline.add_stage(ec2_stage)
+        manual_approval = pipelines_.ManualApprovalStep(
+            id="ManualApprovalBeforeEC2", comment="✅ Please approve this deployment before EC2 stage starts."
+        )
+
+        ec2_deploy = pipeline.add_stage(
+            stage=ec2_stage,
+            pre=[manual_approval],
+        )

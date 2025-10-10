@@ -52,7 +52,7 @@ class ApiGatewayChatbotRestStack(Stack):
 
         agent_chat_lambda = _lambda.Function(
             self,
-            "MultiAgentInvokeLambda",
+            "MultiAgentChatLambda",
             runtime=_lambda.Runtime.PYTHON_3_9,
             handler="index.lambda_handler",
             code=_lambda.Code.from_asset(
@@ -82,7 +82,7 @@ class ApiGatewayChatbotRestStack(Stack):
 
         agent_history_lambda = _lambda.Function(
             self,
-            "MultiAgentGetLambda",
+            "MultiAgentHistoryLambda",
             runtime=_lambda.Runtime.PYTHON_3_9,
             handler="index.lambda_handler",
             code=_lambda.Code.from_asset(
@@ -117,7 +117,7 @@ class ApiGatewayChatbotRestStack(Stack):
         api = apigw.RestApi(
             self,
             "MultiAgentLLMApi",
-            rest_api_name="FlightAgentMultiLLMApi",
+            rest_api_name="FlightAIMultiAgentLLMApi", 
             endpoint_configuration=apigw.EndpointConfiguration(types=[apigw.EndpointType.REGIONAL]),
             description="API for chatbot with Lambda Authorizer",
             default_cors_preflight_options=apigw.CorsOptions(

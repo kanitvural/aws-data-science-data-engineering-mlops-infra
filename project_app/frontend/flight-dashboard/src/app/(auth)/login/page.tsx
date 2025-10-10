@@ -14,7 +14,7 @@ import {
   Chrome,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { AuthService } from "@/services/authService";
+import { RestApiService } from "@/services/restApiService";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -48,7 +48,7 @@ export default function LoginPage() {
 
     try {
       if (mode === "signin") {
-        await AuthService.login({
+        await RestApiService.login({
           username: formData.email,
           password: formData.password,
         });
@@ -58,10 +58,9 @@ export default function LoginPage() {
         type GetUserResponse = { user?: { UserAttributes?: CognitoAttr[] } };
 
         const userResp =
-          (await AuthService.getCurrentUser()) as GetUserResponse;
+          (await RestApiService.getCurrentUser()) as GetUserResponse;
         const attrs: CognitoAttr[] = userResp.user?.UserAttributes ?? [];
-        console.log(userResp);
-        
+        // console.log(userResp);
 
         const findValue = (name: string) =>
           attrs.find((a) => a.Name === name)?.Value;
@@ -77,7 +76,7 @@ export default function LoginPage() {
         setSuccess("Successfully signed in! Redirecting...");
         setTimeout(() => router.push("/"), 1000);
       } else if (mode === "signup") {
-        await AuthService.signup({
+        await RestApiService.signup({
           username: formData.email,
           password: formData.password,
           email: formData.email,
@@ -90,7 +89,7 @@ export default function LoginPage() {
         );
         setMode("verify");
       } else if (mode === "verify") {
-        await AuthService.confirmSignup({
+        await RestApiService.confirmSignup({
           username: formData.email,
           code: formData.verificationCode,
         });
@@ -100,11 +99,11 @@ export default function LoginPage() {
           setFormData({ ...formData, verificationCode: "" });
         }, 2000);
       } else if (mode === "forgot") {
-        await AuthService.forgotPassword(formData.email);
+        await RestApiService.forgotPassword(formData.email);
         setSuccess("Reset code sent to your email!");
         setMode("reset");
       } else if (mode === "reset") {
-        await AuthService.confirmForgotPassword({
+        await RestApiService.confirmForgotPassword({
           username: formData.email,
           code: formData.verificationCode,
           newPassword: formData.password,
@@ -120,7 +119,10 @@ export default function LoginPage() {
   };
 
   const features = [
-    { icon: "🚀", text: "Real-time ML predictions with AWS SageMaker Endpoint" },
+    {
+      icon: "🚀",
+      text: "Real-time ML predictions with AWS SageMaker Endpoint",
+    },
     { icon: "💬", text: "AI-powered chatbot with AWS Bedrock-Agentcore" },
     { icon: "🔐", text: "Secure authentication with AWS Cognito" },
     { icon: "📊", text: "Live dashboard with WebSocket streaming" },
@@ -174,7 +176,8 @@ export default function LoginPage() {
           </h2>
 
           <p className="text-xl text-gray-600 dark:text-gray-400">
-            Ultimate AWS AI Project ✈️ Data Engineering • Data Science • MLOps • Multi-Agent-Chatbot • Real-Time Web App
+            Ultimate AWS AI Project ✈️ Data Engineering • Data Science • MLOps •
+            Multi-Agent-Chatbot • Real-Time Web App
           </p>
 
           {/* Features */}
