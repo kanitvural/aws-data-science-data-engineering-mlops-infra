@@ -4,6 +4,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import FlightGrid from "@/components/FlightGrid";
 import Chatbot from "@/components/Chatbot";
+import ThemeToggle from "@/components/ThemeToggle";
 import { FlightTableData } from "@/types/flight";
 import {
   Plane,
@@ -483,6 +484,7 @@ export default function FlightDashboard() {
       </div>
 
       <Chatbot />
+      <ThemeToggle />
     </div>
   );
 }
