@@ -7,13 +7,7 @@ from constructs import Construct
 
 
 class BedrockAgentCoreRoleStack(Stack):
-    def __init__(
-        self, 
-        scope: Construct, 
-        id: str, 
-        project_name: str,
-        **kwargs
-    ):
+    def __init__(self, scope: Construct, id: str, project_name: str, **kwargs):
         super().__init__(scope, id, **kwargs)
 
         # AgentCore execution role
@@ -34,13 +28,9 @@ class BedrockAgentCoreRoleStack(Stack):
                     principals=[iam.ServicePrincipal("bedrock-agentcore.amazonaws.com")],
                     actions=["sts:AssumeRole"],
                     conditions={
-                        "StringEquals": {
-                            "aws:SourceAccount": self.account
-                        },
-                        "ArnLike": {
-                            "aws:SourceArn": f"arn:aws:bedrock-agentcore:{self.region}:{self.account}:*"
-                        }
-                    }
+                        "StringEquals": {"aws:SourceAccount": self.account},
+                        "ArnLike": {"aws:SourceArn": f"arn:aws:bedrock-agentcore:{self.region}:{self.account}:*"},
+                    },
                 )
             )
 
@@ -86,8 +76,10 @@ class BedrockAgentCoreRoleStack(Stack):
         self.agentcore_execution_role.add_to_policy(
             iam.PolicyStatement(
                 effect=iam.Effect.ALLOW,
-                actions=["logs:CreateLogStream","logs:PutLogEvents"],
-                resources=[f"arn:aws:logs:{self.region}:{self.account}:log-group:/aws/bedrock-agentcore/runtimes/*:log-stream:*"],
+                actions=["logs:CreateLogStream", "logs:PutLogEvents"],
+                resources=[
+                    f"arn:aws:logs:{self.region}:{self.account}:log-group:/aws/bedrock-agentcore/runtimes/*:log-stream:*"
+                ],
             )
         )
 
@@ -111,11 +103,7 @@ class BedrockAgentCoreRoleStack(Stack):
                 effect=iam.Effect.ALLOW,
                 actions=["cloudwatch:PutMetricData"],
                 resources=["*"],
-                conditions={
-                    "StringEquals": {
-                        "cloudwatch:namespace": "bedrock-agentcore"
-                    }
-                }
+                conditions={"StringEquals": {"cloudwatch:namespace": "bedrock-agentcore"}},
             )
         )
 
@@ -146,7 +134,7 @@ class BedrockAgentCoreRoleStack(Stack):
                     "bedrock-agentcore:ListSessions",
                     "bedrock-agentcore:DeleteEvent",
                     "bedrock-agentcore:DeleteMemoryRecord",
-                    "bedrock-agentcore:RetrieveMemoryRecords"
+                    "bedrock-agentcore:RetrieveMemoryRecords",
                 ],
                 resources=[f"arn:aws:bedrock-agentcore:{self.region}:{self.account}:memory/*"],
             )
@@ -162,8 +150,8 @@ class BedrockAgentCoreRoleStack(Stack):
                     f"arn:aws:bedrock-agentcore:{self.region}:{self.account}:token-vault/default",
                     f"arn:aws:bedrock-agentcore:{self.region}:{self.account}:token-vault/default/apikeycredentialprovider/*",
                     f"arn:aws:bedrock-agentcore:{self.region}:{self.account}:workload-identity-directory/default",
-                    f"arn:aws:bedrock-agentcore:{self.region}:{self.account}:workload-identity-directory/default/workload-identity/{project_name}-*"
-                ]
+                    f"arn:aws:bedrock-agentcore:{self.region}:{self.account}:workload-identity-directory/default/workload-identity/{project_name}-*",
+                ],
             )
         )
         self.agentcore_execution_role.add_to_policy(
@@ -175,8 +163,8 @@ class BedrockAgentCoreRoleStack(Stack):
                     f"arn:aws:bedrock-agentcore:{self.region}:{self.account}:token-vault/default",
                     f"arn:aws:bedrock-agentcore:{self.region}:{self.account}:token-vault/default/oauth2credentialprovider/*",
                     f"arn:aws:bedrock-agentcore:{self.region}:{self.account}:workload-identity-directory/default",
-                    f"arn:aws:bedrock-agentcore:{self.region}:{self.account}:workload-identity-directory/default/workload-identity/{project_name}-*"
-                ]
+                    f"arn:aws:bedrock-agentcore:{self.region}:{self.account}:workload-identity-directory/default/workload-identity/{project_name}-*",
+                ],
             )
         )
 
@@ -188,12 +176,12 @@ class BedrockAgentCoreRoleStack(Stack):
                 actions=[
                     "bedrock-agentcore:GetWorkloadAccessToken",
                     "bedrock-agentcore:GetWorkloadAccessTokenForJWT",
-                    "bedrock-agentcore:GetWorkloadAccessTokenForUserId"
+                    "bedrock-agentcore:GetWorkloadAccessTokenForUserId",
                 ],
                 resources=[
                     f"arn:aws:bedrock-agentcore:{self.region}:{self.account}:workload-identity-directory/default",
-                    f"arn:aws:bedrock-agentcore:{self.region}:{self.account}:workload-identity-directory/default/workload-identity/{project_name}-*"
-                ]
+                    f"arn:aws:bedrock-agentcore:{self.region}:{self.account}:workload-identity-directory/default/workload-identity/{project_name}-*",
+                ],
             )
         )
 
@@ -202,19 +190,12 @@ class BedrockAgentCoreRoleStack(Stack):
             iam.PolicyStatement(
                 sid="BedrockModelInvocation",
                 effect=iam.Effect.ALLOW,
-                actions=[
-                    "bedrock:InvokeModel",
-                    "bedrock:InvokeModelWithResponseStream",
-                    "bedrock:ApplyGuardrail"
-                ],
-                resources=[
-                    "arn:aws:bedrock:*::foundation-model/*",
-                    f"arn:aws:bedrock:{self.region}:{self.account}:*"
-                ]
+                actions=["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream", "bedrock:ApplyGuardrail"],
+                resources=["arn:aws:bedrock:*::foundation-model/*", f"arn:aws:bedrock:{self.region}:{self.account}:*"],
             )
         )
 
-        # S3 permissions 
+        # S3 permissions
         self.agentcore_execution_role.add_to_policy(
             iam.PolicyStatement(
                 effect=iam.Effect.ALLOW,
@@ -223,9 +204,28 @@ class BedrockAgentCoreRoleStack(Stack):
                     "s3:PutObject",
                     "s3:DeleteObject",
                     "s3:ListBucket",
-                    "s3:GetBucketLocation"
+                    "s3:GetBucketLocation",
                 ],
-                resources=["*"],  
+                resources=["*"],
+            )
+        )
+
+        self.agentcore_execution_role.add_to_policy(
+            iam.PolicyStatement(
+                sid="DynamoDBAccess",
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "dynamodb:GetItem",
+                    "dynamodb:PutItem",
+                    "dynamodb:UpdateItem",
+                    "dynamodb:DeleteItem",
+                    "dynamodb:Query",
+                    "dynamodb:Scan",
+                    "dynamodb:BatchGetItem",
+                    "dynamodb:BatchWriteItem",
+                    "dynamodb:DescribeTable",
+                ],
+                resources=["*"],
             )
         )
 
@@ -234,7 +234,7 @@ class BedrockAgentCoreRoleStack(Stack):
             iam.PolicyStatement(
                 effect=iam.Effect.ALLOW,
                 actions=["ssm:GetParameter", "ssm:GetParameters"],
-                resources=[f"arn:aws:ssm:{self.region}:{self.account}:parameter/{project_name}/*"]
+                resources=[f"arn:aws:ssm:{self.region}:{self.account}:parameter/{project_name}/*"],
             )
         )
 
