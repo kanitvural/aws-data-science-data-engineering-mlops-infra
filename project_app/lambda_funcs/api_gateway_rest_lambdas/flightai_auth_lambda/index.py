@@ -4,6 +4,7 @@ import os
 import json
 import logging
 import boto3
+from botocore.exceptions import ClientError
 from http import cookies
 
 # === LAMBDA LOGGER SETUP ===
@@ -18,13 +19,15 @@ if not logger.handlers:
 
 app_client_id = os.environ["APP_CLIENT_ID"]
 region = os.environ["REGION"]
-CLOUDFRONT_URL = os.environ["CLOUDFRONT_URL"]
+cloudfront_url = os.environ["CLOUDFRONT_URL"]
+dynamodb = boto3.resource("dynamodb", region_name=region)
+sessions_table = dynamodb.Table(os.environ["SESSIONS_TABLE_NAME"])
 cognito_client = boto3.client("cognito-idp", region_name=region)
 
 
 # Get origin from event
 def get_origin(event):
-    return event.get("headers", {}).get("origin", CLOUDFRONT_URL)
+    return event.get("headers", {}).get("origin", cloudfront_url)
 
 
 def make_response(status, body, event, cookie_headers=None):
@@ -76,12 +79,12 @@ def login(event, context):
         # Prod cookie configurations
         access_cookie = (
             f"access_token={tokens['AccessToken']}; "
-            "HttpOnly; Secure; SameSite=None; Path=/; Max-Age=3600"
+            "HttpOnly; Secure; SameSite=None; Path=/; Max-Age=3600" # 1 hour
         )
 
         refresh_cookie = (
             f"refresh_token={tokens['RefreshToken']}; "
-            "HttpOnly; Secure; SameSite=None; Path=/auth/refresh; Max-Age=2592000"
+            "HttpOnly; Secure; SameSite=None; Path=/auth/refresh; Max-Age=86400" # 1 day
         )
 
         logger.info(f"Login successful for: {username}")
@@ -127,14 +130,55 @@ def login(event, context):
 
 def logout(event, context):
     logger.info("Logout request received")
-    access_cookie = "access_token=; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=0"
-    refresh_cookie = "refresh_token=; HttpOnly; Secure; SameSite=None; Path=/auth/refresh; Max-Age=0"
-    return make_response(
-        200,
-        {"message": "Logged out successfully"},
-        event,  
-        [access_cookie, refresh_cookie],
-    )
+
+    try:
+        # === 1. Extract Access Token & SessionId ===
+        cookie_header = event.get("headers", {}).get("cookie", "")
+        cookie = cookies.SimpleCookie()
+        cookie.load(cookie_header)
+        access_token = cookie.get("access_token")
+        
+        # SessionId body'den al
+        body = json.loads(event.get("body", "{}"))
+        session_id = body.get("sessionId")
+
+        # === 2. Revoke Cognito Token ===
+        if access_token:
+            try:
+                cognito_client.global_sign_out(AccessToken=access_token.value)
+                logger.info("✅ Cognito global sign out successful")
+            except Exception as e:
+                logger.warning(f"Cognito sign out failed: {e}. Continuing logout...")
+
+        # === 3. Delete Session from DynamoDB ===
+        if session_id:
+            try:
+                sessions_table.delete_item(Key={"session_id": session_id})
+                logger.info(f"✅ Session deleted: {session_id}")
+            except ClientError as e:
+                error_code = e.response.get('Error', {}).get('Code', 'Unknown')
+                logger.error(f"Failed to delete session {session_id}: {error_code}")
+            except Exception as e:
+                logger.error(f"Unexpected error deleting session: {str(e)}")
+        else:
+            logger.warning("No sessionId provided, skipping session cleanup")
+
+        # === 4. Clear Cookies ===
+        access_cookie = "access_token=; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=0"
+        refresh_cookie = "refresh_token=; HttpOnly; Secure; SameSite=None; Path=/auth/refresh; Max-Age=0"
+        id_cookie = "id_token=; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=0"
+
+        return make_response(
+            200,
+            {"message": "Logged out successfully"},
+            event,
+            [access_cookie, refresh_cookie, id_cookie],
+        )
+
+    except Exception as e:
+        logger.error(f"Logout error: {str(e)}", exc_info=True)
+        return make_response(500, {"error": "Logout failed", "message": str(e)}, event)
+
 
 
 def me(event, context):

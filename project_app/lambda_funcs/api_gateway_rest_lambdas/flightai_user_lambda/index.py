@@ -16,13 +16,13 @@ if not logger.handlers:
 
 app_client_id = os.environ["APP_CLIENT_ID"]
 region = os.environ["REGION"]
-CLOUDFRONT_URL = os.environ["CLOUDFRONT_URL"]
+cloudfront_url = os.environ["CLOUDFRONT_URL"]
 cognito_client = boto3.client("cognito-idp", region_name=region)
 
 
 # Get origin from event
 def get_origin(event):
-    return event.get("headers", {}).get("origin", CLOUDFRONT_URL)
+    return event.get("headers", {}).get("origin", cloudfront_url)
 
 
 def make_response(status, body, event):

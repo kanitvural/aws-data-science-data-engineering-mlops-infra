@@ -13,8 +13,9 @@ export default function LogoutButton() {
 
   const handleLogout = async () => {
     setIsLoading(true);
+    const sessionId = sessionStorage.getItem("chatbot_session_id");
     try {
-      await RestApiService.logout();
+      await RestApiService.logout(sessionId ?? undefined);
       router.replace("/login/");
     } catch (error) {
       console.error("Logout failed:", error);

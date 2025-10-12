@@ -107,15 +107,21 @@ export class RestApiService {
     return result;
   }
 
-  // Logout
-  static async logout() {
+
+  // UPDATED: Logout with sessionId
+  static async logout(sessionId?: string) {
+    const body = sessionId ? { sessionId } : {};
+    
     const response = await fetch(`${apiGatewayRestUrl}/auth/logout`, {
       method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
       credentials: "include",
+      body: JSON.stringify(body), 
     });
 
     const result = await response.json();
-
     handleApiError(response, result, "Logout failed");
 
     return result;
