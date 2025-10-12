@@ -75,18 +75,16 @@ def get_websocket_url(api_name_substring):
 
 
 def get_cloudfront_url(s3_deploy_bucket_name):
-    """Get CloudFront distribution URL by comment/description"""
     try:
         response = cloudfront_client.list_distributions()
-        
-        if "DistributionList" in response and "Items" in response["DistributionList"]:
-            for dist in response["DistributionList"]["Items"]:
-                comment = dist.get("Comment", "")
-                if s3_deploy_bucket_name.lower() in comment.lower():
-                    domain = dist["DomainName"]
-                    return f"https://{domain}"
-        
-        logger.warning(f"CloudFront distribution with comment containing '{s3_deploy_bucket_name}' not found")
+        for dist in response.get("DistributionList", {}).get("Items", []):
+            origins = dist.get("Origins", {}).get("Items", [])
+            for origin in origins:
+                origin_domain = origin.get("DomainName", "")
+                # S3 bucket domain'i genelde <bucket>.s3.amazonaws.com olur
+                if s3_deploy_bucket_name in origin_domain:
+                    return f"https://{dist['DomainName']}"
+        logger.warning(f"No CloudFront distribution found for bucket '{s3_deploy_bucket_name}'")
         return "CHECK_CLOUDFRONT_URL"
     except Exception as e:
         logger.warning(f"Failed to get CloudFront URL: {e}")
@@ -167,42 +165,17 @@ def main():
     FLIGHTS REST API: {api_rest_url}
     WEBSOCKET API: {api_websocket_url}
 
-    CHATBOT API USAGE:
-
-    POST {api_rest_url}/chat
-    Send chat messages to agent
-    Body: {{"prompt": "...", "sessionId": "..."}}
-
-    GET {api_rest_url}/history?sessionId=YOUR_SESSION_ID
-    Get conversation history
-
     RESOURCE DETAILS:
     Memory ID: {memory_id}
     Runtime ARN: {agent_runtime_arn}
     ECR Repository: {ecr_repository}
     Execution Role: {execution_role_arn}
 
-    POSTMAN EXAMPLES:
-
-    1. Send a chat message (POST):
-    URL: {api_rest_url}/chat
-    Method: POST
-    Headers: Content-Type: application/json
-    Body (raw JSON):
-    {{
-        "prompt": "How many flights are currently in the system?",
-        "sessionId": "dfmeoagmreaklgmrkleafremoigrmtesogmtrskhmtkrlshmtvural"
-    }}
-
-    2. Get conversation history (GET):
-    URL: {api_rest_url}/history?sessionId=dfmeoagmreaklgmrkleafremoigrmtesogmtrskhmtkrlshmtvural
-    Method: GET
-
     MONITORING:
-    CloudWatch Logs: /aws/lambda/flight_multi_agent*
+    Console Home > CloudWatch > GenAI Observability > Bedrock AgentCore
     Bedrock Console: Monitor memory events and runtime status
 
-    Your multi-agent flight booking system is now live!
+    Your multi-agent flight chatbot system is now live!
     """
 
     # Send notification
