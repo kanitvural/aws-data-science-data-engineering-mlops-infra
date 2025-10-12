@@ -3,7 +3,6 @@ import json
 import logging
 from typing import Optional, Union, List
 from pydantic import BaseModel, Field, field_validator, ValidationError
-from datetime import datetime, timezone
 from utils.load_flight_data_dynamodb import query_flights_by_time_window
 from openai import OpenAI
 from agents import (

@@ -83,7 +83,7 @@ class CDKLLMPipelineStack(Stack):
                 "echo '⚙️ Configuring AgentCore agent...'",
                 (
                     "agentcore configure "
-                    "--entrypoint new_flight_multi_agent.py "
+                    "--entrypoint flight_multi_agent.py "
                     "--name flight_multi_agent "
                     "--execution-role $AGENTCORE_EXECUTION_ROLE_ARN "
                     "--ecr $ECR_REPOSITORY "
