@@ -1,13 +1,11 @@
 import os
 import json
-from typing import Optional, Union, List
-from utils.load_flight_data import load_flight_data
 import logging
-import boto3
-import pandas as pd
-from io import StringIO
+from typing import Optional, Union, List
+from pydantic import BaseModel, Field, field_validator, ValidationError
+from datetime import datetime, timezone
+from utils.load_flight_data_dynamodb import query_flights_by_time_window
 from openai import OpenAI
-from pydantic import BaseModel
 from agents import (
     set_default_openai_key,
     Agent,
@@ -36,6 +34,50 @@ set_default_openai_key(api_key)
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------
+# SESSION CONTEXT (PYDANTIC)
+# ---------------------------
+class SessionContext(BaseModel):
+    """User session context for flight data queries"""
+    
+    session_id: str = Field(
+        ..., 
+        description="Unique session identifier from frontend",
+        min_length=1
+    )
+    
+    start_timestamp: int = Field(
+        ..., 
+        description="Session start time (Unix timestamp in seconds)",
+        gt=0
+    )
+    
+    end_timestamp: int = Field(
+        ..., 
+        description="Current query time (Unix timestamp in seconds)",
+        gt=0
+    )
+    
+    
+    @field_validator('end_timestamp')
+    def validate_time_range(cls, v, info):
+        """Ensure end_timestamp > start_timestamp"""
+        start_ts = info.data.get('start_timestamp')
+        if start_ts is not None and v <= start_ts:
+            raise ValueError('end_timestamp must be greater than start_timestamp')
+        return v
+
+    
+    @property
+    def window_duration(self) -> int:
+        """Session duration in seconds"""
+        return self.end_timestamp - self.start_timestamp
+    
+    class Config:
+        frozen = True  # Immutable for safety
+
 
 
 # ---------------------------
@@ -79,7 +121,7 @@ guardrail_agent = Agent(
 )
 
 @input_guardrail
-async def kanit_guardrail(ctx: RunContextWrapper[None], agent: Agent, input: Union[str, List[TResponseInputItem]]) -> GuardrailFunctionOutput:
+async def kanit_guardrail(ctx: RunContextWrapper[SessionContext], agent: Agent, input: Union[str, List[TResponseInputItem]]) -> GuardrailFunctionOutput:
     """Guardrail to block questions about Kanıt Vural."""
     result = await Runner.run(guardrail_agent, input, context=ctx.context)
     
@@ -93,13 +135,14 @@ async def kanit_guardrail(ctx: RunContextWrapper[None], agent: Agent, input: Uni
 # TOOLS
 # ---------------------------
 @function_tool
-def query_flight_data(
+async def query_flight_data(
+    wrapper: RunContextWrapper[SessionContext],
     query_type: str,
     airline: Optional[str] = None,
     route: Optional[str] = None
 ) -> str:
     """
-    Query real-time flight data and return statistical insights.
+    Query real-time flight data within user's session time window.
     
     Args:
         query_type: Type of query. Supported values:
@@ -123,13 +166,20 @@ def query_flight_data(
         Human-readable result text
     """
     
-    logger.info(f"🚀 query_flight_data CALLED with query_type={query_type}, airline={airline}, route={route}")
+    # Extract session context
+    session_id = wrapper.context.session_id
+    start_ts = wrapper.context.start_timestamp
+    end_ts = wrapper.context.end_timestamp
+    duration = wrapper.context.window_duration
+    
+    logger.info(f"🚀 Tool called: {query_type}, Session: {session_id}, Window: {duration}s")
     
     try:
-        # Load data synchronously
-        logger.info("🔄 Loading flight data from S3...")
-        df = load_flight_data()
-        logger.info(f"✅ Data loaded successfully: {len(df)} records")
+        # Query DynamoDB
+        df = query_flights_by_time_window(start_ts, end_ts)
+        
+        if len(df) == 0:
+            return "No flight data available in your session yet. Please wait for flights to arrive and be processed by the prediction system."
         
         # Process based on query type
         if query_type == "max_delay":
@@ -142,7 +192,7 @@ def query_flight_data(
         
         elif query_type == "flight_count":
             count = len(df)
-            return f"There are currently {count:,} flights in the system."
+            return f"There are currently {count:,} flights in your session."
         
         elif query_type == "flights_by_airline":
             airline_counts = df.groupby("airline").size().sort_values(ascending=False)
@@ -223,17 +273,16 @@ def query_flight_data(
             return f"❌ Error: Unsupported query type '{query_type}'. Please use a valid query_type."
     
     except Exception as e:
-        logger.error(f"❌ Query error: {str(e)}")
+        logger.error(f"❌ Query error: {str(e)}", exc_info=True)
         return f"❌ An error occurred during the query: {str(e)}"
 
 
 # ---------------------------
 # AGENTS
 # ---------------------------
-flight_data_agent = Agent(
+flight_data_agent = Agent[SessionContext](
     name="Flight Data Agent",
     instructions=f"""
-
 You are the Flight Data Agent.
 You receive requests from the Supervisor Agent whenever a user wants information about real-time flight data.
 
@@ -261,22 +310,16 @@ Your job:
 2. Extract required parameters:
    - For queries like "avg_delay_by_airline": Extract the airline name (e.g., "alaska_airlines_inc", "horizon_air")
    - For queries like "weather_by_route" or "distance_by_route": Extract the route (e.g., "SEA-SFO", "SEA-PHX")
-   - If the user doesn't provide required information, ask them to clarify.
 
 3. Valid airline names: "alaska_airlines_inc", "horizon_air"
 4. Route format: "ORIGIN-DEST" (e.g., "SEA-SFO", "PDX-LAX")
 
-5. Once you have determined the query_type and any required parameters, forward these details to the "Flight Data Collaborator."
+5. Call the query_flight_data tool with the appropriate parameters.
 
-6. When the collaborator returns the results, pass them back to the Supervisor Agent in a clear, user-friendly format.
+6. Present results in a clear, user-friendly format.
 
-7. Be helpful and conversational. If results show specific data, present it in an easy-to-understand way.
-
-Examples:
-- User: "How many flights are there right now?" → query_type="flight_count"
-- User: "What's Alaska Airlines' average delay?" → query_type="avg_delay_by_airline", airline="alaska_airlines_inc"
-- User: "Show me weather for SEA-SFO route" → query_type="weather_by_route", route="SEA-SFO"
-- User: "Which airline has the worst delays?" → query_type="max_delay_airline"
+NOTE: The session time window is automatically handled by the system. You don't need to ask users about time ranges.
+All queries are scoped to the user's current session (from login to now).
 """,
     tools=[query_flight_data],
     model_settings=ModelSettings(model_name="gpt-4o-mini", temperature=0)
@@ -287,7 +330,7 @@ Examples:
 vs_id = get_vector_store_id_by_name(name="Readme Vector Store")
 file_search = FileSearchTool(vector_store_ids=[vs_id], max_num_results=3)
 
-project_info_agent = Agent(
+project_info_agent = Agent[SessionContext](
     name="Project Information Agent",
     instructions=(
         "You are the Project Information Agent.\n"
@@ -323,7 +366,7 @@ project_info_agent = Agent(
 # ---------------------------
 # SUPERVISOR AGENT
 # ---------------------------
-supervisor_agent = Agent(
+supervisor_agent = Agent[SessionContext](
     name="Supervisor Agent",
     instructions=f"""
 {RECOMMENDED_PROMPT_PREFIX}
@@ -374,17 +417,39 @@ app = BedrockAgentCoreApp()
 async def invoke(payload):
     """Main entrypoint for the multi-agent system."""
     user_message = payload.get("prompt", "")
-    logger.info(f"📨 Received request: {user_message}")
+    
+    logger.info(f"📨 Received payload: {json.dumps(payload)}")
+    
+    try:
+        # ✅ Parse and validate session context with Pydantic
+        context = SessionContext(
+            session_id=payload.get("session_id", "unknown"),
+            start_timestamp=payload.get("start_timestamp", 0),
+            end_timestamp=payload.get("end_timestamp", 0)
+        )
+        
+        logger.info(f"✅ Session validated: {context.session_id}, Duration: {context.window_duration}s")
+        
+    except ValidationError as e:
+        logger.error(f"❌ Invalid session context: {e}")
+        return {"result": "Invalid session parameters. Please refresh and try again."}
+    
     output = ''
     
     try:
-        logger.info("🤖 Starting Runner.run with supervisor_agent...")
-        result = await Runner.run(supervisor_agent, user_message)
+        logger.info("🤖 Starting Runner with SessionContext...")
+        result = await Runner.run(
+            starting_agent=supervisor_agent,
+            input=user_message,
+            context=context  # ✅ Pass Pydantic model
+        )
         logger.info(f"✅ Runner completed. Final output: {result.final_output}")
         output = result.final_output
+        
     except InputGuardrailTripwireTriggered:
         logger.warning("🚫 Guardrail triggered")
         output = "I'd really rather not talk about Kanıt. You can visit https://www.kanitvural.com to learn more about him."
+        
     except Exception as e:
         logger.error(f"❌ Error in invoke: {str(e)}", exc_info=True)
         output = "I apologize, but I encountered an error processing your request. Please try again."
