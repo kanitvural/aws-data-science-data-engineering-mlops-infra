@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 region = os.getenv("REGION", "eu-central-1")
 ecr_repository = os.environ["ECR_REPOSITORY"]
 execution_role_arn = os.environ["AGENTCORE_EXECUTION_ROLE_ARN"]
+s3_deploy_bucket_name = os.environ["S3_DEPLOY_BUCKET_NAME"]
 
 # Initialize AWS clients
 sns_client = boto3.client("sns", region_name=region)
@@ -73,7 +74,7 @@ def get_websocket_url(api_name_substring):
         return "CHECK_WS_URL"
 
 
-def get_cloudfront_url(distribution_comment_substring):
+def get_cloudfront_url(s3_deploy_bucket_name):
     """Get CloudFront distribution URL by comment/description"""
     try:
         response = cloudfront_client.list_distributions()
@@ -81,11 +82,11 @@ def get_cloudfront_url(distribution_comment_substring):
         if "DistributionList" in response and "Items" in response["DistributionList"]:
             for dist in response["DistributionList"]["Items"]:
                 comment = dist.get("Comment", "")
-                if distribution_comment_substring.lower() in comment.lower():
+                if s3_deploy_bucket_name.lower() in comment.lower():
                     domain = dist["DomainName"]
                     return f"https://{domain}"
         
-        logger.warning(f"CloudFront distribution with comment containing '{distribution_comment_substring}' not found")
+        logger.warning(f"CloudFront distribution with comment containing '{s3_deploy_bucket_name}' not found")
         return "CHECK_CLOUDFRONT_URL"
     except Exception as e:
         logger.warning(f"Failed to get CloudFront URL: {e}")
@@ -141,10 +142,10 @@ def main():
         logger.error("Could not retrieve SNS Topic ARN")
         sys.exit(1)
 
-    api_chatbot_url = get_api_gateway_url("FlightAIMultiAgentLLMApi")
-    api_auth_url = get_api_gateway_url("FlightAIAuthAPI")
+
+    api_rest_url = get_api_gateway_url("FlightAIRestApi")
     api_websocket_url = get_websocket_url("FlightAIWebSocketAPI")
-    cloudfront_url = get_cloudfront_url("FlightAI")
+    cloudfront_url = get_cloudfront_url(s3_deploy_bucket_name)
     memory_id = get_memory_id(control_client)
     agent_runtime_arn = get_agent_runtime_arn(control_client)
 
@@ -163,17 +164,16 @@ def main():
     API ENDPOINTS:
     
     CLOUDFRONT: {cloudfront_url}
-    CHATBOT API: {api_chatbot_url}
-    AUTH API: {api_auth_url}
+    FLIGHTS REST API: {api_rest_url}
     WEBSOCKET API: {api_websocket_url}
 
     CHATBOT API USAGE:
 
-    POST {api_chatbot_url}/chat
+    POST {api_rest_url}/chat
     Send chat messages to agent
     Body: {{"prompt": "...", "sessionId": "..."}}
 
-    GET {api_chatbot_url}/history?sessionId=YOUR_SESSION_ID
+    GET {api_rest_url}/history?sessionId=YOUR_SESSION_ID
     Get conversation history
 
     RESOURCE DETAILS:
@@ -185,7 +185,7 @@ def main():
     POSTMAN EXAMPLES:
 
     1. Send a chat message (POST):
-    URL: {api_chatbot_url}/chat
+    URL: {api_rest_url}/chat
     Method: POST
     Headers: Content-Type: application/json
     Body (raw JSON):
@@ -195,7 +195,7 @@ def main():
     }}
 
     2. Get conversation history (GET):
-    URL: {api_chatbot_url}/history?sessionId=dfmeoagmreaklgmrkleafremoigrmtesogmtrskhmtkrlshmtvural
+    URL: {api_rest_url}/history?sessionId=dfmeoagmreaklgmrkleafremoigrmtesogmtrskhmtkrlshmtvural
     Method: GET
 
     MONITORING:
