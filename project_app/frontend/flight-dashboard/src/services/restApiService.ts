@@ -103,19 +103,30 @@ export class RestApiService {
     const result = await response.json();
 
     handleApiError(response, result, "Login failed");
+    
+    // Save session id to session storage
+    if (result.sessionId) {
+      sessionStorage.setItem("chatbot_session_id", result.sessionId);
+      console.log("🆔 Session ID received from backend:", result.sessionId);
+    }
 
     return result;
   }
 
-  // Logout
-  static async logout() {
+  // UPDATED: Logout with sessionId
+  static async logout(sessionId?: string) {
+    const body = sessionId ? { sessionId } : {};
+
     const response = await fetch(`${apiGatewayRestUrl}/auth/logout`, {
       method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
       credentials: "include",
+      body: JSON.stringify(body),
     });
 
     const result = await response.json();
-
     handleApiError(response, result, "Logout failed");
 
     return result;

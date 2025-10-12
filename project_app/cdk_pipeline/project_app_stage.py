@@ -7,6 +7,7 @@ from project_app.stacks.lambda_stack import LambdaStack
 from project_app.stacks.sns_stack import SNSStack
 from project_app.stacks.raw_dynamodb_stack import RawDynamoDBStack
 from project_app.stacks.websocket_dynamodb_stack import WebSocketDynamoDBStack
+from project_app.stacks.agent_sessions_dynamodb_stack import AgentSessionsDynamoDBStack
 from project_app.stacks.api_gateway_websocket_stack import ApiGatewayWebSocketStack
 from project_app.stacks.cognito_stack import CognitoStack
 from project_app.stacks.api_gateway_rest_stack import ApiGatewayRestStack
@@ -58,6 +59,12 @@ class AppPipelineStage(Stage):
             id="RawDynamoDBInfrastructure",
             project_name=project_name,
         )
+        
+        agent_sessions_dynamodb_stack = AgentSessionsDynamoDBStack(
+            self,
+            id="AgentSessionsDynamoDBInfrastructure",
+            project_name=project_name,
+        )
 
         lambda_stack = LambdaStack(
             self,
@@ -72,6 +79,7 @@ class AppPipelineStage(Stage):
         )
 
         # --- Dependencies ---
+        agent_sessions_dynamodb_stack.add_dependency(s3_stack)
         cognito_stack.add_dependency(s3_stack)
         api_gateway_rest_stack.add_dependency(cognito_stack)
         sns_stack.add_dependency(api_gateway_rest_stack)

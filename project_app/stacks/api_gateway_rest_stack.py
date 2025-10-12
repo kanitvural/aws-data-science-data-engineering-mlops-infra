@@ -13,6 +13,13 @@ class ApiGatewayRestStack(Stack):
         cloudfront_url = Fn.import_value("ProjectAppCloudFrontURL")
         localhost_url = "http://localhost:3000"
 
+        # Agent Sessions DynamoDB Table Name
+        agent_sessions = Fn.import_value(f"{project_name}-agent-sessions-table-name")
+
+        # Chat lambda RATE LIMITS
+        rate_limit_window = "60"  # 1 min
+        rate_limit_max_requests = "20"  # 20 requests pe minute
+
         # ===== AUTH LAMBDAS =====
         flightai_auth_lambda = _lambda.Function(
             self,
@@ -20,7 +27,12 @@ class ApiGatewayRestStack(Stack):
             runtime=_lambda.Runtime.PYTHON_3_9,
             handler="index.lambda_handler",
             code=_lambda.Code.from_asset("project_app/lambda_funcs/api_gateway_rest_lambdas/flightai_auth_lambda"),
-            environment={"REGION": self.region, "APP_CLIENT_ID": app_client_id, "CLOUDFRONT_URL": cloudfront_url},
+            environment={
+                "REGION": self.region,
+                "APP_CLIENT_ID": app_client_id,
+                "CLOUDFRONT_URL": cloudfront_url,
+                "SESSIONS_TABLE_NAME": agent_sessions,
+            },
         )
 
         flightai_user_lambda = _lambda.Function(
@@ -29,7 +41,11 @@ class ApiGatewayRestStack(Stack):
             runtime=_lambda.Runtime.PYTHON_3_9,
             handler="index.lambda_handler",
             code=_lambda.Code.from_asset("project_app/lambda_funcs/api_gateway_rest_lambdas/flightai_user_lambda"),
-            environment={"REGION": self.region, "APP_CLIENT_ID": app_client_id, "CLOUDFRONT_URL": cloudfront_url},
+            environment={
+                "REGION": self.region,
+                "APP_CLIENT_ID": app_client_id,
+                "CLOUDFRONT_URL": cloudfront_url,
+            },
         )
 
         flightai_auth_lambda.add_to_role_policy(
@@ -43,6 +59,10 @@ class ApiGatewayRestStack(Stack):
                     "cognito-idp:ConfirmSignUp",
                     "cognito-idp:ForgotPassword",
                     "cognito-idp:ConfirmForgotPassword",
+                    "dynamodb:PutItem",
+                    "dynamodb:GetItem",
+                    "dynamodb:UpdateItem",
+                    "dynamodb:Query",
                 ],
                 resources=["*"],
             )
@@ -72,7 +92,13 @@ class ApiGatewayRestStack(Stack):
             runtime=_lambda.Runtime.PYTHON_3_9,
             handler="index.lambda_handler",
             code=_lambda.Code.from_asset("project_app/lambda_funcs/api_gateway_rest_lambdas/agent_chat_lambda"),
-            environment={"REGION": self.region, "CLOUDFRONT_URL": cloudfront_url},
+            environment={
+                "REGION": self.region,
+                "CLOUDFRONT_URL": cloudfront_url,
+                "SESSIONS_TABLE_NAME": agent_sessions,
+                "RATE_LIMIT_WINDOW": rate_limit_window,
+                "RATE_LIMIT_MAX_REQUESTS": rate_limit_max_requests,
+            },
             timeout=Duration.seconds(120),
         )
 
@@ -85,6 +111,10 @@ class ApiGatewayRestStack(Stack):
                     "bedrock-agentcore:GetEvent",
                     "bedrock-agentcore:ListMemories",
                     "bedrock-agentcore:ListAgentRuntimes",
+                    "dynamodb:PutItem",
+                    "dynamodb:GetItem",
+                    "dynamodb:UpdateItem",
+                    "dynamodb:Query",
                 ],
                 resources=["*"],
             )
@@ -125,7 +155,7 @@ class ApiGatewayRestStack(Stack):
             id="FlightAIRestApiId",
             rest_api_name="FlightAIRestApi",
             endpoint_configuration=apigw.EndpointConfiguration(types=[apigw.EndpointType.REGIONAL]),
-            description="API for chatbot with Lambda Authorizer",
+            description="REST API for user authentication and chatbot interactions",
             default_cors_preflight_options=apigw.CorsOptions(
                 allow_origins=[cloudfront_url, localhost_url],
                 allow_methods=["GET", "POST", "OPTIONS"],
@@ -179,7 +209,7 @@ class ApiGatewayRestStack(Stack):
         user_forgot = user_res.add_resource("forgot-password")
         user_forgot.add_method("POST", apigw.LambdaIntegration(flightai_user_lambda, proxy=True))
 
-        # /user/forgot-password
+        # /user/resend-confirmation
         user_resend_confirmation = user_res.add_resource("resend-confirmation")
         user_resend_confirmation.add_method("POST", apigw.LambdaIntegration(flightai_user_lambda, proxy=True))
 

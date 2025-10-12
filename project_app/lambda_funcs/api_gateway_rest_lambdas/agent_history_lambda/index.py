@@ -19,7 +19,7 @@ if not logger.handlers:
 
 # === ENVIRONMENT ===
 region = os.environ["REGION"]
-CLOUDFRONT_URL = os.environ["CLOUDFRONT_URL"]
+cloudfront_url = os.environ["CLOUDFRONT_URL"]
 client = boto3.client("bedrock-agentcore", region_name=region)
 control_client = boto3.client("bedrock-agentcore-control", region_name=region)
 cognito_client = boto3.client("cognito-idp", region_name=region)
@@ -40,7 +40,7 @@ def get_memory_id(control_client):
 
 
 def get_origin(event):
-    return event.get("headers", {}).get("origin", CLOUDFRONT_URL)
+    return event.get("headers", {}).get("origin", cloudfront_url)
 
 
 def make_response(status, body, event):

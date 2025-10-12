@@ -161,6 +161,8 @@ class DataSimulator:
             logger.error(f"Error sending SNS notification: {{e}}")
 
     def generate_flight_event(self, row):
+        current_timestamp = int(datetime.utcnow().timestamp())
+        expiry_time = current_timestamp + 3600 
         return {{
             "id": str(uuid.uuid4()),
             "year": int(row['year']),
@@ -194,7 +196,9 @@ class DataSimulator:
             "date": str(row['date']) if pd.notna(row['date']) else None,
             "date_string": str(row['date_string']) if pd.notna(row['date_string']) else None,
             "dep_delay": None,
-            "timestamp": int(datetime.utcnow().timestamp())
+            "timestamp": int(datetime.utcnow().timestamp()),
+            "data_type": "FLIGHTS", 
+            "expiry_time": expiry_time, 
         }}
 
     def send_to_kinesis(self, event):

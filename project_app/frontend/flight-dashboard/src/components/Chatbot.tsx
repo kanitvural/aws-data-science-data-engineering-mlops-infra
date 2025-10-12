@@ -4,15 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MessageCircle, X, Send, Bot } from "lucide-react";
 import { RestApiService, type ChatMessage } from "@/services/restApiService";
+import { useRouter } from "next/navigation";
 
-// UUID v4 generator
-function generateUUID(): string {
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
-    const r = (Math.random() * 16) | 0;
-    const v = c === "x" ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
-}
 
 export default function Chatbot() {
   const [isOpen, setIsOpen] = useState(false);
@@ -23,18 +16,19 @@ export default function Chatbot() {
   const [historyLoaded, setHistoryLoaded] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
   // Initialize or retrieve sessionId from sessionStorage
   useEffect(() => {
-    let storedSessionId = sessionStorage.getItem("chatbot_session_id");
-    if (!storedSessionId) {
-      storedSessionId = generateUUID();
-      sessionStorage.setItem("chatbot_session_id", storedSessionId);
-      console.log("🆔 Session ID set to:", storedSessionId);
-    } else {
+    const storedSessionId = sessionStorage.getItem("chatbot_session_id");
+    
+    if (storedSessionId) {
       console.log("🆔 Session ID retrieved from storage:", storedSessionId);
+      setSessionId(storedSessionId);
+    } else {
+      console.warn("⚠️ No session ID found. User needs to login.");
+      router.push("/login");
     }
-    setSessionId(storedSessionId);
   }, []);
 
   // Fetch history when chatbot opens
