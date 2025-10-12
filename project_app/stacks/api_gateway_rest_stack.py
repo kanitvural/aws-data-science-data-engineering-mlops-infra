@@ -17,8 +17,8 @@ class ApiGatewayRestStack(Stack):
         agent_sessions = Fn.import_value(f"{project_name}-agent-sessions-table-name")
 
         # Chat lambda RATE LIMITS
-        rate_limit_window = 60 # 1 min
-        rate_limit_max_requests = 20 # 20 requests pe minute
+        rate_limit_window = "60" # 1 min
+        rate_limit_max_requests = "20" # 20 requests pe minute
 
         # ===== AUTH LAMBDAS =====
         flightai_auth_lambda = _lambda.Function(
