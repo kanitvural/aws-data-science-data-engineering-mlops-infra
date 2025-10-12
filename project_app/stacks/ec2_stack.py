@@ -25,8 +25,8 @@ class EC2Stack(Stack):
         raw_kinesis_stream_name = Fn.import_value(f"{project_name}-KinesisRawName")
         cloudfront_url = Fn.import_value("ProjectAppCloudFrontURL")
         sns_topic_arn = Fn.import_value(f"{project_name}-sns-topic-arn")
-        api_chatbot_url = Fn.import_value(f"{project_name}-chatbot-api-url")
-        api_auth_url = Fn.import_value(f"{project_name}-auth-api-url")
+        
+        api_rest_url = Fn.import_value(f"{project_name}-auth-api-url")
         api_websocket_url = Fn.import_value(f"{project_name}-websocket-api-url")
 
         vpc_id = Fn.import_value("flight-project-vpc-id")
@@ -130,8 +130,7 @@ class DataSimulator:
         self.sns_client = boto3.client("sns", region_name="eu-central-1")
         self.sns_topic_arn = sns_topic_arn
         self.cloudfront_url = cloudfront_url
-        self.api_chatbot_url = api_chatbot_url
-        self.api_auth_url = api_auth_url
+        self.api_rest_url = api_rest_url
         self.api_websocket_url = api_websocket_url
 
     def notify_start(self):
@@ -142,8 +141,7 @@ class DataSimulator:
     "APPLICATION ENDPOINTS:\\n\\n"
     "WEBSITE (CloudFront): " + self.cloudfront_url + "\\n\\n"
     "API ENDPOINTS:\\n"
-    "- Chatbot API: " + self.api_chatbot_url + "\\n"
-    "- Auth API: " + self.api_auth_url + "\\n"
+    "- Rest API: " + self.api_rest_url + "\\n"
     "- WebSocket API: " + self.api_websocket_url + "\\n\\n"
     "Access the web interface:\\n"
     + self.cloudfront_url + "\\n\\n"
@@ -248,8 +246,7 @@ if __name__ == "__main__":
         "{data_bucket_key}",
         "{sns_topic_arn}",
         "{cloudfront_url}",
-        "{api_chatbot_url}",
-        "{api_auth_url}",
+        "{api_rest_url}",
         "{api_websocket_url}"
     )
     simulator.start_streaming(events_per_second=2)
