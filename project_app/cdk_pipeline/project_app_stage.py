@@ -79,7 +79,7 @@ class AppPipelineStage(Stage):
         )
 
         # --- Dependencies ---
-        agent_sessions_dynamodb_stack.add_dependency(cognito_stack)
+        agent_sessions_dynamodb_stack.add_dependency(s3_stack)
         cognito_stack.add_dependency(s3_stack)
         api_gateway_rest_stack.add_dependency(cognito_stack)
         sns_stack.add_dependency(api_gateway_rest_stack)
