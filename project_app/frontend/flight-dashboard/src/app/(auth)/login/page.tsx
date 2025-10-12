@@ -327,10 +327,17 @@ export default function LoginPage() {
           </div>
 
           {/* Titles */}
-          <h2 className="text-5xl font-bold text-gray-900 dark:text-white leading-tight">
+          {/* Titles */}
+          <h2 className="text-5xl font-bold text-gray-900 dark:text-white leading-tight text-center">
             Real-Time Flight
             <span className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
               Delay Prediction
+            </span>
+            {/* & symbol */}
+            <span className="block text-white text-4xl my-2">&</span>
+            {/* Multi-Agent Chatbot */}
+            <span className="block text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">
+              Multi-Agent Chatbot
             </span>
           </h2>
 

@@ -147,7 +147,7 @@ class ApiGatewayRestStack(Stack):
             id="FlightAIRestApiId",
             rest_api_name="FlightAIRestApi",
             endpoint_configuration=apigw.EndpointConfiguration(types=[apigw.EndpointType.REGIONAL]),
-            description="API for chatbot with Lambda Authorizer",
+            description="REST API for user authentication and chatbot interactions",
             default_cors_preflight_options=apigw.CorsOptions(
                 allow_origins=[cloudfront_url, localhost_url],
                 allow_methods=["GET", "POST", "OPTIONS"],
@@ -201,7 +201,7 @@ class ApiGatewayRestStack(Stack):
         user_forgot = user_res.add_resource("forgot-password")
         user_forgot.add_method("POST", apigw.LambdaIntegration(flightai_user_lambda, proxy=True))
 
-        # /user/forgot-password
+        # /user/resend-confirmation
         user_resend_confirmation = user_res.add_resource("resend-confirmation")
         user_resend_confirmation.add_method("POST", apigw.LambdaIntegration(flightai_user_lambda, proxy=True))
 
