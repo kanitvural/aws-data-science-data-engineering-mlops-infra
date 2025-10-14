@@ -3,9 +3,9 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MessageCircle, X, Send, Bot } from "lucide-react";
-import { RestApiService, type ChatMessage } from "@/services/restApiService";
+import { type ChatMessage } from "@/services/restApiService";
 import { useRouter } from "next/navigation";
-
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function Chatbot() {
   const [isOpen, setIsOpen] = useState(false);
@@ -14,14 +14,22 @@ export default function Chatbot() {
   const [sessionId, setSessionId] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   const [historyLoaded, setHistoryLoaded] = useState(false);
+  const {
+    isAuthenticated,
+    isLoading: isAuthLoading,
+    sendChatMessage,
+    getChatHistory,
+  } = useAuth();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
-  // Initialize or retrieve sessionId from sessionStorage
+  // Initialize or retrieve sessionId from localstorage or sessionStorage
   useEffect(() => {
-    const storedSessionId = sessionStorage.getItem("chatbot_session_id");
-    
+    const storedSessionId =
+      localStorage.getItem("chatbot_session_id") ||
+      sessionStorage.getItem("chatbot_session_id");
+
     if (storedSessionId) {
       console.log("🆔 Session ID retrieved from storage:", storedSessionId);
       setSessionId(storedSessionId);
@@ -47,7 +55,7 @@ export default function Chatbot() {
 
     try {
       console.log("📥 Fetching chat history...");
-      const data = await RestApiService.getChatHistory(sessionId);
+      const data = await getChatHistory(sessionId); // ← Context method
       console.log("📜 History loaded:", data.count, "messages");
 
       if (data.history && data.history.length > 0) {
@@ -85,8 +93,8 @@ export default function Chatbot() {
     setIsLoading(true);
 
     try {
-      const data = await RestApiService.sendChatMessage(currentInput, sessionId);
-      
+      const data = await sendChatMessage(currentInput, sessionId); // ← Context method
+
       setMessages((prev) => [
         ...prev,
         {
@@ -97,13 +105,17 @@ export default function Chatbot() {
       ]);
     } catch (error) {
       console.error("Error calling API Gateway:", error);
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+
       setMessages((prev) => [
         ...prev,
         {
           id: Date.now().toString() + "_bot",
-          text: `Error: ${errorMessage} (Session: ${sessionId.substring(0, 8)}...)`,
+          text: `Error: ${errorMessage} (Session: ${sessionId.substring(
+            0,
+            8
+          )}...)`,
           isUser: false,
         },
       ]);
@@ -111,7 +123,6 @@ export default function Chatbot() {
       setIsLoading(false);
     }
   };
-
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -180,7 +191,7 @@ export default function Chatbot() {
                     What is Alaska Airlines average delay?
                   </p>
                   <p className="text-sm mt-1">
-                    How many flights are currently in the system?
+                    How many flights are currently in the streaming flight data?
                   </p>
                   <p className="text-sm mt-1">
                     Could you explain the MLOps pipeline in detail?

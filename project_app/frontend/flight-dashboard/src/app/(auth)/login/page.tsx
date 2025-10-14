@@ -15,10 +15,19 @@ import {
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { RestApiService } from "@/services/restApiService";
+// import { RestApiService } from "@/services/restApiService";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function LoginPage() {
   const router = useRouter();
+  const {
+    login,
+    signup,
+    confirmSignup,
+    forgotPassword,
+    confirmForgotPassword,
+    resendConfirmation,
+  } = useAuth();
   const [mode, setMode] = useState<
     "signin" | "signup" | "verify" | "forgot" | "reset"
   >("signin");
@@ -104,7 +113,7 @@ export default function LoginPage() {
       isNamesValid &&
       formData.gender);
 
-  // Check if reset form is valid (MADDE 1)
+  // Check if reset form is valid
   const isResetFormValid =
     mode !== "reset" ||
     (formData.verificationCode && formData.password && isPasswordValid);
@@ -121,7 +130,7 @@ export default function LoginPage() {
     setSuccess("");
 
     try {
-      await RestApiService.resendConfirmation(formData.email);
+      await resendConfirmation(formData.email); // ← Context method
 
       setSuccess("Verification code resent! Please check your email.");
     } catch (err: any) {
@@ -162,36 +171,16 @@ export default function LoginPage() {
 
     try {
       if (mode === "signin") {
-        await RestApiService.login({
+        await login({
           username: formData.email,
           password: formData.password,
         });
 
-        // ✅ Retrieve user name and save it to the session storage
-        type CognitoAttr = { Name: string; Value?: string };
-        type GetUserResponse = { user?: { UserAttributes?: CognitoAttr[] } };
-
-        const userResp =
-          (await RestApiService.getCurrentUser()) as GetUserResponse;
-        const attrs: CognitoAttr[] = userResp.user?.UserAttributes ?? [];
-
-        const findValue = (name: string) =>
-          attrs.find((a) => a.Name === name)?.Value;
-        const firstName =
-          findValue("given_name") ?? findValue("first_name") ?? "";
-
-        if (firstName) {
-          sessionStorage.setItem("userFirstName", firstName);
-        } else {
-          console.warn("firstName bulunamadı, attrs:", attrs);
-        }
-
         setSuccess("Successfully signed in! Redirecting...");
         setTimeout(() => router.push("/"), 1000);
       } else if (mode === "signup") {
-        // MADDE 2: Signup with unverified user handling
         try {
-          await RestApiService.signup({
+          await signup({
             username: formData.email,
             password: formData.password,
             email: formData.email,
@@ -204,7 +193,6 @@ export default function LoginPage() {
           );
           setMode("verify");
         } catch (signupError: any) {
-          // MADDE 2: Check if user already exists
           const errorMessage = signupError.message || "";
 
           if (
@@ -212,15 +200,13 @@ export default function LoginPage() {
             errorMessage.includes("UsernameExistsException") ||
             errorMessage.includes("already exists")
           ) {
-            // User might be unverified, try to resend confirmation
             try {
-              await RestApiService.resendConfirmation(formData.email);
+              await resendConfirmation(formData.email);
               setSuccess(
                 "This email is already registered but not verified. We've sent you a new verification code."
               );
               setMode("verify");
             } catch (resendError: any) {
-              // If resend fails, user might be already confirmed
               const resendErrorMessage = resendError.message || "";
 
               if (
@@ -229,19 +215,17 @@ export default function LoginPage() {
               ) {
                 setError("This email is already registered. Please sign in.");
               } else {
-                // Other resend errors
                 setError(
                   "This email is already registered. If you haven't verified your email, please try again or contact support."
                 );
               }
             }
           } else {
-            // Other signup errors
             throw signupError;
           }
         }
       } else if (mode === "verify") {
-        await RestApiService.confirmSignup({
+        await confirmSignup({
           username: formData.email,
           code: formData.verificationCode,
         });
@@ -251,11 +235,11 @@ export default function LoginPage() {
           setFormData({ ...formData, verificationCode: "" });
         }, 2000);
       } else if (mode === "forgot") {
-        await RestApiService.forgotPassword(formData.email);
+        await forgotPassword(formData.email);
         setSuccess("Reset code sent to your email!");
         setMode("reset");
       } else if (mode === "reset") {
-        await RestApiService.confirmForgotPassword({
+        await confirmForgotPassword({
           username: formData.email,
           code: formData.verificationCode,
           newPassword: formData.password,

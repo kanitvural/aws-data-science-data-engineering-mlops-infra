@@ -31,8 +31,8 @@ dynamodb = boto3.resource("dynamodb", region_name=region)
 sessions_table = dynamodb.Table(os.environ["SESSIONS_TABLE_NAME"])
 
 # Rate limiting configuration
-rate_limit_window = os.environ["RATE_LIMIT_WINDOW"]
-rate_limit_max_requests = os.environ["RATE_LIMIT_MAX_REQUESTS"]
+rate_limit_window = int(os.environ.get("RATE_LIMIT_WINDOW", 60))  
+rate_limit_max_requests = int(os.environ.get("RATE_LIMIT_MAX_REQUESTS", 20)) 
 
 
 
