@@ -63,6 +63,7 @@ class ApiGatewayRestStack(Stack):
                     "dynamodb:GetItem",
                     "dynamodb:UpdateItem",
                     "dynamodb:Query",
+                    "dynamodb:DeleteItem"
                 ],
                 resources=["*"],
             )
@@ -115,6 +116,7 @@ class ApiGatewayRestStack(Stack):
                     "dynamodb:GetItem",
                     "dynamodb:UpdateItem",
                     "dynamodb:Query",
+                    "dynamodb:DeleteItem"
                 ],
                 resources=["*"],
             )
