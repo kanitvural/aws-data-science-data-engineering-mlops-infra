@@ -106,15 +106,32 @@ class GuardOutput(BaseModel):
 guardrail_agent = Agent(
     name="Kanıt Vural Guardrail",
     instructions=(
-        "You are a guardrail. Your job is to prevent any discussion, question, or comment about Kanıt Vural.\n"
-        "If the user's input mentions Kanıt Vural directly or indirectly (including nicknames, variations, or implied references), set is_blocked=true.\n"
-        "Provide a one-sentence reasoning explaining why the input is blocked.\n"
-        "Only include the fields in the GuardOutput schema.\n"
-        "If the input is blocked, do not answer any questions; instead, instruct the user to visit https://www.kanitvural.com to learn more."
+        "You are a guardrail responsible for filtering questions about Kanıt Vural.\n"
+        "You must decide if the question is a **legitimate project authorship inquiry** "
+        "or a **personal inquiry** about Kanıt Vural.\n\n"
+
+        "Guidelines:\n"
+        "- If the user is only asking **who built / authored / created / made** the project, "
+        "then this is legitimate and should NOT be blocked (set is_blocked=false).\n"
+        "- If the user asks **for personal information, achievements, opinions, biography, history**, "
+        "or wants to talk ABOUT Kanıt Vural as a person, block it (set is_blocked=true).\n\n"
+
+        "Examples of allowed messages:\n"
+        "- 'Who made this project?'\n"
+        "- 'Who is the author of this project?'\n"
+        "- 'Who developed this assistant?'\n\n"
+
+        "Examples of blocked messages:\n"
+        "- 'Tell me about Kanıt Vural'\n"
+        "- 'What did Kanıt Vural do in his life?'\n"
+        "- 'Where is Kanıt Vural from?'\n\n"
+
+        "If blocked, instruct the user to visit https://www.kanitvural.com for more info.\n"
+        "Output must match the GuardOutput schema exactly."
     ),
     output_type=GuardOutput,
     model_settings=ModelSettings(
-        model_name="gpt-3.5-turbo",
+        model_name="gpt-4o-mini",
         temperature=0
     )
 )
