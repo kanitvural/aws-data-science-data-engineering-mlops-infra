@@ -21,7 +21,7 @@ class CDKLLMPipelineStack(Stack):
 
         ecr_repository_name = f"{project_name}-repository-{self.account}"
         ecr_image_uri = f"{self.account}.dkr.ecr.{self.region}.amazonaws.com/{ecr_repository_name}"
-        
+
         s3_deploy_bucket_name = "project-app-bucket-058264126563"
 
         agentcore_execution_role_arn = (
@@ -106,7 +106,7 @@ class CDKLLMPipelineStack(Stack):
                 "REGION": self.region,
                 "ECR_REPOSITORY": ecr_image_uri,
                 "AGENTCORE_EXECUTION_ROLE_ARN": agentcore_execution_role_arn,
-                "S3_DEPLOY_BUCKET_NAME": s3_deploy_bucket_name
+                "S3_DEPLOY_BUCKET_NAME": s3_deploy_bucket_name,
             },
             role_policy_statements=[
                 # SSM
@@ -216,6 +216,10 @@ class CDKLLMPipelineStack(Stack):
                 ),
                 iam.PolicyStatement(
                     actions=["apigateway:*"],
+                    resources=["*"],
+                ),
+                iam.PolicyStatement(
+                    actions=["iam:CreateServiceLinkedRole"],
                     resources=["*"],
                 ),
             ],
