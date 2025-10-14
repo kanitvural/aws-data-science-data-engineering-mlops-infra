@@ -3,23 +3,20 @@
 import { useState, Fragment } from "react";
 import { Dialog, Transition } from "@headlessui/react";
 import { LogOut, Loader2 } from "lucide-react";
-import { RestApiService } from "@/services/restApiService";
-import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext"
 
 export default function LogoutButton() {
-  const router = useRouter();
+  const { logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleLogout = async () => {
     setIsLoading(true);
-    const sessionId = sessionStorage.getItem("chatbot_session_id");
+
     try {
-      await RestApiService.logout(sessionId ?? undefined);
-      router.replace("/login/");
+      await logout(); // ← Context method
     } catch (error) {
       console.error("Logout failed:", error);
-      router.replace("/login/");
     } finally {
       setIsLoading(false);
       setIsOpen(false);
@@ -102,3 +99,4 @@ export default function LogoutButton() {
     </>
   );
 }
+

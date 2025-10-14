@@ -1,12 +1,13 @@
 // app/(home)/page.tsx
 "use client";
 
-import { useAuthRedirect } from "@/hooks/useAuthRedirect";
+import { useAuth } from "@/contexts/AuthContext";
 import FlightDashboard from "@/components/FlightDashboard";
 
 export default function Home() {
-  const { isLoading, isAuthenticated } = useAuthRedirect(true);
+  const { isLoading, isAuthenticated } = useAuth();
 
+  // Bekleme ekranı
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -15,9 +16,12 @@ export default function Home() {
     );
   }
 
+  // Not authenticated → AuthContext redirect 
   if (!isAuthenticated) {
     return null;
   }
 
+  // İf auth Auth succeed show dashboard
   return <FlightDashboard />;
 }
+

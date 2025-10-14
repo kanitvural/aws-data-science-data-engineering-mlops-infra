@@ -43,12 +43,80 @@ export interface HistoryResponse {
   count: number;
 }
 
+// Token refresh state (prevent multiple simultaneous refresh attempts)
+let isRefreshing = false;
+let refreshPromise: Promise<boolean> | null = null;
+
+// Refresh token and retry failed request
+
+async function refreshAndRetry(
+  originalRequest: () => Promise<Response>
+): Promise<Response> {
+  // If already refreshing, wait for it
+  if (isRefreshing && refreshPromise) {
+    console.log("⏳ Waiting for ongoing token refresh...");
+    await refreshPromise;
+    return originalRequest();
+  }
+
+  isRefreshing = true;
+  refreshPromise = (async () => {
+    try {
+      console.log("🔄 Access token expired, refreshing...");
+      await RestApiService.refreshToken();
+      console.log("✅ Token refreshed, retrying original request");
+      return true;
+    } catch (error) {
+      console.error("❌ Token refresh failed:", error);
+      // Don't redirect here - just fail
+      // AuthContext will handle redirect
+      sessionStorage.clear();
+      localStorage.clear();
+      return false;
+    } finally {
+      isRefreshing = false;
+      refreshPromise = null;
+    }
+  })();
+
+  const refreshSuccess = await refreshPromise;
+
+  if (refreshSuccess) {
+    return originalRequest();
+  } else {
+    // Throw error - component will handle
+    throw new Error("Session expired");
+  }
+}
+
+// Wrapper for fetch with auto-retry on 401
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit
+): Promise<Response> {
+  const makeRequest = () => fetch(url, options);
+
+  const response = await makeRequest();
+
+  // If 401 and not already a refresh request, try to refresh and retry
+  if (response.status === 401 && !url.includes("/auth/refresh")) {
+    console.log("🔐 Received 401, attempting token refresh...");
+    return refreshAndRetry(makeRequest);
+  }
+
+  return response;
+}
+
 function handleApiError(
   response: Response,
   result: any = {},
   defaultMessage: string
 ) {
   if (!response.ok) {
+    // Special handling for 401 (will be caught by fetchWithRetry)
+    if (response.status === 401) {
+      throw new Error(result?.message || "Authentication required");
+    }
     throw new Error(result?.message || result?.error || defaultMessage);
   }
 }
@@ -103,9 +171,10 @@ export class RestApiService {
     const result = await response.json();
 
     handleApiError(response, result, "Login failed");
-    
+
     // Save session id to session storage
     if (result.sessionId) {
+      localStorage.setItem("chatbot_session_id", result.sessionId);
       sessionStorage.setItem("chatbot_session_id", result.sessionId);
       console.log("🆔 Session ID received from backend:", result.sessionId);
     }
@@ -113,7 +182,7 @@ export class RestApiService {
     return result;
   }
 
-  // UPDATED: Logout with sessionId
+  // Logout with sessionId
   static async logout(sessionId?: string) {
     const body = sessionId ? { sessionId } : {};
 
@@ -132,7 +201,7 @@ export class RestApiService {
     return result;
   }
 
-  // Get current user
+  // Get current user (NO retry - for initial auth check)
   static async getCurrentUser() {
     const response = await fetch(`${apiGatewayRestUrl}/auth/me`, {
       method: "GET",
@@ -141,8 +210,12 @@ export class RestApiService {
 
     const result = await response.json();
 
-    handleApiError(response, result, "Failed to get user");
+    // Don't throw on 401 - just return result
+    if (response.status === 401) {
+      return { error: "Not authenticated" };
+    }
 
+    handleApiError(response, result, "Failed to get user");
     return result;
   }
 
@@ -232,7 +305,7 @@ export class RestApiService {
     prompt: string,
     sessionId: string
   ): Promise<ChatResponse> {
-    const response = await fetch(`${apiGatewayRestUrl}/chat`, {
+    const response = await fetchWithRetry(`${apiGatewayRestUrl}/chat`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -248,7 +321,7 @@ export class RestApiService {
 
   // Get chat history
   static async getChatHistory(sessionId: string): Promise<HistoryResponse> {
-    const response = await fetch(
+    const response = await fetchWithRetry(
       `${apiGatewayRestUrl}/history?sessionId=${sessionId}`,
       {
         method: "GET",
@@ -264,3 +337,19 @@ export class RestApiService {
     return result;
   }
 }
+
+// # fetch → fetchWithRetry?
+
+// | Function                     | fetch → fetchWithRetry?               |
+// |-------------------------------|--------------------------------------|
+// | signup                        | ❌ No auth required                  |
+// | confirmSignup                 | ❌ No auth required                  |
+// | login                         | ❌ First auth, retry not needed      |
+// | logout                        | ❌ Already logged out                |
+// | getCurrentUser                | ✅ 401 → refresh → retry             |
+// | refreshToken                  | ❌ It refreshes itself               |
+// | forgotPassword                | ❌ No auth required                  |
+// | confirmForgotPassword         | ❌ No auth required                  |
+// | resendConfirmation            | ❌ No auth required                  |
+// | sendChatMessage               | ✅ 401 → refresh → retry             |
+// | getChatHistory                | ✅ 401 → refresh → retry             |

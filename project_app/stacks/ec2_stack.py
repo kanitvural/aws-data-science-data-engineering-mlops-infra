@@ -120,7 +120,7 @@ logger = logging.getLogger(__name__)
 
 class DataSimulator:
     def __init__(self, kinesis_stream_name, dynamodb_table_name, csv_path, sns_topic_arn, 
-                 cloudfront_url, api_chatbot_url, api_auth_url, api_websocket_url):
+                 cloudfront_url, api_rest_url, api_websocket_url):
         self.kinesis_client = boto3.client('kinesis', region_name='eu-central-1')
         self.stream_name = kinesis_stream_name
         self.dynamodb = boto3.resource('dynamodb', region_name='eu-central-1')

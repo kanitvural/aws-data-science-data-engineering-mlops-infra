@@ -145,7 +145,7 @@ def login(event, context):
 
         refresh_cookie = (
             f"refresh_token={tokens['RefreshToken']}; "
-            "HttpOnly; Secure; SameSite=None; Path=/auth/refresh; Max-Age=86400"  # 1 day
+            "HttpOnly; Secure; SameSite=None; Path=/; Max-Age=86400"  # 1 day
         )
 
         logger.info(f"Login successful for: {username}")
