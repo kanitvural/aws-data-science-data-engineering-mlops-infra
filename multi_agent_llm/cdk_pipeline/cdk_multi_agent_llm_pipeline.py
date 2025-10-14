@@ -222,6 +222,10 @@ class CDKLLMPipelineStack(Stack):
                     actions=["iam:CreateServiceLinkedRole"],
                     resources=["*"],
                 ),
+                iam.PolicyStatement(
+                    actions=["cloudfront:ListDistributions"],
+                    resources=["*"],
+                ),
             ],
         )
 
