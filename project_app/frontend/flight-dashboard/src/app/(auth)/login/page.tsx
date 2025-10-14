@@ -15,7 +15,6 @@ import {
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-// import { RestApiService } from "@/services/restApiService";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function LoginPage() {
