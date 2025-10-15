@@ -16,14 +16,11 @@ class DataEngineeringStage(Stage):
             self,
             id="VPCInfrastructure",
         )
-        
+
         sns_stack = SNSStack(
-            self,
-            id="SNSInfrastructure",
-            project_name=project_name,
-            notification_email=notification_email
+            self, id="SNSInfrastructure", project_name=project_name, notification_email=notification_email
         )
-        
+
         s3_stack = S3Stack(
             self,
             id="S3Infrastructure",
@@ -43,16 +40,9 @@ class DataEngineeringStage(Stage):
             project_name=project_name,
         )
 
-        ec2_stack = EC2Stack(
-            self,
-            id="EC2Infrastructure",
-            project_name=project_name
-        )
-
         # Dependencies
         sns_stack.add_dependency(vpc_stack)
         s3_stack.add_dependency(sns_stack)
         kinesis_stack.add_dependency(s3_stack)
         glue_stack.add_dependency(s3_stack)
         glue_stack.add_dependency(sns_stack)
-        ec2_stack.add_dependency(kinesis_stack)
