@@ -151,7 +151,7 @@ class GlueStack(Stack):
         etl_trigger_lambda = lambda_.Function(
             self,
             id="TriggerETLJobLambda",
-            runtime=lambda_.Runtime.PYTHON_3_9,
+            runtime=lambda_.Runtime.PYTHON_3_12,
             handler="index.lambda_handler",
             code=lambda_.Code.from_asset("data_engineering/lambda_funcs/trigger_etl_job"),
             environment={"GLUE_JOB_NAME": f"{project_name}-etl-job"},
@@ -185,7 +185,7 @@ class GlueStack(Stack):
         start_crawler_lambda = lambda_.Function(
             self,
             "StartCrawlerLambda",
-            runtime=lambda_.Runtime.PYTHON_3_9,
+            runtime=lambda_.Runtime.PYTHON_3_12,
             handler="index.lambda_handler",
             code=lambda_.Code.from_asset("data_engineering/lambda_funcs/start_crawler"),
             environment={"CRAWLER_NAME": f"{project_name}-processed-crawler"},
