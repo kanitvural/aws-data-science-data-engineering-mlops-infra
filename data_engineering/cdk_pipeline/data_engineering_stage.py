@@ -5,12 +5,18 @@ from data_engineering.stacks.kinesis_stack import KinesisStack
 from data_engineering.stacks.ec2_stack import EC2Stack
 from data_engineering.stacks.glue_stack import GlueStack
 from data_engineering.stacks.sns_stack import SNSStack
+from data_engineering.stacks.vpc_stack import VPCStack
 
 
 class DataEngineeringStage(Stage):
     def __init__(self, scope: Construct, id: str, project_name: str, notification_email: str = None, **kwargs):
         super().__init__(scope, id, **kwargs)
 
+        vpc_stack = VPCStack(
+            self,
+            id="VPCInfrastructure",
+        )
+        
         sns_stack = SNSStack(
             self,
             id="SNSInfrastructure",
@@ -44,6 +50,7 @@ class DataEngineeringStage(Stage):
         )
 
         # Dependencies
+        sns_stack.add_dependency(vpc_stack)
         s3_stack.add_dependency(sns_stack)
         kinesis_stack.add_dependency(s3_stack)
         glue_stack.add_dependency(s3_stack)

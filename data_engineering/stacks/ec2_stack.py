@@ -21,30 +21,20 @@ class EC2Stack(Stack):
         data_bucket_name = Fn.import_value("DataLakeBucketName")
         kinesis_stream_name = Fn.import_value("KinesisStreamName")
 
-        # ✅ Custom VPC (10.0.0.0/16 with 3 public subnets matching the image)
-        vpc = ec2.Vpc(
-            self,
-            id="FlightProjectVPC",
-            vpc_name="flight-project-vpc",
-            ip_addresses=ec2.IpAddresses.cidr("10.0.0.0/16"),
-            availability_zones=["eu-central-1a", "eu-central-1b", "eu-central-1c"],
-            subnet_configuration=[
-                ec2.SubnetConfiguration(
-                    name="PublicSubnet",
-                    subnet_type=ec2.SubnetType.PUBLIC,
-                    cidr_mask=24,
-                )
-            ],
-            nat_gateways=0,
-            enable_dns_hostnames=True,
-            enable_dns_support=True,
-        )
+        vpc_id = Fn.import_value("flight-project-vpc-id")
 
-        # ✅ S3 VPC Endpoint (Gateway endpoint)
-        vpc.add_gateway_endpoint(
-            id="S3Endpoint",
-            service=ec2.GatewayVpcEndpointAwsService.S3,
-            subnets=[ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC)],
+        public_subnet_ids = [
+            Fn.import_value("flight-project-subnet-a"),
+            Fn.import_value("flight-project-subnet-b"),
+            Fn.import_value("flight-project-subnet-c"),
+        ]
+
+        vpc = ec2.Vpc.from_vpc_attributes(
+            self,
+            "ImportedVPC",
+            vpc_id=vpc_id,
+            availability_zones=["eu-central-1a", "eu-central-1b", "eu-central-1c"],
+            public_subnet_ids=public_subnet_ids,
         )
 
         # ✅ Security Group
