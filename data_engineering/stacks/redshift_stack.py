@@ -114,7 +114,11 @@ class RedshiftStack(Stack):
         redshift_role.add_to_policy(
             iam.PolicyStatement(
                 effect=iam.Effect.ALLOW,
-                actions=["s3:GetObject", "s3:ListBucket", "s3:GetBucketLocation"],
+                actions=[
+                    "s3:GetObject",
+                    "s3:ListBucket",
+                    "s3:GetBucketLocation",
+                ],
                 resources=[f"arn:aws:s3:::{data_bucket_name}", f"arn:aws:s3:::{data_bucket_name}/*"],
             )
         )
@@ -129,7 +133,7 @@ class RedshiftStack(Stack):
                 "password"
             ).unsafe_unwrap(),  # ✅ From Secrets Manager
             db_name="flightdb",
-            iam_roles=[redshift_role.role_arn, spectrum_lambda_role.role_arn],
+            iam_roles=[redshift_role.role_arn],
             default_iam_role_arn=redshift_role.role_arn,
             log_exports=["userlog", "connectionlog", "useractivitylog"],
             manage_admin_password=False,  # We manage it via Secrets Manager
@@ -179,7 +183,7 @@ class RedshiftStack(Stack):
             )
         )
 
-        # Add Glue Catalog access 
+        # Add Glue Catalog access
         spectrum_lambda_role.add_to_policy(
             iam.PolicyStatement(
                 effect=iam.Effect.ALLOW,
