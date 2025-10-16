@@ -203,21 +203,54 @@ REGION '{region}';
 
 📝 TEST QUERIES (Run in Query Editor v2):
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  -- Check external schemas
-  SELECT * FROM svv_external_schemas;
+ 
+-- Query flight data
+SELECT * FROM flightdb.spectrum.flight_events LIMIT 10;
   
-  -- List external tables
-  SELECT * FROM svv_external_tables WHERE schemaname = 'spectrum';
-  
-  -- Query flight data
-  SELECT COUNT(*) FROM spectrum.flight_events;
-  
-  -- Analyze delays by carrier
-  SELECT carrier, AVG(dep_delay) AS avg_delay
-  FROM spectrum.flight_events 
-  WHERE dep_delay IS NOT NULL 
-  GROUP BY carrier
-  ORDER BY avg_delay DESC;
+-- Average departure delay for each airline
+SELECT
+    airline,
+    AVG(dep_delay) AS avg_dep_delay
+FROM
+    flightdb.spectrum.flight_events
+WHERE
+    dep_delay IS NOT NULL  
+GROUP BY
+    airline
+ORDER BY
+    avg_dep_delay DESC;
+
+-- Busiest Flight Routes (Origin-Destination Pairs)
+SELECT
+    origin,
+    dest,
+    COUNT(*) AS total_flight_count
+FROM
+    flightdb.spectrum.flight_events
+GROUP BY
+    origin,
+    dest
+ORDER BY
+    total_flight_count DESC
+LIMIT 10; 
+
+-- Average Arrival Delay by Departure Temperature
+SELECT
+    -- Rounds the temperature to an integer for grouping
+    CAST(ROUND(temp) AS INTEGER) AS temperature_in_degrees,
+    AVG(arr_delay) AS average_arrival_delay,
+    COUNT(*) AS flight_count
+FROM
+    flightdb.spectrum.flight_events
+WHERE
+    arr_delay IS NOT NULL
+    AND temp IS NOT NULL
+GROUP BY
+    temperature_in_degrees
+HAVING
+    COUNT(*) > 100
+ORDER BY
+    temperature_in_degrees ASC;
 
 💰 COST INFO:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
