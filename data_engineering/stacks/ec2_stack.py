@@ -256,31 +256,3 @@ sudo systemctl start data-simulator.service
             export_name="EC2PrivateIP",
         )
         
-        # VPC ID and Subnet IDs export
-        CfnOutput(
-            self,
-            "VPCId",
-            value=vpc.vpc_id,
-            export_name="flight-project-vpc-id"
-        )
-
-        CfnOutput(
-            self,
-            "PublicSubnetA",
-            value=vpc.public_subnets[0].subnet_id,
-            export_name="flight-project-subnet-a"
-        )
-
-        CfnOutput(
-            self,
-            "PublicSubnetB", 
-            value=vpc.public_subnets[1].subnet_id,
-            export_name="flight-project-subnet-b"
-        )
-
-        CfnOutput(
-            self,
-            "PublicSubnetC",
-            value=vpc.public_subnets[2].subnet_id,
-            export_name="flight-project-subnet-c"
-        )
