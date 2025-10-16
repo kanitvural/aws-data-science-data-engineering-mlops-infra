@@ -19,32 +19,22 @@ class EC2Stack(Stack):
         super().__init__(scope, id, **kwargs)
 
         data_bucket_name = Fn.import_value("DataLakeBucketName")
-        kinesis_stream_name = Fn.import_value("KinesisStreamName")
+        kinesis_stream_name = Fn.import_value(f"{project_name}-KinesisStreamName")
 
-        # ✅ Custom VPC (10.0.0.0/16 with 3 public subnets matching the image)
-        vpc = ec2.Vpc(
+        vpc_id = Fn.import_value("flight-project-vpc-id")
+
+        public_subnet_ids = [
+            Fn.import_value("flight-project-subnet-a"),
+            Fn.import_value("flight-project-subnet-b"),
+            Fn.import_value("flight-project-subnet-c"),
+        ]
+
+        vpc = ec2.Vpc.from_vpc_attributes(
             self,
-            id="FlightProjectVPC",
-            vpc_name="flight-project-vpc",
-            ip_addresses=ec2.IpAddresses.cidr("10.0.0.0/16"),
+            "ImportedVPC",
+            vpc_id=vpc_id,
             availability_zones=["eu-central-1a", "eu-central-1b", "eu-central-1c"],
-            subnet_configuration=[
-                ec2.SubnetConfiguration(
-                    name="PublicSubnet",
-                    subnet_type=ec2.SubnetType.PUBLIC,
-                    cidr_mask=24,
-                )
-            ],
-            nat_gateways=0,
-            enable_dns_hostnames=True,
-            enable_dns_support=True,
-        )
-
-        # ✅ S3 VPC Endpoint (Gateway endpoint)
-        vpc.add_gateway_endpoint(
-            id="S3Endpoint",
-            service=ec2.GatewayVpcEndpointAwsService.S3,
-            subnets=[ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC)],
+            public_subnet_ids=public_subnet_ids,
         )
 
         # ✅ Security Group
@@ -266,31 +256,3 @@ sudo systemctl start data-simulator.service
             export_name="EC2PrivateIP",
         )
         
-        # VPC ID and Subnet IDs export
-        CfnOutput(
-            self,
-            "VPCId",
-            value=vpc.vpc_id,
-            export_name="flight-project-vpc-id"
-        )
-
-        CfnOutput(
-            self,
-            "PublicSubnetA",
-            value=vpc.public_subnets[0].subnet_id,
-            export_name="flight-project-subnet-a"
-        )
-
-        CfnOutput(
-            self,
-            "PublicSubnetB", 
-            value=vpc.public_subnets[1].subnet_id,
-            export_name="flight-project-subnet-b"
-        )
-
-        CfnOutput(
-            self,
-            "PublicSubnetC",
-            value=vpc.public_subnets[2].subnet_id,
-            export_name="flight-project-subnet-c"
-        )

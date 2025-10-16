@@ -10,12 +10,14 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-crawler_name = os.environ.get("CRAWLER_NAME")
+crawler_name = os.environ["CRAWLER_NAME"]
+region = os.environ["REGION"]
+glue_client = boto3.client("glue",region_name = region)
 
 def lambda_handler(event, context):
-    glue = boto3.client("glue")
+
     try:
-        glue.start_crawler(Name=crawler_name)
+        glue_client.start_crawler(Name=crawler_name)
         logger.info(f"Crawler started: {crawler_name}")
         return {
             "statusCode": 200,
