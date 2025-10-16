@@ -8,6 +8,7 @@ from botocore.exceptions import ClientError
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+# test
 
 workgroup_name = os.environ["WORKGROUP_NAME"]
 glue_database = os.environ["GLUE_DATABASE"]
