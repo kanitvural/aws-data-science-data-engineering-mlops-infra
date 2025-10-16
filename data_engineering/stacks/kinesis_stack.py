@@ -11,7 +11,7 @@ from aws_cdk import (
 )
 from constructs import Construct
 
-class KinesisStack(Stack):
+class DEKinesisStack(Stack):
     def __init__(self, scope: Construct, id: str, project_name: str, data_bucket: s3.Bucket, **kwargs) -> None:
         super().__init__(scope, id, **kwargs)
 
@@ -115,23 +115,23 @@ class KinesisStack(Stack):
         # Outputs
         CfnOutput(
             self,
-            id="KinesisStreamName",
+            id="DEKinesisStreamName",
             value=self.kinesis_stream.stream_name,
             description="Kinesis Stream Name",
-            export_name="KinesisStreamName"
+            export_name=f"{project_name}-KinesisStreamName"
         )
 
         CfnOutput(
             self,
-            id="KinesisStreamArn",
+            id="DEKinesisStreamArn",
             value=self.kinesis_stream.stream_arn,
             description="Kinesis Stream ARN",
-            export_name="KinesisStreamArn"
+            export_name=f"{project_name}-KinesisStreamArn"
         )
 
         CfnOutput(
             self,
-            id="FirehoseStreamName",
+            id="DEFirehoseStreamName",
             value=self.firehose_stream.delivery_stream_name,
             description="Firehose Delivery Stream Name",
             export_name="FirehoseStreamName"

@@ -1,8 +1,7 @@
 from aws_cdk import Stage
 from constructs import Construct
 from data_engineering.stacks.s3_stack import S3Stack
-from data_engineering.stacks.kinesis_stack import KinesisStack
-from data_engineering.stacks.ec2_stack import EC2Stack
+from data_engineering.stacks.kinesis_stack import DEKinesisStack
 from data_engineering.stacks.glue_stack import GlueStack
 from data_engineering.stacks.sns_stack import SNSStack
 from data_engineering.stacks.vpc_stack import VPCStack
@@ -27,9 +26,9 @@ class DataEngineeringStage(Stage):
             project_name=project_name,
         )
 
-        kinesis_stack = KinesisStack(
+        kinesis_stack = DEKinesisStack(
             self,
-            id="KinesisInfrastructure",
+            id="DEKinesisInfrastructure",
             project_name=project_name,
             data_bucket=s3_stack.data_bucket,
         )

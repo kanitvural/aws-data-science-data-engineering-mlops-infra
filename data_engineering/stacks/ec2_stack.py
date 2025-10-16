@@ -19,7 +19,7 @@ class EC2Stack(Stack):
         super().__init__(scope, id, **kwargs)
 
         data_bucket_name = Fn.import_value("DataLakeBucketName")
-        kinesis_stream_name = Fn.import_value("KinesisStreamName")
+        kinesis_stream_name = Fn.import_value(f"{project_name}-KinesisStreamName")
 
         vpc_id = Fn.import_value("flight-project-vpc-id")
 
