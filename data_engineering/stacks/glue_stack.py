@@ -31,7 +31,7 @@ class GlueStack(Stack):
         artifacts_bucket_arn = Fn.import_value("ArtifactsBucketArn")
         data_bucket_name = Fn.import_value("DataLakeBucketName")
         data_bucket_arn = Fn.import_value("DataLakeBucketArn")
-        
+
         sns_topic_arn = Fn.import_value(f"{project_name}-sns-topic-arn")
 
         artifacts_bucket_name_obj = s3.Bucket.from_bucket_name(
@@ -97,7 +97,7 @@ class GlueStack(Stack):
                 description="Flight events database",
             ),
         )
-        
+
         self.glue_database.apply_removal_policy(RemovalPolicy.DESTROY)
 
         # Glue ETL Job
@@ -124,7 +124,7 @@ class GlueStack(Stack):
             timeout=60,
             glue_version="4.0",
         )
-        
+
         self.etl_job.apply_removal_policy(RemovalPolicy.DESTROY)
 
         # Lambda Role
@@ -154,7 +154,10 @@ class GlueStack(Stack):
             runtime=lambda_.Runtime.PYTHON_3_12,
             handler="index.lambda_handler",
             code=lambda_.Code.from_asset("data_engineering/lambda_funcs/trigger_etl_job"),
-            environment={"GLUE_JOB_NAME": f"{project_name}-etl-job"},
+            environment={
+                "GLUE_JOB_NAME": f"{project_name}-etl-job",
+                "REGION": self.region,
+            },
             role=etl_trigger_lambda_role,
             timeout=Duration.seconds(30),
         )
@@ -178,7 +181,7 @@ class GlueStack(Stack):
                 s3_targets=[glue.CfnCrawler.S3TargetProperty(path=f"s3://{data_bucket_name}/processed/flight-events/")]
             ),
         )
-        
+
         self.processed_crawler.apply_removal_policy(RemovalPolicy.DESTROY)
 
         # Lambda to start crawler
@@ -188,17 +191,15 @@ class GlueStack(Stack):
             runtime=lambda_.Runtime.PYTHON_3_12,
             handler="index.lambda_handler",
             code=lambda_.Code.from_asset("data_engineering/lambda_funcs/start_crawler"),
-            environment={"CRAWLER_NAME": f"{project_name}-processed-crawler"},
+            environment={
+                "CRAWLER_NAME": f"{project_name}-processed-crawler",
+                "REGION": self.region,
+            },
             role=etl_trigger_lambda_role,
             timeout=Duration.seconds(30),
         )
 
-        
-        sns_topic = sns.Topic.from_topic_arn(
-            self, 
-            "ImportedSNSTopic", 
-            sns_topic_arn
-        )
+        sns_topic = sns.Topic.from_topic_arn(self, "ImportedSNSTopic", sns_topic_arn)
 
         # EventBridge rule for job success
         events.Rule(
