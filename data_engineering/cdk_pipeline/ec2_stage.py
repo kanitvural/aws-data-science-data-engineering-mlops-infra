@@ -1,6 +1,6 @@
 from aws_cdk import Stage
 from constructs import Construct
-from project_app.stacks.ec2_stack import EC2Stack
+from data_engineering.stacks.ec2_stack import EC2Stack
 
 
 class EC2Stage(Stage):
