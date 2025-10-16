@@ -214,16 +214,8 @@ class RedshiftStack(Stack):
             },
             role=spectrum_lambda_role,
             timeout=Duration.minutes(5),
-            memory_size=256
-        )
-
-        # CloudWatch Log Group for Lambda
-        logs.LogGroup(
-            self,
-            "SpectrumSetupLambdaLogGroup",
-            log_group_name=f"/aws/lambda/{spectrum_setup_lambda.function_name}",
-            retention=logs.RetentionDays.ONE_WEEK,
-            removal_policy=RemovalPolicy.DESTROY
+            memory_size=256,
+            log_retention=logs.RetentionDays.ONE_WEEK 
         )
 
         # Custom Resource to trigger Lambda after Redshift is ready
