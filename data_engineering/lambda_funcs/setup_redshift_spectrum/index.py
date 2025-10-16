@@ -8,9 +8,18 @@ from botocore.exceptions import ClientError
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-redshift_data = boto3.client('redshift-data')
-secretsmanager = boto3.client('secretsmanager')
-sns = boto3.client('sns')
+
+workgroup_name = os.environ["WORKGROUP_NAME"]
+glue_database = os.environ["GLUE_DATABASE"]
+iam_role_arn = os.environ["IAM_ROLE_ARN"]
+secret_arn = os.environ["SECRET_ARN"]
+region = os.environ["REGION"]
+sns_topic_arn = os.environ.get("SNS_TOPIC_ARN")
+redshift_endpoint = os.environ.get("REDSHIFT_ENDPOINT", "N/A")
+
+redshift_data = boto3.client("redshift-data")
+secretsmanager = boto3.client("secretsmanager")
+sns = boto3.client("sns", region_name=region)
 
 
 def get_db_credentials(secret_arn, region):
@@ -19,8 +28,8 @@ def get_db_credentials(secret_arn, region):
     """
     try:
         response = secretsmanager.get_secret_value(SecretId=secret_arn)
-        secret = json.loads(response['SecretString'])
-        return secret.get('username'), secret.get('password')
+        secret = json.loads(response["SecretString"])
+        return secret.get("username"), secret.get("password")
     except ClientError as e:
         logger.error(f"Error retrieving secret: {str(e)}")
         raise
@@ -31,11 +40,7 @@ def send_sns_notification(topic_arn, subject, message):
     Send SNS notification with deployment details
     """
     try:
-        response = sns.publish(
-            TopicArn=topic_arn,
-            Subject=subject,
-            Message=message
-        )
+        response = sns.publish(TopicArn=topic_arn, Subject=subject, Message=message)
         logger.info(f"SNS sent. MessageId: {response['MessageId']}")
         return response
     except Exception as e:
@@ -45,21 +50,13 @@ def send_sns_notification(topic_arn, subject, message):
 def lambda_handler(event, context):
     logger.info(f"Event: {json.dumps(event)}")
 
-    request_type = event.get('RequestType', 'Create')
+    request_type = event.get("RequestType", "Create")
 
-    if request_type == 'Delete':
+    if request_type == "Delete":
         logger.info("Delete request - no action needed")
-        return {'PhysicalResourceId': 'spectrum-setup', 'Data': {'Message': 'Deleted'}}
+        return {"PhysicalResourceId": "spectrum-setup", "Data": {"Message": "Deleted"}}
 
     try:
-        workgroup_name = os.environ['WORKGROUP_NAME']
-        database_name = os.environ['DATABASE_NAME']
-        glue_database = os.environ['GLUE_DATABASE']
-        iam_role_arn = os.environ['IAM_ROLE_ARN']
-        secret_arn = os.environ['SECRET_ARN']
-        region = os.environ['REGION']
-        sns_topic_arn = os.environ.get('SNS_TOPIC_ARN')
-        redshift_endpoint = os.environ.get('REDSHIFT_ENDPOINT', 'N/A')
 
         username, password = get_db_credentials(secret_arn, region)
         logger.info("Retrieved Redshift credentials")
@@ -74,28 +71,26 @@ def lambda_handler(event, context):
         REGION '{region}';
         """
 
-        response = redshift_data.execute_statement(
-            WorkgroupName=workgroup_name,
-            Database=database_name,
-            Sql=create_schema_sql
-        )
+        # Serverless-compatible: Database ve DbUser parametrelerini kaldırıyoruz
+        response = redshift_data.execute_statement(WorkgroupName=workgroup_name, Sql=create_schema_sql)
 
-        statement_id = response['Id']
+        statement_id = response["Id"]
         logger.info(f"Statement ID: {statement_id}")
 
+        # Wait for statement to complete
         max_wait = 120
         elapsed = 0
-        status = 'SUBMITTED'
+        status = "SUBMITTED"
 
         while elapsed < max_wait:
             status_response = redshift_data.describe_statement(Id=statement_id)
-            status = status_response['Status']
+            status = status_response["Status"]
 
-            if status == 'FINISHED':
+            if status == "FINISHED":
                 logger.info("✅ External schema created successfully!")
                 break
-            elif status in ['FAILED', 'ABORTED']:
-                error = status_response.get('Error', 'Unknown error')
+            elif status in ["FAILED", "ABORTED"]:
+                error = status_response.get("Error", "Unknown error")
                 logger.error(f"❌ Statement failed: {error}")
                 break
 
@@ -111,16 +106,13 @@ def lambda_handler(event, context):
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   Endpoint:  {redshift_endpoint}
   Port:      5439
-  Database:  {database_name}
-  Username:  {username}
-  Password:  {password}
   Workgroup: {workgroup_name}
 
 📊 POWERBI CONNECTION:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   Server:   {redshift_endpoint}
   Port:     5439
-  Database: {database_name}
+  Database: {glue_database}
   Username: {username}
   Password: {password}
   
@@ -161,17 +153,16 @@ def lambda_handler(event, context):
             send_sns_notification(sns_topic_arn, "✅ Redshift Spectrum Deployment Complete", message)
 
         return {
-            'PhysicalResourceId': 'spectrum-setup',
-            'Data': {
-                'Message': 'Spectrum setup completed',
-                'StatementId': statement_id,
-                'Status': status,
-                'GlueDatabase': glue_database,
-                'Endpoint': redshift_endpoint,
-                'Database': database_name,
-                'Username': username,
-                'Password': password
-            }
+            "PhysicalResourceId": "spectrum-setup",
+            "Data": {
+                "Message": "Spectrum setup completed",
+                "StatementId": statement_id,
+                "Status": status,
+                "GlueDatabase": glue_database,
+                "Endpoint": redshift_endpoint,
+                "Username": username,
+                "Password": password,
+            },
         }
 
     except Exception as e:
@@ -182,7 +173,7 @@ def lambda_handler(event, context):
             send_sns_notification(
                 sns_topic_arn,
                 "❌ Redshift Spectrum Setup Exception",
-                f"Error: {error_msg}\nCheck CloudWatch logs for details."
+                f"Error: {error_msg}\nCheck CloudWatch logs for details.",
             )
 
-        return {'PhysicalResourceId': 'spectrum-setup', 'Data': {'Message': 'Exception', 'Error': error_msg}}
+        return {"PhysicalResourceId": "spectrum-setup", "Data": {"Message": "Exception", "Error": error_msg}}
