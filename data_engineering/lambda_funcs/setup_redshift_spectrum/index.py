@@ -66,7 +66,7 @@ def execute_sql_with_wait(sql, description):
     logger.info(f"  SQL length: {len(sql)} chars")
     
     try:
-        # 🔥 CRITICAL: All three parameters are REQUIRED for Serverless + SecretArn
+        
         response = redshift_data.execute_statement(
             WorkgroupName=workgroup_name,
             Database=database_name,

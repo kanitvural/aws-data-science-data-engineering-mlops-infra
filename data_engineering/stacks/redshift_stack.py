@@ -118,10 +118,20 @@ class RedshiftStack(Stack):
                     "s3:ListBucket",
                     "s3:GetBucketLocation",
                 ],
-                resources=[
-                    f"arn:aws:s3:::{data_bucket_name}",
-                    f"arn:aws:s3:::{data_bucket_name}/*"
+                resources=[f"arn:aws:s3:::{data_bucket_name}", f"arn:aws:s3:::{data_bucket_name}/*"],
+            )
+        )
+
+        # Allow Redshift Query Editor v2 to read and list Secrets
+        redshift_role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "secretsmanager:GetSecretValue",
+                    "secretsmanager:DescribeSecret",
+                    "secretsmanager:ListSecrets",
                 ],
+                resources=["*"],
             )
         )
 
@@ -163,9 +173,7 @@ class RedshiftStack(Stack):
             "SpectrumSetupLambdaRole",
             assumed_by=iam.ServicePrincipal("lambda.amazonaws.com"),
             managed_policies=[
-                iam.ManagedPolicy.from_aws_managed_policy_name(
-                    "service-role/AWSLambdaBasicExecutionRole"
-                ),
+                iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AWSLambdaBasicExecutionRole"),
             ],
         )
 
@@ -219,9 +227,7 @@ class RedshiftStack(Stack):
             "SpectrumSetupLambda",
             runtime=lambda_.Runtime.PYTHON_3_12,
             handler="index.lambda_handler",
-            code=lambda_.Code.from_asset(
-                "data_engineering/lambda_funcs/setup_redshift_spectrum"
-            ),
+            code=lambda_.Code.from_asset("data_engineering/lambda_funcs/setup_redshift_spectrum"),
             environment={
                 "WORKGROUP_NAME": workgroup.workgroup_name,
                 "DATABASE_NAME": "flightdb",
