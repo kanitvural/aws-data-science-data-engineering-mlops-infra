@@ -58,7 +58,6 @@ class RedshiftStack(Stack):
         )
 
         # Allow inbound on port 5439 from anywhere
-        # TODO: Restrict to your IP via context or manually after deployment
         redshift_sg.add_ingress_rule(
             peer=ec2.Peer.any_ipv4(),
             connection=ec2.Port.tcp(5439),
@@ -74,7 +73,7 @@ class RedshiftStack(Stack):
             generate_secret_string=secretsmanager.SecretStringGenerator(
                 secret_string_template='{"username":"admin"}',
                 generate_string_key="password",
-                exclude_punctuation=True,  # Redshift doesn't like some special chars
+                exclude_punctuation=True,
                 include_space=False,
                 password_length=32,
                 require_each_included_type=True,
@@ -119,7 +118,10 @@ class RedshiftStack(Stack):
                     "s3:ListBucket",
                     "s3:GetBucketLocation",
                 ],
-                resources=[f"arn:aws:s3:::{data_bucket_name}", f"arn:aws:s3:::{data_bucket_name}/*"],
+                resources=[
+                    f"arn:aws:s3:::{data_bucket_name}",
+                    f"arn:aws:s3:::{data_bucket_name}/*"
+                ],
             )
         )
 
@@ -129,14 +131,12 @@ class RedshiftStack(Stack):
             "RedshiftNamespace",
             namespace_name=f"{project_name}-namespace",
             admin_username="admin",
-            admin_user_password=db_secret.secret_value_from_json(
-                "password"
-            ).unsafe_unwrap(),  # ✅ From Secrets Manager
+            admin_user_password=db_secret.secret_value_from_json("password").unsafe_unwrap(),
             db_name="flightdb",
             iam_roles=[redshift_role.role_arn],
             default_iam_role_arn=redshift_role.role_arn,
             log_exports=["userlog", "connectionlog", "useractivitylog"],
-            manage_admin_password=False,  # We manage it via Secrets Manager
+            manage_admin_password=False,
         )
 
         namespace.apply_removal_policy(RemovalPolicy.DESTROY)
@@ -147,8 +147,8 @@ class RedshiftStack(Stack):
             "RedshiftWorkgroup",
             workgroup_name=f"{project_name}-workgroup",
             namespace_name=namespace.namespace_name,
-            base_capacity=8,  # 8 RPU as requested
-            publicly_accessible=True,  # Public endpoint for PowerBI
+            base_capacity=8,
+            publicly_accessible=True,
             subnet_ids=public_subnet_ids,
             security_group_ids=[redshift_sg.security_group_id],
             enhanced_vpc_routing=False,
@@ -163,12 +163,13 @@ class RedshiftStack(Stack):
             "SpectrumSetupLambdaRole",
             assumed_by=iam.ServicePrincipal("lambda.amazonaws.com"),
             managed_policies=[
-                iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AWSLambdaBasicExecutionRole"),
-                iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AWSLambdaVPCAccessExecutionRole"),
+                iam.ManagedPolicy.from_aws_managed_policy_name(
+                    "service-role/AWSLambdaBasicExecutionRole"
+                ),
             ],
         )
 
-        # Add Redshift Data API permissions
+        # Redshift Data API için tam yetki
         spectrum_lambda_role.add_to_policy(
             iam.PolicyStatement(
                 effect=iam.Effect.ALLOW,
@@ -177,13 +178,14 @@ class RedshiftStack(Stack):
                     "redshift-data:ExecuteStatement",
                     "redshift-data:DescribeStatement",
                     "redshift-data:GetStatementResult",
-                    "redshift:GetClusterCredentials",
+                    "redshift-data:ListStatements",
+                    "redshift-data:CancelStatement",
                 ],
                 resources=["*"],
             )
         )
 
-        # Add Glue Catalog access
+        # Glue Catalog access
         spectrum_lambda_role.add_to_policy(
             iam.PolicyStatement(
                 effect=iam.Effect.ALLOW,
@@ -199,10 +201,10 @@ class RedshiftStack(Stack):
             )
         )
 
-        # Add Secrets Manager read permission for Lambda
+        # Secrets Manager read permission
         db_secret.grant_read(spectrum_lambda_role)
 
-        # Add SNS publish permission for Lambda
+        # SNS publish permission - Resource specific
         spectrum_lambda_role.add_to_policy(
             iam.PolicyStatement(
                 effect=iam.Effect.ALLOW,
@@ -217,7 +219,9 @@ class RedshiftStack(Stack):
             "SpectrumSetupLambda",
             runtime=lambda_.Runtime.PYTHON_3_12,
             handler="index.lambda_handler",
-            code=lambda_.Code.from_asset("data_engineering/lambda_funcs/setup_redshift_spectrum"),
+            code=lambda_.Code.from_asset(
+                "data_engineering/lambda_funcs/setup_redshift_spectrum"
+            ),
             environment={
                 "WORKGROUP_NAME": workgroup.workgroup_name,
                 "DATABASE_NAME": "flightdb",
@@ -235,7 +239,12 @@ class RedshiftStack(Stack):
         )
 
         # Custom Resource to trigger Lambda after Redshift is ready
-        spectrum_provider = cr.Provider(self, "SpectrumSetupProvider", on_event_handler=spectrum_setup_lambda)
+        spectrum_provider = cr.Provider(
+            self,
+            "SpectrumSetupProvider",
+            on_event_handler=spectrum_setup_lambda,
+            log_retention=logs.RetentionDays.ONE_WEEK,
+        )
 
         spectrum_custom_resource = CustomResource(
             self,
@@ -328,4 +337,11 @@ class RedshiftStack(Stack):
             "PowerBIConnectionString",
             value=f"Host={workgroup.attr_workgroup_endpoint_address};Port=5439;Database=flightdb;UID=admin",
             description="PowerBI connection string (get password from Secrets Manager)",
+        )
+
+        CfnOutput(
+            self,
+            "LambdaFunctionName",
+            value=spectrum_setup_lambda.function_name,
+            description="Lambda function name for debugging",
         )
