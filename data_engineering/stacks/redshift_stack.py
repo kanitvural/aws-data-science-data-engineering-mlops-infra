@@ -204,7 +204,11 @@ class RedshiftStack(Stack):
 
         # Add SNS publish permission for Lambda
         spectrum_lambda_role.add_to_policy(
-            iam.PolicyStatement(effect=iam.Effect.ALLOW, actions=["sns:Publish"], resources=[sns_topic_arn])
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=["sns:Publish"],
+                resources=[sns_topic_arn],
+            )
         )
 
         # Lambda function to setup Spectrum external schema
@@ -270,9 +274,19 @@ class RedshiftStack(Stack):
             export_name=f"{project_name}-redshift-endpoint",
         )
 
-        CfnOutput(self, "RedshiftPort", value="5439", description="Redshift Serverless Port")
+        CfnOutput(
+            self,
+            "RedshiftPort",
+            value="5439",
+            description="Redshift Serverless Port",
+        )
 
-        CfnOutput(self, "RedshiftDatabaseName", value="flightdb", description="Redshift Database Name")
+        CfnOutput(
+            self,
+            "RedshiftDatabaseName",
+            value="flightdb",
+            description="Redshift Database Name",
+        )
 
         CfnOutput(
             self,
@@ -281,14 +295,25 @@ class RedshiftStack(Stack):
             description="Secrets Manager ARN for Redshift credentials",
         )
 
-        CfnOutput(self, "RedshiftUsername", value="admin", description="Redshift Admin Username")
-
         CfnOutput(
-            self, "RedshiftIAMRoleArn", value=redshift_role.role_arn, description="Redshift IAM Role ARN for Spectrum"
+            self,
+            "RedshiftUsername",
+            value="admin",
+            description="Redshift Admin Username",
         )
 
         CfnOutput(
-            self, "SpectrumSchemaName", value="spectrum", description="External schema name for Spectrum queries"
+            self,
+            "RedshiftIAMRoleArn",
+            value=redshift_role.role_arn,
+            description="Redshift IAM Role ARN for Spectrum",
+        )
+
+        CfnOutput(
+            self,
+            "SpectrumSchemaName",
+            value="spectrum",
+            description="External schema name for Spectrum queries",
         )
 
         CfnOutput(
