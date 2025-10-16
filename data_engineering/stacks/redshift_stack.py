@@ -26,8 +26,8 @@ class RedshiftStack(Stack):
     ) -> None:
         super().__init__(scope, id, **kwargs)
 
-        data_bucket_name = Fn.import_value("DataLakeBucketName")
-        glue_database_name = Fn.import_value("GlueDatabaseName")
+        data_bucket_name = Fn.import_value(f"{project_name}-data-lake-bucket-name")
+        glue_database_name = Fn.import_value(f"{project_name}-glue-database-name")
         sns_topic_arn = Fn.import_value(f"{project_name}-sns-topic-arn")
 
         # Import existing VPC and subnets from EC2 stack
@@ -289,65 +289,3 @@ class RedshiftStack(Stack):
             export_name=f"{project_name}-redshift-endpoint",
         )
 
-        CfnOutput(
-            self,
-            "RedshiftPort",
-            value="5439",
-            description="Redshift Serverless Port",
-        )
-
-        CfnOutput(
-            self,
-            "RedshiftDatabaseName",
-            value="flightdb",
-            description="Redshift Database Name",
-        )
-
-        CfnOutput(
-            self,
-            "RedshiftSecretArn",
-            value=db_secret.secret_arn,
-            description="Secrets Manager ARN for Redshift credentials",
-        )
-
-        CfnOutput(
-            self,
-            "RedshiftUsername",
-            value="admin",
-            description="Redshift Admin Username",
-        )
-
-        CfnOutput(
-            self,
-            "RedshiftIAMRoleArn",
-            value=redshift_role.role_arn,
-            description="Redshift IAM Role ARN for Spectrum",
-        )
-
-        CfnOutput(
-            self,
-            "SpectrumSchemaName",
-            value="spectrum",
-            description="External schema name for Spectrum queries",
-        )
-
-        CfnOutput(
-            self,
-            "GetPasswordCommand",
-            value=f"aws secretsmanager get-secret-value --secret-id {db_secret.secret_name} --query SecretString --output text | jq -r .password",
-            description="AWS CLI command to retrieve Redshift password",
-        )
-
-        CfnOutput(
-            self,
-            "PowerBIConnectionString",
-            value=f"Host={workgroup.attr_workgroup_endpoint_address};Port=5439;Database=flightdb;UID=admin",
-            description="PowerBI connection string (get password from Secrets Manager)",
-        )
-
-        CfnOutput(
-            self,
-            "LambdaFunctionName",
-            value=spectrum_setup_lambda.function_name,
-            description="Lambda function name for debugging",
-        )

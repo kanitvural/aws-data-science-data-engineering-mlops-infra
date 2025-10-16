@@ -5,6 +5,7 @@ from aws_cdk import (
 from constructs import Construct
 from .data_engineering_stage import DataEngineeringStage
 from .ec2_stage import EC2Stage
+from .monitoring_stage import MonitoringStage
 
 
 class CDKDataEngineeringPipelineStack(Stack):
@@ -52,11 +53,11 @@ class CDKDataEngineeringPipelineStack(Stack):
             notification_email=notification_email,
         )
 
-        # 1️⃣ Infra stage
+        # Infra stage
         data_engineering_infra_deploy = pipeline.add_stage(data_eng_stage)
         
 
-        # 2️⃣ Manual Approval EC2 Step
+        # Manual Approval EC2 Step
         
         ec2_stage = EC2Stage(
             self,
@@ -72,3 +73,16 @@ class CDKDataEngineeringPipelineStack(Stack):
             stage=ec2_stage,
             pre=[manual_approval],
         )
+        
+        # Monitoring Stage
+        
+        monitoring_stage = MonitoringStage(
+            self,
+            id="DataMonitoringStage",
+            project_name=project_name,
+        )
+        
+        monitoring_deploy = pipeline.add_stage(monitoring_stage)
+        
+        
+        

@@ -18,9 +18,8 @@ class EC2Stack(Stack):
     ) -> None:
         super().__init__(scope, id, **kwargs)
 
-        data_bucket_name = Fn.import_value("DataLakeBucketName")
-        kinesis_stream_name = Fn.import_value(f"{project_name}-KinesisStreamName")
-
+        data_bucket_name = Fn.import_value(f"{project_name}-data-lake-bucket-name")
+        kinesis_stream_name = Fn.import_value(f"{project_name}-kinesis-stream-name")
         vpc_id = Fn.import_value("flight-project-vpc-id")
 
         public_subnet_ids = [
@@ -241,18 +240,18 @@ sudo systemctl start data-simulator.service
             self,
             "EC2InstanceId",
             value=self.ec2_instance.instance_id,
-            export_name="EC2InstanceId",
+            export_name=f"{project_name}-EC2-instance-id",
         )
         CfnOutput(
             self,
             "EC2PublicIP",
             value=self.ec2_instance.instance_public_ip,
-            export_name="EC2PublicIP",
+            export_name=f"{project_name}-EC2-public-ip",
         )
         CfnOutput(
             self,
             "EC2PrivateIP",
             value=self.ec2_instance.instance_private_ip,
-            export_name="EC2PrivateIP",
+            export_name=f"{project_name}-EC2-private-ip",
         )
         

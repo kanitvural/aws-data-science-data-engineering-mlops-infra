@@ -27,11 +27,10 @@ class GlueStack(Stack):
     ) -> None:
         super().__init__(scope, id, **kwargs)
 
-        artifacts_bucket_name = Fn.import_value("ArtifactsBucketName")
-        artifacts_bucket_arn = Fn.import_value("ArtifactsBucketArn")
-        data_bucket_name = Fn.import_value("DataLakeBucketName")
-        data_bucket_arn = Fn.import_value("DataLakeBucketArn")
-
+        artifacts_bucket_name = Fn.import_value(f"{project_name}-artifacts-bucket-name")
+        artifacts_bucket_arn = Fn.import_value(f"{project_name}-artifacts-bucket-arn")
+        data_bucket_name = Fn.import_value(f"{project_name}-data-lake-bucket-name")
+        data_bucket_arn = Fn.import_value(f"{project_name}-data-lake-bucket-arn")
         sns_topic_arn = Fn.import_value(f"{project_name}-sns-topic-arn")
 
         artifacts_bucket_name_obj = s3.Bucket.from_bucket_name(
@@ -248,22 +247,17 @@ class GlueStack(Stack):
             self,
             "GlueDatabaseName",
             value=self.glue_database.ref,
-            export_name="GlueDatabaseName",
+            export_name=f"{project_name}-glue-database-name",
         )
         CfnOutput(
             self,
             "GlueETLJobName",
             value=self.etl_job.ref,
-            export_name="GlueETLJobName",
+            export_name=f"{project_name}-glue-ETL-job-name",
         )
         CfnOutput(
             self,
             "GlueTableName",
             value="flight_events",
-            export_name="GlueTableName",
-        )
-        CfnOutput(
-            self,
-            "GlueRoleArn",
-            value=self.glue_role.role_arn,
+            export_name=f"{project_name}-glue-table-name",
         )
