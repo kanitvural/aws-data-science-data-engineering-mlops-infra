@@ -1,10 +1,11 @@
 from aws_cdk import Stage
 from constructs import Construct
 from data_engineering.stacks.s3_stack import S3Stack
-from data_engineering.stacks.kinesis_stack import DEKinesisStack
+from data_engineering.stacks.kinesis_stack import KinesisStack
 from data_engineering.stacks.glue_stack import GlueStack
 from data_engineering.stacks.sns_stack import SNSStack
 from data_engineering.stacks.vpc_stack import VPCStack
+from data_engineering.stacks.redshift_stack import RedshiftStack
 
 
 class DataEngineeringStage(Stage):
@@ -26,7 +27,7 @@ class DataEngineeringStage(Stage):
             project_name=project_name,
         )
 
-        kinesis_stack = DEKinesisStack(
+        kinesis_stack = KinesisStack(
             self,
             id="DEKinesisInfrastructure",
             project_name=project_name,
@@ -38,6 +39,12 @@ class DataEngineeringStage(Stage):
             id="GlueInfrastructure",
             project_name=project_name,
         )
+        
+        redshift_stack = RedshiftStack(
+            self,
+            id="RedshiftServerlessInfrastructure",
+            project_name=project_name,
+        )
 
         # Dependencies
         sns_stack.add_dependency(vpc_stack)
@@ -45,3 +52,4 @@ class DataEngineeringStage(Stage):
         kinesis_stack.add_dependency(s3_stack)
         glue_stack.add_dependency(s3_stack)
         glue_stack.add_dependency(sns_stack)
+        redshift_stack.add_dependency(glue_stack)
