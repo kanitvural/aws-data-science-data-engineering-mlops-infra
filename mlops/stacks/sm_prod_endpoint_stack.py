@@ -23,7 +23,7 @@ class SMProdEndpointStack(Stack):
         )
 
         # Import S3 bucket name (exported as MLOpsBucketName)
-        bucket_name = Fn.import_value("MLOpsBucketName")
+        bucket_name = Fn.import_value(f"{project_name}-mlops-bucket-name")
 
         # Import ssm model arn parameter
         parameter_name = f"/{project_name}/latest-approved-model-arn"

@@ -173,14 +173,14 @@ class StepFunctionStack(Stack):
             self,
             "MLDependenciesLayer",
             code=lambda_.Code.from_asset("mlops/lambda_funcs/evaluate_dev_endpoint/lambda_layer/lambda_layer.zip"),
-            compatible_runtimes=[lambda_.Runtime.PYTHON_3_9],
+            compatible_runtimes=[lambda_.Runtime.PYTHON_3_12],
             description="Lambda layer with numpy, pandas",
         )
 
         dev_endpoint_evaluate_lambda = lambda_.Function(
             self,
             id="DevEndpointEvaluateLambda",
-            runtime=lambda_.Runtime.PYTHON_3_9,
+            runtime=lambda_.Runtime.PYTHON_3_12,
             handler="index.lambda_handler",
             code=lambda_.Code.from_asset("mlops/lambda_funcs/evaluate_dev_endpoint"),
             layers=[ml_layer],
@@ -200,7 +200,7 @@ class StepFunctionStack(Stack):
         register_model_lambda = lambda_.Function(
             self,
             id="RegisterModelLambda",
-            runtime=lambda_.Runtime.PYTHON_3_9,
+            runtime=lambda_.Runtime.PYTHON_3_12,
             handler="index.lambda_handler",
             code=lambda_.Code.from_asset("mlops/lambda_funcs/register_model"),
             environment={
@@ -220,7 +220,7 @@ class StepFunctionStack(Stack):
         baseline_lambda = lambda_.Function(
             self,
             id="BaselineLambda",
-            runtime=lambda_.Runtime.PYTHON_3_9,
+            runtime=lambda_.Runtime.PYTHON_3_12,
             handler="index.lambda_handler",
             code=lambda_.Code.from_asset("mlops/lambda_funcs/sm_baseline_processing"),
             environment={

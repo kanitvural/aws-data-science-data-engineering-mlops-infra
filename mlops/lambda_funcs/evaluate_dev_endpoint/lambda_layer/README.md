@@ -1,10 +1,11 @@
 cd lambda_layer
 deactivate
-pyenv install 3.9.18
-pyenv local 3.9.18 
+pyenv install 3.12.6
+pyenv local 3.12.6 
 python --version
-mkdir -p python/lib/python3.9/site-packages
-pip install --no-cache-dir numpy pandas -t python/lib/python3.9/site-packages/
+mkdir -p python/lib/python3.12/site-packages
+python -m ensurepip --upgrade
+pip install --no-cache-dir numpy pandas -t python/lib/python3.12/site-packages/
 zip -r lambda_layer.zip python
 
 rm -rf python
