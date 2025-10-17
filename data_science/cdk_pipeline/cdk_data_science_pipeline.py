@@ -24,11 +24,12 @@ class CDKDataSciencePipelineStack(Stack):
 
         # Athena ENV variables
         input_data = "flights_sample.csv"
-        glue_db_name = Fn.import_value("GlueDatabaseName")
-        glue_table_name = Fn.import_value("GlueTableName")
-        athena_output_bucket_name = Fn.import_value("ArtifactsBucketName")
+        project_name_de = "data-engineering"
+        glue_db_name = Fn.import_value(f"{project_name_de}-glue-database-name")
+        glue_table_name = Fn.import_value(f"{project_name_de}-glue-table-name")
+        athena_output_bucket_name = Fn.import_value(f"{project_name_de}-artifacts-bucket-name")
         data_science_bucket_name = f"{project_name}-bucket-{self.account}"
-        data_engineering_bucket_name = Fn.import_value("DataLakeBucketName")
+        data_engineering_bucket_name = Fn.import_value(f"{project_name_de}-data-lake-bucket-name")
 
         # Sagemaker ENV variables
         processing_instance_count = 1

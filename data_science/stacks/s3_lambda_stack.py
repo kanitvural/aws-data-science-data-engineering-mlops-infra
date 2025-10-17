@@ -72,7 +72,7 @@ class S3LambdaStack(Stack):
         retrain_lambda = lambda_.Function(
             self,
             f"{project_name}-retrain-lambda",
-            runtime=lambda_.Runtime.PYTHON_3_9,
+            runtime=lambda_.Runtime.PYTHON_3_12,
             handler="index.lambda_handler",
             code=lambda_.Code.from_asset("data_science/lambda_funcs/retrain_model"),
             environment={
