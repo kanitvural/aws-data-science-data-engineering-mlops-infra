@@ -13,8 +13,8 @@ class SNSStack(Stack):
         super().__init__(scope, id, **kwargs)
 
         self.topic = sns.Topic(
-            self, "GlueJobNotificationTopic",
-            display_name="Glue Job Notifications",
+            self, "DataEngineeringJobNotificationTopic",
+            display_name="Data Engineering Job Notifications",
         )
 
         self.topic.add_subscription(subs.EmailSubscription(notification_email))

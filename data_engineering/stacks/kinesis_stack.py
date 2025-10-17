@@ -118,7 +118,7 @@ class KinesisStack(Stack):
             id="DEKinesisStreamName",
             value=self.kinesis_stream.stream_name,
             description="Kinesis Stream Name",
-            export_name=f"{project_name}-KinesisStreamName"
+            export_name=f"{project_name}-kinesis-stream-name"
         )
 
         CfnOutput(
@@ -126,7 +126,7 @@ class KinesisStack(Stack):
             id="DEKinesisStreamArn",
             value=self.kinesis_stream.stream_arn,
             description="Kinesis Stream ARN",
-            export_name=f"{project_name}-KinesisStreamArn"
+            export_name=f"{project_name}-kinesis-stream-arn"
         )
 
         CfnOutput(
@@ -134,5 +134,5 @@ class KinesisStack(Stack):
             id="DEFirehoseStreamName",
             value=self.firehose_stream.delivery_stream_name,
             description="Firehose Delivery Stream Name",
-            export_name=f"{project_name}-FirehoseStreamName"
+            export_name=f"{project_name}-firehose-stream-name"
         )

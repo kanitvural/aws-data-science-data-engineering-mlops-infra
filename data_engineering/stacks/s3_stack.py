@@ -77,7 +77,7 @@ class S3Stack(Stack):
             id="DataLakeBucketName",
             value=self.data_bucket.bucket_name,
             description="Data Lake S3 Bucket Name",
-            export_name="DataLakeBucketName"
+            export_name=f"{project_name}-data-lake-bucket-name"
         )
 
         CfnOutput(
@@ -85,7 +85,7 @@ class S3Stack(Stack):
             id="DataLakeBucketArn",
             value=self.data_bucket.bucket_arn,
             description="Data Lake S3 Bucket ARN",
-            export_name="DataLakeBucketArn"
+            export_name=f"{project_name}-data-lake-bucket-arn"
         )
 
         CfnOutput(
@@ -93,7 +93,7 @@ class S3Stack(Stack):
             id="ArtifactsBucketName", 
             value=self.artifacts_bucket.bucket_name,
             description="Artifacts S3 Bucket Name",
-            export_name="ArtifactsBucketName"
+            export_name=f"{project_name}-artifacts-bucket-name"
         )
         
         CfnOutput(
@@ -101,6 +101,6 @@ class S3Stack(Stack):
             id="ArtifactsBucketArn",
             value=self.artifacts_bucket.bucket_arn,
             description="Artifacts S3 Bucket ARN",
-            export_name="ArtifactsBucketArn"
+            export_name=f"{project_name}-artifacts-bucket-arn"
         )
         
