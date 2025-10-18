@@ -35,7 +35,7 @@ class S3LambdaStack(Stack):
             "S3BucketName",
             value=bucket.bucket_name,
             description="S3 Bucket name for MLOps data",
-            export_name="MLOpsBucketName",
+            export_name=f"{project_name}-mlops-bucket-name",
         )
 
         # ----------------------------------------------------------------------
@@ -107,7 +107,7 @@ class S3LambdaStack(Stack):
         shap_lambda = lambda_.Function(
             self,
             f"{project_name}-shap-lambda",
-            runtime=lambda_.Runtime.PYTHON_3_9,
+            runtime=lambda_.Runtime.PYTHON_3_12,
             handler="index.lambda_handler",
             code=lambda_.Code.from_asset("mlops/lambda_funcs/shap_report"),
             environment={
@@ -122,7 +122,7 @@ class S3LambdaStack(Stack):
         monitoring_lambda = lambda_.Function(
             self,
             f"{project_name}-monitoring-lambda",
-            runtime=lambda_.Runtime.PYTHON_3_9,
+            runtime=lambda_.Runtime.PYTHON_3_12,
             handler="index.lambda_handler",
             code=lambda_.Code.from_asset("mlops/lambda_funcs/model_monitor"),
             environment={
