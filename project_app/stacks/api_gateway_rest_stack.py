@@ -24,7 +24,7 @@ class ApiGatewayRestStack(Stack):
         flightai_auth_lambda = _lambda.Function(
             self,
             "FlightAIAuthLambda",
-            runtime=_lambda.Runtime.PYTHON_3_9,
+            runtime=_lambda.Runtime.PYTHON_3_12,
             handler="index.lambda_handler",
             code=_lambda.Code.from_asset("project_app/lambda_funcs/api_gateway_rest_lambdas/flightai_auth_lambda"),
             environment={
@@ -38,7 +38,7 @@ class ApiGatewayRestStack(Stack):
         flightai_user_lambda = _lambda.Function(
             self,
             "FlightAIUserLambda",
-            runtime=_lambda.Runtime.PYTHON_3_9,
+            runtime=_lambda.Runtime.PYTHON_3_12,
             handler="index.lambda_handler",
             code=_lambda.Code.from_asset("project_app/lambda_funcs/api_gateway_rest_lambdas/flightai_user_lambda"),
             environment={
@@ -90,7 +90,7 @@ class ApiGatewayRestStack(Stack):
         agent_chat_lambda = _lambda.Function(
             self,
             "MultiAgentChatLambda",
-            runtime=_lambda.Runtime.PYTHON_3_9,
+            runtime=_lambda.Runtime.PYTHON_3_12,
             handler="index.lambda_handler",
             code=_lambda.Code.from_asset("project_app/lambda_funcs/api_gateway_rest_lambdas/agent_chat_lambda"),
             environment={
@@ -125,7 +125,7 @@ class ApiGatewayRestStack(Stack):
         agent_history_lambda = _lambda.Function(
             self,
             "MultiAgentHistoryLambda",
-            runtime=_lambda.Runtime.PYTHON_3_9,
+            runtime=_lambda.Runtime.PYTHON_3_12,
             handler="index.lambda_handler",
             code=_lambda.Code.from_asset("project_app/lambda_funcs/api_gateway_rest_lambdas/agent_history_lambda"),
             environment={"REGION": self.region, "CLOUDFRONT_URL": cloudfront_url},

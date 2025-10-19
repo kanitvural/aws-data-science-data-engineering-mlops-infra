@@ -39,8 +39,8 @@ class LambdaStack(Stack):
         # Import Endpoint Name
         # ----------------------------------------------------------------------
 
-        # prod_endpoint_name = Fn.import_value("mlops-prod-endpoint-name") test
-        prod_endpoint_name = "mlops-prod-endpoint"
+        prod_endpoint_name = Fn.import_value("mlops-prod-endpoint-name") 
+        # prod_endpoint_name = "mlops-prod-endpoint"
 
         # ----------------------------------------------------------------------
         # Lambda Roles
@@ -117,14 +117,14 @@ class LambdaStack(Stack):
             self,
             "PandasLayerPre",
             code=lambda_.Code.from_asset("project_app/lambda_funcs/preprocess_lambda/lambda_layer/lambda_layer.zip"),
-            compatible_runtimes=[lambda_.Runtime.PYTHON_3_9],
+            compatible_runtimes=[lambda_.Runtime.PYTHON_3_12],
             description="Layer with pandas for preprocess lambda",
         )
 
         preprocess_lambda = lambda_.Function(
             self,
             "PreprocessLambda",
-            runtime=lambda_.Runtime.PYTHON_3_9,
+            runtime=lambda_.Runtime.PYTHON_3_12,
             handler="index.lambda_handler",
             code=lambda_.Code.from_asset("project_app/lambda_funcs/preprocess_lambda"),
             role=preprocess_lambda_role,
@@ -147,14 +147,14 @@ class LambdaStack(Stack):
             self,
             "PandasLayerInf",
             code=lambda_.Code.from_asset("project_app/lambda_funcs/inference_lambda/lambda_layer/lambda_layer.zip"),
-            compatible_runtimes=[lambda_.Runtime.PYTHON_3_9],
+            compatible_runtimes=[lambda_.Runtime.PYTHON_3_12],
             description="Layer with pandas for preprocess lambda",
         )
 
         inference_lambda = lambda_.Function(
             self,
             "InferenceLambda",
-            runtime=lambda_.Runtime.PYTHON_3_9,
+            runtime=lambda_.Runtime.PYTHON_3_12,
             handler="index.lambda_handler",
             code=lambda_.Code.from_asset("project_app/lambda_funcs/inference_lambda"),
             role=inference_lambda_role,
@@ -175,7 +175,7 @@ class LambdaStack(Stack):
         writer_lambda = lambda_.Function(
             self,
             "WriterLambda",
-            runtime=lambda_.Runtime.PYTHON_3_9,
+            runtime=lambda_.Runtime.PYTHON_3_12,
             handler="index.lambda_handler",
             code=lambda_.Code.from_asset("project_app/lambda_funcs/writer_lambda"),
             role=writer_lambda_role,
