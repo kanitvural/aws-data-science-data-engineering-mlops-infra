@@ -87,7 +87,7 @@ class RawDynamoDBStack(Stack):
         flight_stream_handler_lambda = lambda_.Function(
             self,
             "FlightStreamLambda",
-            runtime=lambda_.Runtime.PYTHON_3_9,
+            runtime=lambda_.Runtime.PYTHON_3_12,
             handler="index.lambda_handler",
             code=lambda_.Code.from_asset(
                 "project_app/lambda_funcs/api_gateway_websocket_lambdas/flight_dynamodb_stream_lambda"

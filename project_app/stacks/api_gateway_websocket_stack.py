@@ -55,7 +55,7 @@ class ApiGatewayWebSocketStack(Stack):
         connect_lambda = lambda_.Function(
             self,
             "WebSocketConnectLambda",
-            runtime=lambda_.Runtime.PYTHON_3_9,
+            runtime=lambda_.Runtime.PYTHON_3_12,
             handler="index.lambda_handler",
             code=lambda_.Code.from_asset("project_app/lambda_funcs/api_gateway_websocket_lambdas/connect"),
             role=ws_lambda_role,
@@ -68,7 +68,7 @@ class ApiGatewayWebSocketStack(Stack):
         disconnect_lambda = lambda_.Function(
             self,
             "WebSocketDisconnectLambda",
-            runtime=lambda_.Runtime.PYTHON_3_9,
+            runtime=lambda_.Runtime.PYTHON_3_12,
             handler="index.lambda_handler",
             code=lambda_.Code.from_asset("project_app/lambda_funcs/api_gateway_websocket_lambdas/disconnect"),
             role=ws_lambda_role,
