@@ -14,7 +14,7 @@ class S3Stack(Stack):
         super().__init__(scope, id, **kwargs)
 
         # ----------------------------------------------------------------------
-        # Private S3 Bucket (statik dosyalar için)
+        # Private S3 Bucket
         # ----------------------------------------------------------------------
         bucket = s3.Bucket(
             self,
@@ -42,7 +42,7 @@ class S3Stack(Stack):
             self,
             "ProjectAppDistribution",
             default_behavior=cloudfront.BehaviorOptions(
-                origin=origins.S3Origin(bucket, origin_access_identity=oai),
+                origin=origins.S3BucketOrigin(bucket, origin_access_identity=oai),
                 viewer_protocol_policy=cloudfront.ViewerProtocolPolicy.HTTPS_ONLY,
                 allowed_methods=cloudfront.AllowedMethods.ALLOW_GET_HEAD,  # for static files
                 cache_policy=cloudfront.CachePolicy.CACHING_OPTIMIZED,
