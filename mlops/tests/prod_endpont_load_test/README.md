@@ -64,6 +64,6 @@ This makes the average latency easier to analyze.
 
 # Automatic Trigger Scale Up
 
-```
+```bash
 aws cloudwatch set-alarm-state --alarm-name "SMProdAutoScalingStage-SMProdAutoScalingStage-EndpointScalingTargetCPUScalingUpperAlarm7B8A87BA-1UCEzken3sco" --state-reason "testing recovery action" --state-value ALARM --region eu-central-1 
 ```
