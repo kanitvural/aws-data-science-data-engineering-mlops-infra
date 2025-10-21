@@ -616,29 +616,18 @@ make destroy env=ds
 
 ## 🚀 MLOps
 
-![MLOps Architecture](./images/mlops_architecture.png)
 
 ### Overview
 
-The MLOps infrastructure implements a multi-stage deployment strategy with automated testing, monitoring, and retraining capabilities.
+The MLOps infrastructure implements a multi-stage deployment strategy with automated testing, monitoring, SHAP analysis, and retraining capabilities. The XGBoost model, evaluated and approved by data scientists, is stored as a finalized model artifact in Amazon S3 and then embedded into a FastAPI-based inference container, which is deployed to the SageMaker development endpoint. During the initial testing phase, the model is validated using the test.csv dataset generated during the SageMaker Processing Job in the data science workflow; however, in real-world scenarios, evaluating with alternative or unseen datasets would be more appropriate for robust validation.
 
-**Workflow:**
-1. **Dev Endpoint Deployment** - Final model from data science deployed to dev
-2. **Step Functions Execution** - Automated batch predictions and baseline generation
-3. **Model Registry** - Successful models registered with version control
-4. **Manual Approval #1** - Review before production deployment
-5. **Production Endpoint** - Deploy with auto-scaling (ml.c5.xlarge, 1-5 instances)
-6. **SNS Notification** - Production deployment confirmation
-7. **Manual Approval #2** - Start model monitoring
-8. **Model Monitoring** - Data drift and quality checks
-9. **SNS Notification** - Monitoring report with drift metrics
-10. **Manual Approval #3** - Start SHAP analysis
-11. **SHAP Analysis** - Model explainability report
-12. **SNS Notification** - SHAP analysis complete
-13. **Manual Approval #4** - Trigger retraining
-14. **Automated Retraining** - Monitoring data sent to data science pipeline
+The development endpoint is automatically tested using AWS Step Functions in a batch processing workflow. If the tests pass successfully, the model is registered in the SageMaker Model Registry, and baseline JSON files required for model monitoring are generated. The validated model is then deployed to a production endpoint with autoscaling enabled, enabling real-time inference in a production-like environment.
 
-**Innovation:** Uses **custom FastAPI inference container** instead of Flask for better performance.
+To simulate data drift, data quality degradation, and the need for model retraining, intentionally altered and statistically corrupted data is injected into the system through the web application using EC2-simulated inputs. These corrupted data samples are delivered to the MLOps S3 bucket via Kinesis Firehose in a partitioned structure. A Python automation script converts this data into CSV format and writes it to the data science bucket as `new_predictions.csv`, which automatically triggers the retraining pipeline. The pipeline merges the new data with historical training data, shuffles the dataset, and initiates a new training cycle to maintain model accuracy and reliability over time.
+
+**⚠️ Note:** In this project, model monitoring, SHAP analysis, and retraining workflows require manual approval steps to prevent unnecessary system complexity during development. However, in a production environment, these three stages should be orchestrated as independent automated pipelines to support continuous delivery of ML improvements. The AWS CDK-based project structure is designed to easily support such extensions in future iterations.
+
+![MLOps Architecture](./images/mlops_architecture.png)
 
 ### Project Structure
 
@@ -690,6 +679,46 @@ mlops/
     ├── model_monitor/
     └── shap/
 ```
+
+**Workflow:**
+1. **Dev Endpoint Deployment** - Final model from data science deployed to dev
+2. **Step Functions Execution** - Automated batch predictions and baseline generation
+3. **Model Registry** - Successful models registered with version control
+4. **Production Endpoint** - Deploy with auto-scaling (ml.c5.xlarge, 1-5 instances)
+5. **SNS Notification** - Production deployment confirmation
+6. **Manual Approval #1** - Start model monitoring
+7. **Model Monitoring** - Data drift and quality checks
+8. **SNS Notification** - Monitoring report with drift metrics
+9.  **Manual Approval #2** - Start SHAP analysis
+10. **SHAP Analysis** - Model explainability report
+11. **SNS Notification** - SHAP analysis complete
+12. **Manual Approval #3** - Trigger retraining
+13. **SNS Notification** - Notification to Data Scientists
+
+**Innovation:** Uses **custom FastAPI inference container** instead of Flask for better performance.
+
+### Step Functions Execution
+
+![Step Functions Execution](./_images/step_functions.png)
+
+### Model Monitoring
+
+📊 **QUICK STATS**  
+━━━━━━━━━━━━━━━━━━━━━━━━  
+🔢 Total Issues: 13  
+🔍 Data Quality Issues: 7  
+📈 Drift Issues: 6  
+
+These issues were detected during model monitoring. After the **retraining process**, the monitoring results showed a decrease in these values:
+
+📊 **QUICK STATS**  
+━━━━━━━━━━━━━━━━━━━━━━━━  
+🔢 Total Issues: 9  
+🔍 Data Quality Issues: 6  
+📈 Drift Issues: 3  
+
+This simulates the detection of drift and data quality issues and their correction through retraining.
+
 
 ### Local Container Testing
 
@@ -792,14 +821,30 @@ python prod_load_test.py
 
 ### Email Notification
 
-![Production Deployment Email](./images/mlops_prod_deployment_email.png)
+- When Step functions execution finishes, you receive email with:
 
-When production endpoint deploys, you receive email with:
-- Endpoint name and ARN
-- Instance type and count
-- Auto-scaling configuration
-- Model version
-- CloudWatch dashboard URL
+![Step Functions Execution Email](./_images/mlops_step_func_notification.png)
+
+- When production endpoint deploys, you receive email with:
+  
+![Production Deployment Email](./_images/mlops_prod_deployed_notifications.png)
+
+- When Model Monitor detects data drift or data quality issues, you receive an alert email:
+
+![Model Monitor Email](./_images/model_monitoring_1.png)
+
+- When SHAP analysis is completed for model explainability, you receive a model insights report via email:
+
+![SHAP analysis Email](./_images/mlops_shap_analysis.png)
+
+- When the Retraining pipeline is automatically triggered, you receive a pipeline execution notification:
+
+![Retraining Email](./_images/mlops_retrain.png)
+
+- After retraining, you receive the **same type of email again**, showing that the issues have been reduced:
+
+![Model Monitor Retrain Email](./_images/model_monitoring_2.png)
+
 
 ### Cleanup
 
