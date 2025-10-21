@@ -1,11 +1,21 @@
+![CDK Pipeline](./_images/airplane.jpeg)
+
 # 🚀 The Only AWS Project You'll Ever Need: Complete Data & AI Platform
 
+<!-- Core Framework & Language -->
 [![AWS CDK](https://img.shields.io/badge/AWS%20CDK-2.215.0-orange.svg)](https://aws.amazon.com/cdk/)
-[![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)](https://www.typescriptlang.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-15-black.svg)](https://nextjs.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688.svg)](https://fastapi.tiangolo.com/)
+[![Node.js](https://img.shields.io/badge/Node.js-22+-339933.svg)](https://nodejs.org/)
+[![Apache Spark](https://img.shields.io/badge/Apache%20Spark-3.5+-E25A1C.svg)](https://spark.apache.org/)
+[![SQL](https://img.shields.io/badge/SQL-Database-4479A1.svg)](https://aws.amazon.com/athena/)
+[![Docker](https://img.shields.io/badge/Docker-Latest-2496ED.svg)](https://www.docker.com/)
+[![AWS](https://img.shields.io/badge/AWS-Cloud%20Native-FF9900.svg)](https://aws.amazon.com/)
+[![Linux](https://img.shields.io/badge/Linux-Ubuntu%2024.04%20LTS-FCC624.svg)](https://ubuntu.com/)
+[![Power BI](https://img.shields.io/badge/Power%20BI-Latest-F2C811.svg)](https://powerbi.microsoft.com/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![AWS](https://img.shields.io/badge/AWS-Cloud%20Native-yellow.svg)](https://aws.amazon.com/)
 
 > **A production-ready AWS system integrating Data Engineering, Analytics, Data Science, MLOps, Web Applications, and Multi-Agent LLM, fully deployed with CDK self-mutating pipelines.**
 
@@ -35,6 +45,16 @@ This project demonstrates a complete, production-ready data and AI platform buil
 
 This is not just a collection of isolated AWS services—it's a **fully integrated, end-to-end platform** where every component works together seamlessly. The entire infrastructure is defined as code using AWS CDK, deployed through self-mutating pipelines, and follows enterprise-grade practices for security, monitoring, and cost optimization.
 
+**Most importantly:** This project demonstrates how different data and AI roles collaborate in a **real production environment**. From a single GitHub repository, you'll see how:
+- **Data Engineers** build real-time streaming pipelines and ETL workflows
+- **Data Analysts** connect via Power BI to query processed data from Redshift Spectrum
+- **Data Scientists** develop and train ML models using the prepared datasets
+- **MLOps Engineers** deploy models to dev endpoints for testing, then promote to production with monitoring
+- **Full-Stack Developers** build modern web applications that consume real-time predictions
+- **AI Engineers** create intelligent multi-agent systems that understand the entire workflow
+
+This is how modern data teams actually work together—not in silos, but as an integrated, collaborative workflow where each role builds upon the previous one.
+
 **Key Highlights:**
 - 🏗️ **Infrastructure as Code**: Everything deployed via AWS CDK self-mutating pipelines
 - 🔄 **Real-Time Data Processing**: Kinesis streaming with Lambda processing
@@ -44,6 +64,7 @@ This is not just a collection of isolated AWS services—it's a **fully integrat
 - 🧠 **Multi-Agent LLM**: Bedrock Agent Core with session management
 - 📊 **Complete Observability**: CloudWatch dashboards, SNS notifications
 - 💰 **Cost-Optimized**: Serverless-first architecture
+- 👥 **Cross-Functional Collaboration**: See how 6 different roles work together in one project
 
 ### Project Structure Overview
 
@@ -63,23 +84,25 @@ This is not just a collection of isolated AWS services—it's a **fully integrat
 └── 📄 README.md
 ```
 
-![Architecture Overview](./_images/architecture_overview.drawio.svg)
-![Data Flow Diagram](./images/data_flow.png)
+
+
 ![CDK Pipeline](./images/cdk_pipeline.png)
 
 ---
 
 ## 🏛️ Architecture Overview & Features
 
+![Architecture Overview](./_images/architecture_overview.drawio.svg)
+
 ### Data Engineering Pipeline
 **Real-time data streaming and batch ETL processing**
 
-- ✅ **EC2** simulates real-time flight data streaming
+- ✅ **EC2** simulates historical flight data streaming
 - ✅ **Kinesis Data Streams** → **Firehose** → **S3** for raw data ingestion
-- ✅ **EventBridge** triggers hourly **Glue ETL** jobs for data transformation
+- ✅ **EventBridge** triggers hourly **Glue Spark ETL** jobs for data transformation
 - ✅ **Glue Crawler** automatically discovers and catalogs schemas
 - ✅ **Redshift Serverless** with Spectrum for analytics (Power BI integration)
-- ✅ **CloudWatch Dashboard** for pipeline monitoring
+- ✅ **CloudWatch Dashboard** for monitoring infrastructure
 - ✅ **SNS** email notifications on job completion
 
 ### Data Science Workflow
@@ -101,7 +124,7 @@ This is not just a collection of isolated AWS services—it's a **fully integrat
 - ✅ **Step Functions** orchestrate automated testing and baseline generation
 - ✅ **Model Registry** for version management
 - ✅ **Production Endpoint** with auto-scaling (1-5 instances)
-- ✅ **Manual Approval Gates** for production deployment
+- ✅ **Manual Approval Gates** for model monitoring, SHAP analysis and Retraining
 - ✅ **Model Monitoring** for data drift and quality checks
 - ✅ **SHAP Analysis** for model explainability
 - ✅ **Automated Retraining** trigger with monitoring data
@@ -111,7 +134,7 @@ This is not just a collection of isolated AWS services—it's a **fully integrat
 **Serverless Next.js 15 with real-time updates**
 
 - ✅ **Next.js 15 SSG** hosted on **S3 + CloudFront**
-- ✅ **API Gateway REST API** for authentication and chat
+- ✅ **API Gateway REST API** for authentication and Multi-Agent LLM chat
 - ✅ **API Gateway WebSocket** for live data streaming
 - ✅ **Cognito** authentication with HTTP-only cookies
 - ✅ **Lambda** functions for preprocessing, inference, and data writing
@@ -124,10 +147,10 @@ This is not just a collection of isolated AWS services—it's a **fully integrat
 **Intelligent chatbot with Bedrock Agent Core**
 
 - ✅ **Project Documentation Q&A** using OpenAI vector store
-- ✅ **Real-Time Flight Statistics** queries from DynamoDB
+- ✅ **Real-Time Flight Statistics** agent tool queries from DynamoDB
 - ✅ **Session Management** with Cognito user isolation
 - ✅ **Rate Limiting** (20 requests/minute per user)
-- ✅ **Hybrid NoSQL + Pandas** querying strategy
+- ✅ **Hybrid NoSQL + Pandas** querying strategy to simplify complex NoSQL queries
 - ✅ **Automatic Token Extension** on activity
 
 ---
@@ -139,15 +162,18 @@ This is not just a collection of isolated AWS services—it's a **fully integrat
 | Tool | Version | Purpose |
 |------|---------|---------|
 | **Operating System** | Ubuntu 24.04 / WSL2 / macOS | Development environment |
-| **Python** | 3.9+ | CDK and Lambda functions |
-| **Node.js** | 18+ | Next.js frontend |
-| **Docker** | 20.10+ | Container builds |
+| **Python** | 3.11+ | CDK and Lambda functions |
+| **Node.js** | 22+ | Next.js frontend |
+| **Docker** | 24.1.0 | Container builds |
 | **AWS CLI** | 2.x | AWS operations |
 | **AWS CDK** | 2.215.0 | Infrastructure as Code |
 | **Make** | 4.x | Build automation |
 | **Git** | 2.x | Version control |
 
-### Step 1: Install WSL2 (Windows Users Only)
+### Step 1: System Setup
+
+<details>
+<summary><b>For Windows Users (WSL2)</b></summary>
 
 ```bash
 # Install WSL2
@@ -155,71 +181,99 @@ wsl --install -d Ubuntu-24.04
 
 # Update packages
 sudo apt update && sudo apt upgrade -y
+
+# Install required tools
+sudo apt install -y build-essential git make curl
 ```
+</details>
+
+<details>
+<summary><b>For macOS Users</b></summary>
+
+```bash
+# Install Homebrew (if not already installed)
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# Install required tools
+brew install git make
+```
+</details>
+
+<details>
+<summary><b>For Linux (Ubuntu 24.04)</b></summary>
+
+```bash
+# Update packages
+sudo apt update && sudo apt upgrade -y
+
+# Install required tools
+sudo apt install -y build-essential git make curl
+```
+</details>
 
 ### Step 2: Install Docker
 
-**For Ubuntu/WSL2:**
 ```bash
+# Install Docker
 curl -fsSL https://get.docker.com -o get-docker.sh
 sudo sh get-docker.sh
+
+# Add user to docker group
 sudo usermod -aG docker $USER
+
+# Start Docker service
 sudo systemctl start docker
+sudo systemctl enable docker
+
+# Verify installation
 docker --version
 ```
 
-**For macOS:**
-```bash
-# Download Docker Desktop from https://www.docker.com/products/docker-desktop
-# Install and start Docker Desktop
-docker --version
-```
-
-### Step 3: Install Zsh (Optional)
+### Step 3: Install Zsh (Optional but Recommended)
 
 ```bash
+# Install Zsh
 sudo apt install -y zsh
+
+# Install Oh My Zsh
 sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
 ```
 
-### Step 4: Install Make
+### Step 4: Install Python Version Manager (pyenv)
 
 ```bash
-# Ubuntu/WSL2
-sudo apt install -y make
-
-# macOS
-brew install make
-```
-
-### Step 5: Install pyenv
-
-```bash
+# Install pyenv
 curl https://pyenv.run | bash
 
-# Add to ~/.bashrc or ~/.zshrc
+# Add to shell configuration (~/.bashrc or ~/.zshrc)
 echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.bashrc
 echo 'command -v pyenv >/dev/null || export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.bashrc
 echo 'eval "$(pyenv init -)"' >> ~/.bashrc
 
+# Reload shell
 exec $SHELL
 
 # Install Python 3.9+
 pyenv install 3.9.19
 pyenv global 3.9.19
+
+# Verify
 python --version
 ```
 
-### Step 6: Install AWS CLI
+### Step 5: Install AWS CLI
 
 ```bash
+# Download and install AWS CLI v2
 curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
 unzip awscliv2.zip
 sudo ./aws/install
+
+# Verify installation
 aws --version
 ```
 
-### Step 7: Configure AWS Credentials
+### Step 6: Configure AWS Credentials
 
 **Create IAM User:**
 1. Go to AWS Console → IAM → Users → Create User
@@ -245,14 +299,14 @@ aws configure
 # Default output format: json
 ```
 
-### Step 8: Install AWS CDK
+### Step 7: Install AWS CDK
 
 ```bash
 npm install -g aws-cdk
 cdk --version
 ```
 
-### Step 9: Clone Repository
+### Step 8: Clone Repository
 
 ```bash
 git clone https://github.com/kanitvural/aws-data-science-data-engineering-mlops-infra.git
@@ -261,7 +315,7 @@ git fetch --all
 chmod +x run.sh
 ```
 
-### Step 10: Setup Python Environment
+### Step 9: Setup Python Environment
 
 ```bash
 # Create virtual environment
@@ -275,7 +329,7 @@ source .venv/bin/activate  # Linux/macOS
 pip install aws-cdk-lib==2.215.0 constructs boto3
 ```
 
-### Step 11: Configure cdk.json
+### Step 10: Configure cdk.json
 
 Edit `cdk.json` and add to the `context` section:
 
@@ -294,11 +348,12 @@ Edit `cdk.json` and add to the `context` section:
 
 ## 🔧 Data Engineering
 
-![Data Engineering Architecture](./images/data_engineering_architecture.png)
 
 ### Overview
 
 The data engineering pipeline simulates a real-world scenario where flight data streams in real-time from EC2 instances, gets processed hourly by Glue ETL jobs, and is made available for analytics through Redshift Serverless with Spectrum integration.
+
+![Data Engineering Architecture](./_images/de_pipeline.png)
 
 **Data Flow:**
 1. **EC2** → Kinesis Data Streams → Firehose → **S3 (Raw Data Lake)**
@@ -321,13 +376,15 @@ The data engineering pipeline simulates a real-world scenario where flight data 
 
 | Variable | Description |
 |----------|-------------|
-| `year`, `month`, `day` | Date components (all 2022) |
+| `year`, `month`, `day`, `hour`, `minute` | Date components (all 2022) |
 | `dep_time`, `sched_dep_time` | Actual and scheduled departure |
-| `dep_delay`, `arr_delay` | Delay in minutes |
+| `arr_time`, `sched_arr_time`| Actual and scheduled arrival |
+| `dep_delay (target)`, `arr_delay` | Delay in minutes |
 | `carrier`, `airline` | Airline code and full name |
 | `flight`, `tailnum` | Flight number and aircraft ID |
 | `origin`, `dest` | Departure and arrival airports |
 | `air_time`, `distance` | Flight duration and distance |
+| `route`| Flight route |
 | `temp`, `dewp`, `humid` | Temperature, dew point, humidity |
 | `wind_dir`, `wind_speed`, `wind_gust` | Wind measurements |
 | `precip`, `pressure`, `visib` | Precipitation, pressure, visibility |
