@@ -85,7 +85,6 @@ This is how modern data teams actually work together—not in silos, but as an i
 ```
 
 
-
 ![CDK Pipeline](./images/cdk_pipeline.png)
 
 ---
@@ -141,7 +140,8 @@ This is how modern data teams actually work together—not in silos, but as an i
 - ✅ **DynamoDB** with TTL (1-hour automatic cleanup)
 - ✅ **DynamoDB Streams** → WebSocket for real-time frontend updates
 - ✅ **DynamoDB GSI** for optimized time-based queries for Multi-Agent LLM System
-- ✅ **JWT Token Refresh** mechanism (1h access, 24h refresh)
+- ✅ **JWT refresh mechanism** (1h access token, 24h refresh token) stored in **HttpOnly cookies** for security.
+
 
 ### Multi-Agent LLM System
 **Intelligent chatbot with Bedrock Agent Core**
@@ -470,7 +470,13 @@ The streaming infrastructure, including Amazon Kinesis Data Streams, Kinesis Fir
 make destroy env=de
 ```
 
-**⚠️ Manual Cleanup:** If CloudFormation stack deletion fails, go to AWS Console → CloudFormation, and delete stacks manually. If needed, create a new IAM role with CloudFormation permissions and retry.
+**⚠️ Manual Cleanup:** If CloudFormation stack deletion fails due to a missing IAM role, follow these steps:
+
+1. Copy the name of the missing IAM role from the error message.
+2. Go to the **AWS Console → IAM** and create or update the role with **AdministratorAccess** permissions.
+3. Attach the role to **CloudFormation**.
+4. Retry deleting the stack in **CloudFormation**.
+
 
 ---
 
@@ -610,7 +616,12 @@ When SageMaker Pipeline completes successfully, MLOps team receives email with:
 make destroy env=ds
 ```
 
-**⚠️ Manual Cleanup:** Delete SageMaker Pipeline from console if needed. Empty S3 buckets before deletion.
+**⚠️ Manual Cleanup:** If CloudFormation stack deletion fails due to a missing IAM role, follow these steps:
+
+1. Copy the name of the missing IAM role from the error message.
+2. Go to the **AWS Console → IAM** and create or update the role with **AdministratorAccess** permissions.
+3. Attach the role to **CloudFormation**.
+4. Retry deleting the stack in **CloudFormation**.
 
 ---
 
@@ -852,7 +863,12 @@ python prod_load_test.py
 make destroy env=mlops
 ```
 
-**⚠️ Manual Cleanup:** Delete SageMaker endpoints manually from console. Delete model monitoring schedules. Empty S3 buckets.
+**⚠️ Manual Cleanup:** If CloudFormation stack deletion fails due to a missing IAM role, follow these steps:
+
+1. Copy the name of the missing IAM role from the error message.
+2. Go to the **AWS Console → IAM** and create or update the role with **AdministratorAccess** permissions.
+3. Attach the role to **CloudFormation**.
+4. Retry deleting the stack in **CloudFormation**.
 
 ---
 
@@ -1057,20 +1073,6 @@ default_cors_preflight_options=apigw.CorsOptions(
 ),
 ```
 
-**What Gets Created:**
-- S3 bucket for static hosting
-- CloudFront distribution
-- Cognito User Pool and App Client
-- API Gateway REST API
-- API Gateway WebSocket API
-- 10+ Lambda functions
-- 3 DynamoDB tables
-- 3 Kinesis streams
-- Kinesis Firehose
-- EC2 instance
-- SNS topic
-
-
 ### Email Notification
 
 When deployment completes, you receive email with:
@@ -1083,76 +1085,23 @@ When deployment completes, you receive email with:
 make destroy env=app
 ```
 
-**⚠️ Manual Cleanup:** Delete CloudFront distribution (takes 15-20 min). Empty S3 buckets before deletion. Delete Cognito users if needed.
+**⚠️ Manual Cleanup:** If CloudFormation stack deletion fails due to a missing IAM role, follow these steps:
+
+1. Copy the name of the missing IAM role from the error message.
+2. Go to the **AWS Console → IAM** and create or update the role with **AdministratorAccess** permissions.
+3. Attach the role to **CloudFormation**.
+4. Retry deleting the stack in **CloudFormation**.
 
 ---
 
 ## 🤖 Multi-Agent LLM
 
-![Multi-Agent LLM Architecture](./images/multi_agent_llm_architecture.png)
 
 ### Overview
 
 The multi-agent LLM system provides an intelligent chatbot that can answer questions about the project and query real-time flight statistics using Amazon Bedrock Agent Core Starter Toolkit and OpenAI.
 
-**Capabilities:**
-1. **Project Documentation Q&A** - Uses OpenAI vector store with project README
-2. **Real-Time Flight Statistics** - Queries DynamoDB for live flight data
-
-**Sample Questions:**
-- "How does the MLOps pipeline work?"
-- "What is the average delay for Alaska Airlines?"
-- "How many flights are there from PDX to ORD?"
-- "What are the weather conditions for the SEA→SFO route?"
-
-**Key Features:**
-
-| Feature | Description |
-|---------|-------------|
-| **Session Management** | Backend creates session on login with timestamp |
-| **Rate Limiting** | 20 requests per minute per user |
-| **Token-Session Sync** | 1-hour TTL, auto-extends on activity |
-| **Multi-Agent System** | Supervisor routes to Project Info or Flight Data agents |
-| **DynamoDB GSI** | FlightsByTime index for optimized queries |
-| **Pandas Filtering** | In-memory statistical computations |
-| **Logout Cleanup** | Session deletion + token revocation |
-
-**Agent Architecture:**
-
-```
-User Question
-     ↓
-Supervisor Agent (Bedrock Agent Core)
-     ↓
-   Routes to:
-     ├─→ Project Info Agent (OpenAI Vector Store)
-     │   • Searches project documentation
-     │   • Returns relevant sections
-     │
-     └─→ Flight Data Agent (DynamoDB + Pandas)
-         • Queries DynamoDB with GSI
-         • Filters by session timestamp
-         • Performs statistical analysis
-```
-
-**Session-Based Data Access:**
-
-When a user logs in:
-1. Backend creates `session_id` and stores `timestamp`
-2. EC2 adds `partition_key="FLIGHTS"` and `timestamp` to each flight record
-3. When user asks about flights, agent queries:
-   ```python
-   # DynamoDB GSI Query
-   response = dynamodb.query(
-       IndexName='FlightsByTime',
-       KeyConditionExpression='partition_key = :pk AND timestamp >= :ts',
-       ExpressionAttributeValues={
-           ':pk': 'FLIGHTS',
-           ':ts': session_timestamp  # Only flights since login
-       }
-   )
-   ```
-4. Result: User only sees flights from their session (isolated data)
+![Multi-Agent LLM Architecture](./_images/llm_pipeline.png)
 
 ### Project Structure
 
@@ -1173,7 +1122,6 @@ multi_agent_llm/
 │   ├── test_flight_multi_agent.py
 │   └── utils/
 │       ├── create_openai_vector_store.py
-│       ├── load_flight_data.py
 │       └── load_flight_data_dynamodb.py
 ├── data/
 │   └── README.md
@@ -1182,6 +1130,118 @@ multi_agent_llm/
 └── lambda_funcs/
     └── backup/
 ```
+
+**Capabilities:**
+1. **Project Documentation Q&A** - Uses OpenAI vector store with project README
+2. **Real-Time Flight Statistics** - Queries DynamoDB for live flight data
+
+**Key Features:**
+
+| Feature | Description |
+|---------|-------------|
+| **Session Management** | Backend creates session in **DynamoDB** on login with timestamp |
+| **Rate Limiting** | 20 requests per minute per user |
+| **Token-Session Sync** | 1-hour TTL, auto-extends on activity |
+| **Multi-Agent System** | Supervisor routes to Project Info or Flight Data agents |
+| **DynamoDB GSI** | FlightsByTime index for optimized queries |
+| **Pandas Filtering** | In-memory statistical computations |
+| **Logout Cleanup** | Session deletion + token revocation |
+| **Guardrail** | Redirects conversations about Kanıt Vural to [kanitvural.com](https://kanitvural.com) |
+
+**Agent Architecture:**
+
+```
+User Question
+     ↓
+Supervisor Agent (Bedrock Agent Core)
+     ↓
+   Routes to:
+     ├─→ Project Info Agent (OpenAI Vector Store)
+     │   • Searches project documentation
+     │   • Returns relevant sections
+     │
+     └─→ Flight Data Agent (DynamoDB + Pandas)
+         • Queries DynamoDB with GSI
+         • Filters by session timestamp
+         • Performs statistical analysis
+```
+
+## Flight Data Agent Tool – Additional Information
+
+When a user logs in:
+
+1. **Session Initialization:**
+   - Backend creates `session_id` and stores initial `timestamp`
+   - `last_activity` is set to the same timestamp as session creation
+
+2. **Data Ingestion:**
+   - EC2 adds `partition_key="FLIGHTS"` and `timestamp` to each flight record in the streaming data
+
+3. **User Interaction & Activity Tracking:**
+   - When user submits a prompt, `last_activity` is updated to the current timestamp
+   - Both `session_timestamp` (start) and `last_activity` (end) are passed to the agent's tool
+
+4. **Query Execution:**
+   - Agent queries DynamoDB using the session's time window:
+```python
+   # DynamoDB GSI Query
+   response = dynamodb_client.query(
+       TableName='raw-flights',
+       IndexName='FlightsByTime',
+       KeyConditionExpression='data_type = :pk AND #ts BETWEEN :start AND :end',
+       ExpressionAttributeNames={'#ts': 'timestamp'},
+       ExpressionAttributeValues={
+           ':pk': {'S': 'FLIGHTS'},
+           ':start': {'N': str(session_timestamp)},  # User's login time
+           ':end': {'N': str(last_activity)}  # Current prompt time
+       }
+   )
+```
+
+5. **Data Processing & Filtering:**
+```python
+   items = response.get('Items', [])
+   logger.info(f"✅ Retrieved {len(items)} items from DynamoDB")
+   
+   if not items:
+       logger.warning("⚠️  No items found in time window")
+       return pd.DataFrame()
+   
+   # Parse DynamoDB items to Python dict
+   parsed_items = []
+   for item in items:
+       parsed = {}
+       for key, value in item.items():
+           if 'S' in value:
+               parsed[key] = value['S']
+           elif 'N' in value:
+               parsed[key] = float(value['N'])
+           elif 'NULL' in value:
+               parsed[key] = None
+       parsed_items.append(parsed)
+   
+   # Create DataFrame
+   df = pd.DataFrame(parsed_items)
+   
+   # ✅ Filter only predicted flights (dep_delay is not NULL)
+   df_predicted = df[df['dep_delay'].notna()]
+   logger.info(f"📊 After filtering predicted flights: {len(df_predicted)} records (filtered out {len(df) - len(df_predicted)} unpredicted)")
+   
+   return df_predicted
+```
+
+6. **Result:** 
+   - User only sees flights from their session window (isolated data)
+   - Query filters streaming data precisely between login and current activity timestamps
+
+
+### Benefits
+
+- **Data Isolation:** Each user session queries only its relevant time window
+- **Real-time Access:** Users can query streaming data as it arrives
+- **Efficient Queries:** Time-based filtering reduces DynamoDB scan costs
+- **Session Continuity:** All prompts within a session access cumulative data from login time
+- **Hybrid Query System:** Hybrid DynamoDB-Pandas approach enables sophisticated data filtering without complex NoSQL syntax
 
 ### Local Testing
 
@@ -1249,24 +1309,20 @@ make deploy env=llm
 
 **Deployment Time:** ~20-30 minutes
 
-**What Gets Created:**
-- ECR repository for agent container
-- Bedrock Agent Core configuration
-- Lambda functions
-- S3 bucket
-- IAM roles
-- CloudWatch logs
-- SNS topic
+### Monitoring
+
+`AWS Console Home > CloudWatch > GenAI Observability`  
+
+Here, agents can be monitored via **Bedrock Agent Core**.
+
+![Multi-Agent LLM Deployment Email](./_images/bedrock_monitoring.png)
+
 
 ### Email Notification
 
-![Multi-Agent LLM Deployment Email](./images/llm_deployment_email.png)
-
 When deployment completes, you receive email with:
-- Bedrock Agent endpoint ARN
-- OpenAI vector store ID
-- Agent configuration details
-- Deployment timestamp
+
+![Multi-Agent LLM Deployment Email](./_images/llm_sns_notification.png)
 
 ### Cleanup
 
@@ -1274,16 +1330,21 @@ When deployment completes, you receive email with:
 make destroy env=llm
 ```
 
-**⚠️ Manual Cleanup:** 
-- Delete Bedrock Agent from AWS Console → Bedrock → Agents
-- Delete Agent memory/sessions manually
-- Delete Agent endpoint configuration
-- Empty S3 buckets
-- Delete OpenAI vector store (if no longer needed)
+**⚠️ Manual Cleanup:** If CloudFormation stack deletion fails due to a missing IAM role, follow these steps:
+
+1. Copy the name of the missing IAM role from the error message.
+2. Go to the **AWS Console → IAM** and create or update the role with **AdministratorAccess** permissions.
+3. Attach the role to **CloudFormation**.
+4. Retry deleting the stack in **CloudFormation**.
+5. To manually delete the Bedrock Agent Core resources:
+   - Go to **AWS Console → Amazon Bedrock Agent Core → Agent Runtime** and delete the `flight_multi_agent` endpoint.
+   - Go to **AWS Console → Amazon Bedrock Agent Core → Memory** and delete the `flight_multi_agent_memory`.
+   - Empty S3 buckets and delete
+   - Delete OpenAI vector store (if no longer needed)
 
 ---
 
-## 🧹 Cleanup
+## 🧹 General Cleanup Order
 
 ### Component-by-Component Cleanup
 
@@ -1295,42 +1356,6 @@ make destroy env=llm
 4. Data Science
 5. Data Engineering
 
-### Cleanup Commands
-
-**Multi-Agent LLM:**
-```bash
-git switch llm
-make destroy env=llm
-```
-Manual: Delete Bedrock Agent, memory, endpoint from console
-
-**Web Application:**
-```bash
-git switch app
-make destroy env=app
-```
-Manual: Delete CloudFront distribution (15-20 min), empty S3 buckets
-
-**MLOps:**
-```bash
-git switch mlops
-make destroy env=mlops
-```
-Manual: Delete SageMaker endpoints, monitoring schedules, empty S3 buckets
-
-**Data Science:**
-```bash
-git switch datascience
-make destroy env=ds
-```
-Manual: Delete SageMaker Pipeline, empty S3 buckets, delete ECR images
-
-**Data Engineering:**
-```bash
-git switch dataengineering
-make destroy env=de
-```
-Manual: Empty S3 buckets, delete Glue Database, terminate EC2 if running
 
 ### Verification
 
