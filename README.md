@@ -29,7 +29,7 @@
 - [Data Engineering](#-data-engineering)
 - [Data Science](#-data-science)
 - [MLOps](#-mlops)
-- [Web Application](#-web-application)
+- [Full-Stack Web Application](#-full-stack-web-application)
 - [Multi-Agent LLM](#-multi-agent-llm)
 - [Cleanup](#-cleanup)
 - [License](#-license)
@@ -856,36 +856,60 @@ make destroy env=mlops
 
 ---
 
-## 🌐 Web Application
-
-![Web App Architecture](./images/web_app_architecture.png)
+## 🌐 Full-Stack Web Application
 
 ### Overview
 
 The web application provides a modern, serverless interface for real-time flight predictions and monitoring. It demonstrates how to build cost-effective, scalable applications using AWS serverless services.
 
-**Architecture:**
-1. **Data Flow:** EC2 sends corrupted test data → Kinesis → Lambda (preprocess) → SageMaker endpoint
-2. **Dual Write:** Raw data goes to both DynamoDB and Kinesis
-3. **Real-Time Processing:** Lambda processes data, invokes endpoint, captures predictions
-4. **Storage:** Predictions stored in DynamoDB (TTL: 1 hour) and S3 (via Firehose)
-5. **Live Updates:** DynamoDB Streams → WebSocket API → Frontend dashboard
-6. **Frontend:** Next.js 15 SSG hosted on S3 + CloudFront
-7. **Authentication:** Cognito with HTTP-only cookies (1h access token, 24h refresh token)
+### System Architecture Overview — Consists of 3 Core Components
 
-**Why Serverless for Startups:**
+### 1. EC2 Data Simulator, Real-Time Prediction & API Gateway WebSocket
 
-✅ **Advantages:**
-- Pay-per-request (very low fixed costs)
-- Auto-scales automatically
-- No server management
-- Global CDN with CloudFront
+A Python-based **data simulator** running on **Amazon EC2** generates streaming data using a statistically corrupted test dataset to simulate **data drift** in production. Following **loose coupling architecture principles**, data flows through Amazon Kinesis streams:
 
-❌ **Disadvantages (at scale):**
-- Becomes expensive at millions of requests/day
-- Cold starts can add latency
+- Raw flight data is published to **Kinesis Raw Stream**
+- A Lambda function performs **real-time processing** → **Kinesis Processed Stream**
+- Another Lambda performs **real-time inference** using the **SageMaker Production Endpoint** → **Kinesis Predicted Stream**
+- Predictions are delivered to Amazon S3 `mlops` bucket via **Kinesis Firehose** (partitioned format)
+- A scheduled Python script converts streamed data to CSV and stores it in the **Data Science S3 bucket** to **trigger the retraining pipeline**
 
-**Migration Strategy:** When traffic exceeds 100K requests/day, migrate to **ECS Fargate** or **EKS** for 70% cost reduction.
+In parallel:
+
+- Data is written to **DynamoDB Raw Table** with `dep_delay` initially set to `NULL`
+- After real-time prediction, a Lambda updates the record with prediction results
+- **DynamoDB Streams** send updates to **API Gateway WebSocket**
+- Real-time updates are displayed on the **Flight Dashboard frontend**
+- Outdated data is automatically removed using **DynamoDB TTL (1 hour expiry)**
+
+---
+
+### 2. API Gateway REST API, DynamoDB Sessions, Cognito User Pools & Secure Authentication
+
+- Users register and log in through **Amazon Cognito User Pools**
+- **HttpOnly secure cookies** are used for authentication to prevent token access from JavaScript
+- Architecture uses **1-hour access tokens + 24-hour refresh tokens**
+- **API Gateway REST API** protects backend services via Lambda authorizers
+- Fully serverless and secure authentication and authorization architecture
+- This REST API is also used by the **Multi-Agent LLM system**. The `/chat` and `/history` endpoints communicate with the **Amazon Bedrock Agent Core** endpoint, enabling AI-powered interaction within the platform.
+- For **history and session management**, when a user logs in, a new session record is created in **DynamoDB Sessions** with the login timestamp. When the user logs out, the session is deleted. If the user closes the application without logging out, the session is automatically removed after **1 hour** using **TTL (Time To Live)**.
+
+---
+
+### 3. Next.js Frontend with S3 + CloudFront Deployment
+
+- Built using **Next.js 15** with:
+  - Modern authentication UI
+  - **Live Flight Delay Monitoring Dashboard**
+  - Integrated **AI-powered chatbot**
+- Deployed using **Static Site Generation (SSG)** to **Amazon S3**
+- Distributed globally and securely using **Amazon CloudFront CDN**
+- Deployed automatically with **AWS CodeBuild** → static files uploaded to S3
+
+---
+
+
+![Web App Architecture](./images/web_app_architecture.png)
 
 ### Project Structure
 
@@ -950,7 +974,46 @@ project_app/
     └── README.md
 ```
 
-### Local Development
+**Workflow:**
+1. **Data Flow:** EC2 sends corrupted test data → Kinesis → Lambda (preprocess) → SageMaker endpoint
+2. **Dual Write:** Raw data goes to both DynamoDB and Kinesis
+3. **Real-Time Processing:** Lambda processes data, invokes endpoint, captures predictions
+4. **Storage:** Predictions stored in DynamoDB (TTL: 1 hour) and S3 (via Firehose)
+5. **Live Updates:** DynamoDB Streams → WebSocket API → Frontend dashboard
+6. **Frontend:** Next.js 15 SSG hosted on S3 + CloudFront
+7. **Authentication:** Cognito with HTTP-only cookies (1h access token, 24h refresh token)
+
+**Why Serverless for Startups:**
+
+✅ **Advantages:**
+- Pay-per-request (very low fixed costs)
+- Auto-scales automatically
+- No server management
+- Global CDN with CloudFront
+
+❌ **Disadvantages (at scale):**
+- Becomes expensive at millions of requests/day
+- Cold starts can add latency
+
+**Migration Strategy:** When traffic exceeds 100K requests/day, migrate to **ECS Fargate** or **EKS** for 70% cost reduction.
+
+### Deployment
+
+```bash
+git switch app
+make bootstrap env=app
+make deploy env=app
+```
+
+**Deployment Time:** ~35-45 minutes
+
+**Next.js Build:**
+- CodeBuild runs `npm run build`
+- Static files uploaded to S3
+- CloudFront cache invalidated
+
+
+### Local Test & Development
 
 **Generate Environment Variables:**
 ```bash
@@ -994,16 +1057,6 @@ default_cors_preflight_options=apigw.CorsOptions(
 ),
 ```
 
-### Deployment
-
-```bash
-git switch app
-make bootstrap env=app
-make deploy env=app
-```
-
-**Deployment Time:** ~35-45 minutes
-
 **What Gets Created:**
 - S3 bucket for static hosting
 - CloudFront distribution
@@ -1017,20 +1070,12 @@ make deploy env=app
 - EC2 instance
 - SNS topic
 
-**Next.js Build:**
-- CodeBuild runs `npm run build`
-- Static files uploaded to S3
-- CloudFront cache invalidated
 
 ### Email Notification
 
-![Web App Deployment Email](./images/web_app_deployment_email.png)
-
 When deployment completes, you receive email with:
-- CloudFront distribution URL
-- API Gateway endpoints
-- Cognito User Pool ID
-- Deployment timestamp
+
+![Web App Deployment Email](./_images/project_app_notification.png)
 
 ### Cleanup
 
