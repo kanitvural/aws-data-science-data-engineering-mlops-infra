@@ -351,9 +351,37 @@ Edit `cdk.json` and add to the `context` section:
 
 ### Overview
 
-The data engineering pipeline simulates a real-world scenario where flight data streams in real-time from EC2 instances, gets processed hourly by Glue ETL jobs, and is made available for analytics through Redshift Serverless with Spectrum integration.
+The data engineering pipeline simulates a real-world scenario where historical flight data obtained from Kaggle is streamed from EC2 instances using a Python data simulator script, processed hourly by AWS Glue ETL jobs, and cataloged by AWS Glue Crawler to build a centralized metadata database. This metadata enables seamless SQL analytics through Amazon Athena and Redshift Spectrum, while clean and queryable data is exposed through Redshift Serverless for downstream use. As a result, data analysts can connect to the system using Power BI for business insights, and data scientists can sample data directly from the data lake to develop machine learning models.
 
 ![Data Engineering Architecture](./_images/de_pipeline.png)
+
+### Project Structure
+
+```
+data_engineering/
+├── cdk_pipeline/
+│   ├── cdk_data_engineering_pipeline.py
+│   ├── data_engineering_stage.py
+│   ├── ec2_stage.py
+│   └── monitoring_stage.py
+├── stacks/
+│   ├── vpc_stack.py
+│   ├── s3_stack.py
+│   ├── kinesis_stack.py
+│   ├── glue_stack.py
+│   ├── redshift_stack.py
+│   ├── ec2_stack.py
+│   ├── monitoring_stack.py
+│   └── sns_stack.py
+├── lambda_funcs/
+│   ├── setup_redshift_spectrum/
+│   ├── start_crawler/
+│   └── trigger_etl_job/
+├── scripts/
+│   └── spark_etl_job.py
+└── data/
+    └── flights_weather2022.csv
+```
 
 **Data Flow:**
 1. **EC2** → Kinesis Data Streams → Firehose → **S3 (Raw Data Lake)**
@@ -389,33 +417,6 @@ The data engineering pipeline simulates a real-world scenario where flight data 
 | `wind_dir`, `wind_speed`, `wind_gust` | Wind measurements |
 | `precip`, `pressure`, `visib` | Precipitation, pressure, visibility |
 
-### Project Structure
-
-```
-data_engineering/
-├── cdk_pipeline/
-│   ├── cdk_data_engineering_pipeline.py
-│   ├── data_engineering_stage.py
-│   ├── ec2_stage.py
-│   └── monitoring_stage.py
-├── stacks/
-│   ├── vpc_stack.py
-│   ├── s3_stack.py
-│   ├── kinesis_stack.py
-│   ├── glue_stack.py
-│   ├── redshift_stack.py
-│   ├── ec2_stack.py
-│   ├── monitoring_stack.py
-│   └── sns_stack.py
-├── lambda_funcs/
-│   ├── setup_redshift_spectrum/
-│   ├── start_crawler/
-│   └── trigger_etl_job/
-├── scripts/
-│   └── spark_etl_job.py
-└── data/
-    └── flights_weather2022.csv
-```
 
 ### Deployment
 
@@ -435,28 +436,33 @@ make deploy env=de
 1. Open Power BI Desktop
 2. Get Data → Amazon Redshift
 3. Server: `<redshift-workgroup-endpoint>`
-4. Database: `dev`
-5. Table: `spectrum_schema.flights_weather_parquet`
+4. Database: `flightdb`
+5. Username: `admin`
+6. Password: `<secret-manager-password>`
+7. Table: `flightdb.spectrum.flight_events`
+8. Use `DirectQuery` mode
 
 ### Monitoring
 
-![CloudWatch Dashboard](./images/data_engineering_monitoring.png)
+The streaming infrastructure, including Amazon Kinesis Data Streams, Kinesis Firehose, EC2, and Redshift Serverless, is continuously monitored through a custom Amazon CloudWatch dashboard to ensure system reliability and real-time observability.
+
+![CloudWatch Dashboard](./_images/data_engineering_dashboard.png)
 
 **Key Metrics:**
-- Kinesis: IncomingRecords, IncomingBytes
-- Firehose: DeliverySuccess
-- Glue Job: Execution time, Success rate
-- Redshift: Query performance
+- Kinesis: IncomingRecords
+- Firehose: DeliveryToS3Records, DeliveryToS3DataFreshness
+- EC2: CPUUtilization, NetworkOut
+- Redshift: ComputeCapacity
 
 ### Email Notification
 
-![ETL Completion Email](./images/data_engineering_sns_email.png)
+- When Glue ETL job completes, data science team receives email with:
 
-When Glue ETL job completes, data science team receives email with:
-- Job execution time
-- Records processed
-- Output S3 location
-- Data Catalog table updated
+![ETL Completion Email](./_images/data_engineer_etl_job_mail.png)
+
+- When Redshift Serverless deployment completes, data analytics team receives email with:
+
+![ETL Completion Email](./_images/de_redshift_mail.png)
 
 ### Cleanup
 
@@ -470,44 +476,12 @@ make destroy env=de
 
 ## 🧪 Data Science
 
-![Data Science Architecture](./images/data_science_architecture.png)
 
 ### Overview
 
 The data science pipeline automates the entire ML workflow—from data sampling to model training—using SageMaker Pipelines. The pipeline uses a **Bring Your Own Container** approach with a custom XGBoost training Docker image.
 
-**Pipeline Flow:**
-1. **Data Scientist** runs Athena SQL query for stratified sampling
-2. **SageMaker Processing Job** performs feature engineering and train/val/test split
-3. **SageMaker Clarify** analyzes pre-training bias (runs in parallel)
-4. **Hyperparameter Tuning Job** finds optimal XGBoost parameters
-5. **Final Training Job** uses best params on combined train+val data
-6. **Conditional Step** checks if RMSE < 15
-7. **Save Final Model** to S3 (only if RMSE threshold met)
-8. **SNS Notification** alerts MLOps team
-
-### ML Problem
-
-**Objective:** Predict flight departure delay (`dep_delay`) in minutes
-
-**Model:** XGBoost Regression
-
-**Features:** 28 input features (temporal, flight details, weather conditions)
-
-**Success Criteria:** RMSE < 15 minutes
-
-### Jupyter Notebook
-
-All exploratory data analysis and model prototyping:
-
-📓 **[data_science/notebook/flights_experiments.ipynb](./data_science/notebook/flights_experiments.ipynb)**
-
-This notebook includes:
-- Data exploration and visualization
-- Feature engineering experiments
-- Baseline model development
-- XGBoost hyperparameter testing
-- Feature importance analysis
+![Data Science Architecture](./_images/ds_pipeline.png)
 
 ### Project Structure
 
@@ -550,6 +524,42 @@ data_science/
         └── analysis.json
 ```
 
+**Pipeline Flow:**
+1. **Data Scientist** runs Athena SQL query for stratified sampling
+2. **SageMaker Processing Job** performs feature engineering and train/val/test split
+3. **SageMaker Clarify** analyzes pre-training bias (runs in parallel)
+4. **Hyperparameter Tuning Job** finds optimal XGBoost parameters
+5. **Final Training Job** uses best params on combined train+val data
+6. **Conditional Step** checks if RMSE < 15
+7. **Save Final Model** to S3 (only if RMSE threshold met)
+8. **SNS Notification** alerts MLOps team
+
+![Sagemaker Pipeline](./_images/sagemaker_pipeline.png)
+
+### ML Problem
+
+**Objective:** Predict flight departure delay (`dep_delay`) in minutes
+
+**Model:** XGBoost Regression
+
+**Features:** 28 input features (temporal, flight details, weather conditions)
+
+**Success Criteria:** RMSE < 15 minutes
+
+### Jupyter Notebook
+
+All exploratory data analysis and model prototyping:
+
+📓 **[data_science/notebook/flights_experiments.ipynb](./data_science/notebook/flights_experiments.ipynb)**
+
+This notebook includes:
+- Data exploration and visualization
+- Feature engineering experiments
+- Baseline model development
+- XGBoost hyperparameter testing
+- Feature importance analysis
+
+
 ### Local Container Testing
 
 ```bash
@@ -589,13 +599,10 @@ make deploy env=ds
 
 ### Email Notification
 
-![Pipeline Completion Email](./images/data_science_sns_email.png)
-
 When SageMaker Pipeline completes successfully, MLOps team receives email with:
-- Pipeline execution ARN
-- Final model S3 location
-- RMSE score
-- Timestamp
+
+![Pipeline Completion Email](./_images/ds_sns.png)
+
 
 ### Cleanup
 
