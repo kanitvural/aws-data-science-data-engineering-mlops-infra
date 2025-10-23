@@ -66,6 +66,10 @@ This is how modern data teams actually work together—not in silos, but as an i
 - 💰 **Cost-Optimized**: Serverless-first architecture
 - 👥 **Cross-Functional Collaboration**: See how 6 different roles work together in one project
 
+### 💡 About This Project
+
+This comprehensive AWS infrastructure project was designed and developed by **Kanit Vural** to provide a complete solution for data science, data engineering, and MLOps workflows on AWS. It combines best practices in cloud architecture, automation, and scalability — serving as a reusable reference for real-world, production-grade data platforms.
+
 ### Project Structure Overview
 
 ```
