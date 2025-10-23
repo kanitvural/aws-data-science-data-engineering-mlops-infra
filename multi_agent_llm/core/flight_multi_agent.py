@@ -131,7 +131,7 @@ guardrail_agent = Agent(
     ),
     output_type=GuardOutput,
     model_settings=ModelSettings(
-        model_name="gpt-4o-mini",
+        model_name="gpt-4.1-mini",
         temperature=0
     )
 )
@@ -338,7 +338,7 @@ NOTE: The session time window is automatically handled by the system. You don't 
 All queries are scoped to the user's current session (from login to now).
 """,
     tools=[query_flight_data],
-    model_settings=ModelSettings(model_name="gpt-4o-mini", temperature=0)
+    model_settings=ModelSettings(model_name="gpt-4.1-mini", temperature=0)
 )
 
 
@@ -373,7 +373,7 @@ project_info_agent = Agent[SessionContext](
     ),
     tools=[file_search],
     model_settings=ModelSettings(
-        model_name="gpt-4o-mini",
+        model_name="gpt-4.1-mini",
         temperature=0
     )
 )
@@ -420,7 +420,7 @@ REMEMBER: Your ONLY job is routing. Always use handoffs. Never answer directly.
 """,
     handoffs=[flight_data_agent, project_info_agent],
     input_guardrails=[kanit_guardrail], 
-    model_settings=ModelSettings(model_name="gpt-4o-mini", temperature=0)
+    model_settings=ModelSettings(model_name="gpt-4.1-mini", temperature=0)
 )
 
 
