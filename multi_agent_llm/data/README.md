@@ -68,7 +68,7 @@ This is how modern data teams actually work together—not in silos, but as an i
 
 ### 💡 About This Project
 
-This comprehensive AWS infrastructure project was designed and developed by **Kanit Vural** to provide a complete solution for data science, data engineering, and MLOps workflows on AWS. It combines best practices in cloud architecture, automation, and scalability — serving as a reusable reference for real-world, production-grade data platforms.
+This project was architected and developed by Kanit Vural as a complete, production-grade AWS data and AI platform. It unifies data engineering, analytics, machine learning, and MLOps using scalable cloud-native patterns and automation. The platform is designed not only as a real-world solution but also as a reusable reference architecture for modern data teams.
 
 ### Project Structure Overview
 
