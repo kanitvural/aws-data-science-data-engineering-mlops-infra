@@ -87,9 +87,9 @@ This project was architected and developed by Kanit Vural as a complete, product
 ├── 📄 requirements.txt                 
 └── 📄 README.md
 ```
+### Project Pipelines
 
-
-![CDK Pipeline](./images/cdk_pipeline.png)
+![CDK Pipeline](./_images/pipelines.png)
 
 ---
 
@@ -152,6 +152,7 @@ This project was architected and developed by Kanit Vural as a complete, product
 
 - ✅ **Project Documentation Q&A** using OpenAI vector store
 - ✅ **Real-Time Flight Statistics** agent tool queries from DynamoDB
+- ✅ **Content Filtering & Privacy Protection** with Guardrail agent handoff
 - ✅ **Session Management** with Cognito user isolation
 - ✅ **Rate Limiting** (20 requests/minute per user)
 - ✅ **Hybrid NoSQL + Pandas** querying strategy to simplify complex NoSQL queries
@@ -466,7 +467,7 @@ The streaming infrastructure, including Amazon Kinesis Data Streams, Kinesis Fir
 
 - When Redshift Serverless deployment completes, data analytics team receives email with:
 
-![ETL Completion Email](./_images/de_redshift_mail.png)
+![Redshift Serverless deployment completes](./_images/de_redshift_mail.png)
 
 ### Cleanup
 
@@ -642,7 +643,7 @@ To simulate data drift, data quality degradation, and the need for model retrain
 
 **⚠️ Note:** In this project, model monitoring, SHAP analysis, and retraining workflows require manual approval steps to prevent unnecessary system complexity during development. However, in a production environment, these three stages should be orchestrated as independent automated pipelines to support continuous delivery of ML improvements. The AWS CDK-based project structure is designed to easily support such extensions in future iterations.
 
-![MLOps Architecture](./images/mlops_architecture.png)
+![MLOps Architecture](./_images/mlops_pipeline.png)
 
 ### Project Structure
 
@@ -818,21 +819,19 @@ python prod_load_test.py
 
 ### Monitoring CloudWatch Metrics
 
-![MLOps Monitoring](./images/mlops_monitoring.png)
+![MLOps Monitoring](./_images/mlops_monitoring.png)
 
-**Check Endpoint Scaling:**
-1. Go to **SageMaker Console** → **Endpoints** → `mlops-prod-endpoint`
-2. **Settings** tab → observe **Instance Count**
-3. During load test, count increases (1 → 2 → 3)
-
-**Configure CloudWatch Metrics:**
+**CloudWatch Metrics:**
 1. Go to **CloudWatch** → **Dashboards** → `MLOps-Production-Dashboard`
-2. Configure metrics:
-   - `Invocations` → **Sum**
-   - `InvocationsPerInstance` → **Sum**
-   - `ModelLatency` → **Average**
-3. Set time period: **2 hours**
-4. Move `ModelLatency` to separate Y-axis
+
+Monitoring metrics:
+  - `Invocations` - Shows the total number of prediction requests made to the endpoint.
+  - `InvocationsPerInstance` - Measures the average number of requests processed per second by each instance.
+  - `InvocationErrors` - Tracks the total number of failed prediction requests and error rate.
+  - `ModelLatency` - Indicates the time taken by the model to complete a prediction in milliseconds.
+  - `CPUUtilization` - Monitors the CPU usage percentage of endpoint instances.
+  - `MemoryUtilization` - Tracks the memory usage percentage of endpoint instances.
+
 
 ### Email Notification
 
@@ -929,7 +928,7 @@ In parallel:
 ---
 
 
-![Web App Architecture](./images/web_app_architecture.png)
+![Web App Pipeline](./_images/app_pipeline.png)
 
 ### Project Structure
 
@@ -1083,6 +1082,18 @@ When deployment completes, you receive email with:
 
 ![Web App Deployment Email](./_images/project_app_notification.png)
 
+
+### Application Screenshots
+
+<p align="center">
+  <img src="./_images/app-1.png" width="45%" />
+  <img src="./_images/app-2.png" width="45%" />
+</p>
+
+![Feature 3](./_images/app-3.png)
+
+![Feature 4](./_images/app-4.png)
+
 ### Cleanup
 
 ```bash
@@ -1138,6 +1149,7 @@ multi_agent_llm/
 **Capabilities:**
 1. **Project Documentation Q&A** - Uses OpenAI vector store with project README
 2. **Real-Time Flight Statistics** - Queries DynamoDB for live flight data
+3. **Content Filtering & Privacy Protection** - Guardrail agent filters personal information requests and redirects to kanitvural.com
 
 **Key Features:**
 
@@ -1164,10 +1176,15 @@ Supervisor Agent (Bedrock Agent Core)
      │   • Searches project documentation
      │   • Returns relevant sections
      │
-     └─→ Flight Data Agent (DynamoDB + Pandas)
-         • Queries DynamoDB with GSI
-         • Filters by session timestamp
-         • Performs statistical analysis
+     ├─→ Flight Data Agent (DynamoDB + Pandas)
+     │   • Queries DynamoDB with GSI
+     │   • Filters by session timestamp
+     │   • Performs statistical analysis
+     │
+     └─→ Guardrail Agent (Content Filtering - Handoff)
+         • Filters personal information requests
+         • Redirects to: kanitvural.com
+         • Blocks unauthorized personal queries
 ```
 
 ## Flight Data Agent Tool – Additional Information
@@ -1319,14 +1336,14 @@ make deploy env=llm
 
 Here, agents can be monitored via **Bedrock Agent Core**.
 
-![Multi-Agent LLM Deployment Email](./_images/bedrock_monitoring.png)
+![Multi-Agent LLM Deployment Email](./_images/agentcore_cloudwatch.png)
 
 
 ### Email Notification
 
 When deployment completes, you receive email with:
 
-![Multi-Agent LLM Deployment Email](./_images/llm_sns_notification.png)
+![Multi-Agent LLM Deployment Email](./_images/multi_agent_notification.png)
 
 ### Cleanup
 
@@ -1387,6 +1404,21 @@ aws bedrock-agent list-agents
 ```
 
 **Estimated Total Cleanup Time:** 60-90 minutes
+
+### 🔧 Troubleshooting Cleanup Issues
+
+1. Copy the name of the missing IAM role from the error message.
+
+![Troubleshooting Cleanup Issues - 1](./_images/delete_failed.png)
+
+2. Go to the **AWS Console → IAM** and create or update the role with **AdministratorAccess** permissions.
+
+![Troubleshooting Cleanup Issues - 1](./_images/delate_failed2.png)
+![Troubleshooting Cleanup Issues - 1](./_images/delete_failed3.png)
+
+3. Retry deleting the stack in **CloudFormation**.
+
+
 
 ---
 
