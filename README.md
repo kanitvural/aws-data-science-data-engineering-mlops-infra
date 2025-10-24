@@ -759,7 +759,7 @@ This simulates the detection of drift and data quality issues and their correcti
 
 Model explainability analysis with SHAP values:
 
-📊 **[View SHAP Report (HTML)](./mlops/prod_endpoint_reports/shap/report.ipynb)** | **[Download PDF](./mlops/prod_endpoint_reports/shap/report.pdf)**
+📊 **[View SHAP Report](./mlops/prod_endpoint_reports/shap/report.ipynb)** | **[Download PDF](./mlops/prod_endpoint_reports/shap/report.pdf)**
 
 **Key insights:**
 - Top feature importance rankings
