@@ -586,7 +586,7 @@ This notebook includes:
 
 Pre-training bias analysis results are available here:
 
-📊 **[View Interactive Report (HTML)](./data_science/sm_clarify_analysis/clarify_pre_train/report.html)**
+📊 **[View Interactive Report (HTML)](./data_science/sm_clarify_analysis/clarify_pre_train/report.ipynb)**
 
 *Bias metrics analyzed: Class Imbalance, DPL, KL Divergence, etc.*
 
