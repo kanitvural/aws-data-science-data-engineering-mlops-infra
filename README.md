@@ -1447,7 +1447,7 @@ aws bedrock-agent list-agents
 ![Troubleshooting Cleanup Issues - 2](./_images/delete_failed2.png)
 ![Troubleshooting Cleanup Issues - 3](./_images/delete_failed3.png)
 
-1. Retry deleting the stack in **CloudFormation**.
+3. Retry deleting the stack in **CloudFormation**.
 
 
 
