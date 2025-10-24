@@ -1444,10 +1444,10 @@ aws bedrock-agent list-agents
 
 2. Go to the **AWS Console → IAM** and create or update the role with **AdministratorAccess** permissions.
 
-![Troubleshooting Cleanup Issues - 1](./_images/delate_failed2.png)
-![Troubleshooting Cleanup Issues - 1](./_images/delete_failed3.png)
+![Troubleshooting Cleanup Issues - 2](./_images/delete_failed2.png)
+![Troubleshooting Cleanup Issues - 3](./_images/delete_failed3.png)
 
-3. Retry deleting the stack in **CloudFormation**.
+1. Retry deleting the stack in **CloudFormation**.
 
 
 
