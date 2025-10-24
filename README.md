@@ -586,7 +586,7 @@ This notebook includes:
 
 Pre-training bias analysis results are available here:
 
-📊 **[View Interactive Report](./data_science/sm_clarify_analysis/clarify_pre_train/report.ipynb)**
+📊 **[View Bias Report (.ipynb)](./data_science/sm_clarify_analysis/clarify_pre_train/report.ipynb)** | **[View Bias Report (PDF)](./data_science/sm_clarify_analysis/clarify_pre_train/report.pdf)**
 
 *Bias metrics analyzed: Class Imbalance, DPL, KL Divergence, etc.*
 
@@ -759,7 +759,7 @@ This simulates the detection of drift and data quality issues and their correcti
 
 Model explainability analysis with SHAP values:
 
-📊 **[View SHAP Report](./mlops/prod_endpoint_reports/shap/report.ipynb)** | **[Download PDF](./mlops/prod_endpoint_reports/shap/report.pdf)**
+📊 **[View SHAP Report (.ipynb)](./mlops/prod_endpoint_reports/shap/report.ipynb)** | **[View SHAP Report (PDF)](./mlops/prod_endpoint_reports/shap/report.pdf)**
 
 **Key insights:**
 - Top feature importance rankings
