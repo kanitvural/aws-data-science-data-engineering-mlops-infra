@@ -17,6 +17,7 @@
 [![Power BI](https://img.shields.io/badge/Power%20BI-Latest-F2C811.svg)](https://powerbi.microsoft.com/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
+
 > **A production-ready AWS system integrating Data Engineering, Analytics, Data Science, MLOps, Web Applications, and Multi-Agent LLM, fully deployed with CDK self-mutating pipelines.**
 
 ---
@@ -36,6 +37,17 @@
 - [Contact](#-contact)
 
 ---
+
+## 🎥 Watch It In Action
+
+Want to see the entire platform in action? Watch the quick demo:
+
+[![Ultimate AWS Platform Demo](https://img.youtube.com/vi/eqc0p1wyRjE/maxresdefault.jpg)](https://youtu.be/eqc0p1wyRjE)
+
+**Click to watch:** Real-time data flow, ML predictions, web dashboard & AI chatbot in 2 minutes
+
+---
+
 
 ## 🎯 Introduction
 
