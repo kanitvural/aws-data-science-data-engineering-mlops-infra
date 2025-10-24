@@ -582,6 +582,14 @@ This notebook includes:
 - XGBoost hyperparameter testing
 - Feature importance analysis
 
+### SageMaker Clarify Bias Report
+
+Pre-training bias analysis results are available here:
+
+📊 **[View Interactive Report (HTML)](./data_science/sm_clarify_analysis/clarify_pre_train/report.html)**
+
+*Bias metrics analyzed: Class Imbalance, DPL, KL Divergence, etc.*
+
 
 ### Local Container Testing
 
