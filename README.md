@@ -40,7 +40,7 @@
 
 ## ✈️ What Does This Project Do?
 
-This platform **predicts flight departure delays** using an XGBoost machine learning model and displays real-time predictions on a modern web dashboard. Users can:
+This platform **predicts flight departure delays** using an XGBoost machine learning model and provides **interactive insights via a Multi-Agent LLM chatbot**, all displayed on a modern web dashboard. Users can:
 
 - 📊 View live flight delay predictions
 - 💬 Ask statistical questions via an intelligent chatbot
