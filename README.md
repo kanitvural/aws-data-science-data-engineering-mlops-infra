@@ -1532,4 +1532,8 @@ I offer consulting services for:
 
 **If you found this helpful, please ⭐ star the repository!**
 
+<a href="https://github.com/sponsors/kanitvural">
+  <img src="https://img.shields.io/badge/Sponsor-💖-ea4aaa?style=flat&logo=github-sponsors" />
+</a>
+
 </div>
