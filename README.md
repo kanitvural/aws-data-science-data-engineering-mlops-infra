@@ -1520,14 +1520,6 @@ I offer consulting services for:
 
 ---
 
-### ⭐ Found This Helpful?
-
-If this project helped you or your team:
-- 🌟 **Star this repository** on GitHub
-- 🔗 **Share it** on LinkedIn
-
----
-
 **Questions or Issues?**
 - 🐛 Report bugs: [GitHub Issues](https://github.com/kanitvural/aws-data-science-data-engineering-mlops-infra/issues)
 - 💬 Discussions: [GitHub Discussions](https://github.com/kanitvural/aws-data-science-data-engineering-mlops-infra/discussions)
