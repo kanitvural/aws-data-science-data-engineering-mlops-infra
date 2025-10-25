@@ -1507,6 +1507,27 @@ SOFTWARE.
 - 💼 LinkedIn: [https://www.linkedin.com/in/kanitvural/](https://www.linkedin.com/in/kanitvural/)
 - 📝 Medium: [https://medium.com/@kanitvural](https://medium.com/@kanitvural)
 
+### 💡 Need Help With Your AWS Infrastructure?
+
+I offer consulting services for:
+- 🏗️ AWS architecture design & review
+- 📊 Data platform implementation (Data Lake, Data Warehouse, ETL/ELT)
+- 🤖 MLOps & ML/DL model development (training, deployment, monitoring)
+- 📈 Data analytics & BI solutions
+- 🧠 LLM & multi-agent AI systems (RAG, automation, orchestration)
+
+**Let's build something amazing together!**
+
+---
+
+### ⭐ Found This Helpful?
+
+If this project helped you or your team:
+- 🌟 **Star this repository** on GitHub
+- 🔗 **Share it** on LinkedIn
+
+---
+
 **Questions or Issues?**
 - 🐛 Report bugs: [GitHub Issues](https://github.com/kanitvural/aws-data-science-data-engineering-mlops-infra/issues)
 - 💬 Discussions: [GitHub Discussions](https://github.com/kanitvural/aws-data-science-data-engineering-mlops-infra/discussions)
