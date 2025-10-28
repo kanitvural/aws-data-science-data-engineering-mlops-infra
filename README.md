@@ -479,7 +479,8 @@ make deploy env=de
 
 ### Power BI Dashboard
 
-The PBIX file for the Power BI dashboard is available [here]("https://github.com/kanitvural/aws-data-science-data-engineering-mlops-infra/raw/refs/heads/main/analytics/flights_project.pbix"). You can build a data model and leverage advanced DAX functions to perform more in-depth analyses.
+The PBIX file for the Power BI dashboard is available [here](https://github.com/kanitvural/aws-data-science-data-engineering-mlops-infra/raw/main/analytics/flights_project.pbix). You can build a data model and leverage advanced DAX functions to perform more in-depth analyses.
+
 
 ![Power BI Dashboard](./_images/powerbi_dashboard.png)
 
