@@ -462,7 +462,6 @@ make deploy env=de
 
 ### Power BI Integration
 
-![Power BI Dashboard](./images/powerbi_dashboard.png)
 
 **Connection Steps:**
 1. Open Power BI Desktop
@@ -473,6 +472,24 @@ make deploy env=de
 6. Password: `<secret-manager-password>`
 7. Table: `flightdb.spectrum.flight_events`
 8. Use `DirectQuery` mode
+
+
+<p style="text-align: left;">
+  <img src="./_images/powerbi_redshift_1.png" width="45%" />
+</p>
+
+
+<p align="left">
+  <img src="./_images/powerbi_redshift_2.png" width="45%" style="height:700px; object-fit:cover;" />
+  <img src="./_images/powerbi_redshift_3.png" width="45%" style="height:700px; object-fit:cover;" />
+</p>
+
+
+### Power BI Dashboard
+
+The PBIX file for the Power BI dashboard is available [here]("./analytics/flights_project.pbix"). You can build a data model and leverage advanced DAX functions to perform more in-depth analyses.
+
+![Power BI Dashboard](./_images/powerbi_dashboard.png)
 
 ### Monitoring
 
